@@ -21,15 +21,35 @@ but definetly it means something.
 
 ## Academic Research Systems
 
-Academic approaches focus on sophisticated computer vision techniques. A notable **Chinese Poker Self-Playing Robot** [^6] demonstrates card handling using TM5-900 robotic arm with custom suction mechanisms and YOLOv5 for card recognition. The system achieves card identification through object detection and employs greedy algorithms for strategic card selection [^6].
+A notable **Chinese Poker Self-Playing Robot** [^6] demonstrates card handling using robotic arm with custom suction 
+mechanisms and YOLOv5 for card recognition. The system achieves card identification through object detection and 
+employs greedy algorithms for strategic card selection.
 
 <br>
 
-#### By this point I am feeling that YOLO does not mean You Life Only Once and it seems pretty important.
+#### By this point I am feeling that YOLO does not mean You Live Only Once and it seems pretty important.
 
 <br>
 
-Research in **ID card verification** [^7] shows relevant methodologies, combining YOLOv8 for segmentation, ResNet-based classification with triplet margin loss and angular margin loss, and OCR technologies (Tesseract, EasyOCR, PaddleOCR). The system achieves 90% segmentation accuracy and demonstrates the effectiveness of metric learning approaches [^7].
+Research in **ID card verification** [^7] shows relevant methodologies, combining YOLOv8 for segmentation, ResNet-based 
+classification with triplet margin loss and angular margin loss, and OCR technologies (Tesseract, EasyOCR, PaddleOCR).
+The system achieves 90% segmentation accuracy and demonstrates the effectiveness of metric learning approaches.
+
+## Card-Specific Recognition Methods
+
+**Anthony Lowhur's Yu-Gi-Oh recognition system** [^8] achieves 99% accuracy on 10,000+ cards using Siamese networks, triplet loss, and keypoint matching for final reranking. The system combines deep learning with traditional computer vision techniques for robust recognition.
+
+<br>
+
+#### Finally something similar to our research:
+
+<br>
+
+**Pokémon card detection research** [^9] demonstrates real-time detection from tournament footage using artificially generated training datasets with lighting, occlusion, and holographic effect simulations. The approach uses YOLOv8 with custom preprocessing for card cropping and segmentation mask generation.
+
+## YOLO
+I have no idea what's YOLO, so I'll leave this here for now and read it later.
+- https://tooploox.com/image-detection-using-yolo-algorithm-and-poker-cards
 
 
 [^1]: https://www.carddealerpro.com
@@ -45,3 +65,7 @@ Research in **ID card verification** [^7] shows relevant methodologies, combinin
 [^6]: https://arxiv.org/html/2312.09455
 
 [^7]: https://repositum.tuwien.at/handle/20.500.12708/213271
+
+[^8]: https://pyimagesearch.com/2021/03/03/an-interview-with-anthony-lowhur-recognizing-10000-yugioh-cards-with-computer-vision-and-deep-learning/
+
+[^9]: https://cs231n.stanford.edu/2024/papers/real-time-pokemon-card-detection-from-tournament-footage.pdf
