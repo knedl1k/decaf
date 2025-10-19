@@ -42,7 +42,6 @@ def wgetDownload(
         return {"success": True, "message": "Download completed successfully."}
     except subprocess.CalledProcessError as e:
         return {"success": False, "message": f"Download failed: {e}"}
-    return None
 
 def parse():
     global source_json, dir_name
@@ -52,14 +51,12 @@ def parse():
     args = parser.parse_args()
     source_json = args.file
     dir_name = args.store
-    return None
 
 def downloadImage(image, name, id):
     try:
         wgetDownload(image, output_path=f"{dir_name}/{name}-{id}.png")
     except Exception as e:
         log.warning(id+": is sus-"+str(e))
-    return None
 
 def main():
     try:
@@ -71,34 +68,45 @@ def main():
 
     with open(source_json) as f:
         d = json.load(f)
+        # d = ijson.items(f, 'item')
         n = len(d)
-        for i in range(n):
-            id = d[i]['id']
+        for i, item in enumerate(d):
+            id = item['id']
 
-            if any(id in file.name for file in existing_files):
-                print(f"{id} already present!")
+            if any(id in file_name for file_name in existing_files):
+                # print(f"{id} already present!")
                 continue
 
-            if i%250 == 0: # naively try not to get banned
-                time.sleep(random.randint(SLEEP_MIN, SLEEP_MAX))
+            if item['image_status'] not in ['lowres', 'highres_scan']: # https://scryfall.com/docs/api/images
+                log.warning(f"{id}: exists and has no image.")
+                continue
 
-            name = d[i]['scryfall_uri'] \
+            if i%250 == 0 and i>0: # naively try not to get banned
+                t = random.randint(SLEEP_MIN, SLEEP_MAX)
+                print(f"Processed {i} cards. Sleeping for {t}s.")
+                time.sleep(t)
+                print("Continuing...")
+
+            name = item['scryfall_uri'] \
             .replace('https://scryfall.com/card/', '').replace('?utm_source=api', '').replace("/", "_")
 
-            if d[i]['layout'] in ["transform", "modal_dfc"]: # has two sides, we need both # "art_series",
-                faces = d[i]['card_faces']
-                for j in range(0, 2, 1):
+            # https://scryfall.com/docs/api/layouts
+            if item['layout'] in ["transform", "modal_dfc", "reversible_card", "double_faced_token", "meld"]: # has two sides # "art_series"
+                faces = item['card_faces']
+                for j in range(2):
                     side = faces[j]
                     try:
-                        downloadImage(side['image_uris']['png'], name, id + "_" +("back" if j else "front"))
+                        face_id = id + "_" +("back" if j else "front")
+                        downloadImage(side['image_uris']['png'], name, face_id)
+                        existing_files.add(f"{name}-{face_id}.png")
                     except Exception as e:
-                        log.warning(id+": is sus- "+str(e))
+                        log.warning(f"{id}: is sus- {str(e)}")
             else:
                 try:
-                    downloadImage(d[i]['image_uris']['png'], name, id)
+                    downloadImage(item['image_uris']['png'], name, id)
+                    existing_files.add(f"{name}-{id}.png")
                 except Exception as e:
-                    log.warning(id+": is sus- "+str(e))
-    return None
+                    log.warning(f"{id}: is sus- {str(e)}")
 
 if __name__ == "__main__":
     parse()
