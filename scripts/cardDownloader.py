@@ -10,6 +10,7 @@ import subprocess
 import time
 import random
 from pathlib import Path
+import argparse
 
 logging.basicConfig(format='LOG: %(message)s')
 log = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ log = logging.getLogger(__name__)
 SLEEP_MIN = 10 # sec
 SLEEP_MAX = 30 # sec
 DIR_NAME = "images"
+source_json = "unique-artwork.json"
 
 def wgetDownload(
         url,
@@ -40,12 +42,17 @@ def wgetDownload(
         return {"success": True, "message": "Download completed successfully."}
     except subprocess.CalledProcessError as e: 
         return {"success": False, "message": f"Download failed: {e}"}
+    return None
 
-def help():
-    pass
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", required=True, help="Path to .csv file from Scryfall", type=str)
+    args = parser.parse_args()
+    source_json = args.file
+    return None
 
 def main():
-    with open('unique-artwork.json') as f:
+    with open(source_json) as f:
         d = json.load(f)
         n = len(d)
         for i in range(50): # TODO: change range
@@ -63,8 +70,10 @@ def main():
             try:
                 image = d[i]['image_uris']['png']
                 wgetDownload(image, output_path=f"{DIR_NAME}/{name}-{id}.png")
-            except:
-                log.warning(id+": is sus")
+            except Exception as e:
+                log.warning(id+": is sus-"+str(e))
+    return None
 
 if __name__ == "__main__":
+    parse()
     main()
