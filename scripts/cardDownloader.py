@@ -17,8 +17,8 @@ log = logging.getLogger(__name__)
 
 SLEEP_MIN = 10 # sec
 SLEEP_MAX = 30 # sec
-DIR_NAME = "images"
-source_json = "unique-artwork.json"
+dir_name = ""
+source_json = ""
 
 def wgetDownload(
         url,
@@ -30,7 +30,7 @@ def wgetDownload(
     cmd = ['wget', url]
     if output_path:
         cmd.extend(['-O', output_path])
-    if retries: 
+    if retries:
         cmd.extend(['--tries', str(retries)])
     if timeout:
         cmd.extend(['--timeout', str(timeout)])
@@ -40,36 +40,46 @@ def wgetDownload(
     try:
         subprocess.run(cmd, check=True)
         return {"success": True, "message": "Download completed successfully."}
-    except subprocess.CalledProcessError as e: 
+    except subprocess.CalledProcessError as e:
         return {"success": False, "message": f"Download failed: {e}"}
     return None
 
 def parse():
+    global source_json, dir_name
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", required=True, help="Path to .csv file from Scryfall", type=str)
+    parser.add_argument("-f", "--file", required=True, help="path to .csv file from Scryfall", type=str)
+    parser.add_argument("-s", "--store", required=True, help="path where to store downloaded images", type=str)
     args = parser.parse_args()
     source_json = args.file
+    dir_name = args.store
     return None
 
 def downloadImage(image, name, id):
     try:
-        wgetDownload(image, output_path=f"{DIR_NAME}/{name}-{id}.png")
+        wgetDownload(image, output_path=f"{dir_name}/{name}-{id}.png")
     except Exception as e:
         log.warning(id+": is sus-"+str(e))
-    return None          
+    return None
 
 def main():
+    try:
+        existing_files = {file.name for file in Path(dir_name).iterdir() if file.is_file()}
+        print(f"Found {len(existing_files)} existing cards.")
+    except FileNotFoundError:
+        log.error(f"Directory '{dir_name}' not found.")
+        return None
+
     with open(source_json) as f:
         d = json.load(f)
         n = len(d)
-        for i in range(500): # TODO: change range
+        for i in range(n):
             id = d[i]['id']
 
-            if any(id in file.name for file in Path(DIR_NAME).iterdir() if file.is_file()): # already downloaded
+            if any(id in file.name for file in existing_files):
                 print(f"{id} already present!")
                 continue
 
-            if i%50 == 0: # naively try not to get banned
+            if i%250 == 0: # naively try not to get banned
                 time.sleep(random.randint(SLEEP_MIN, SLEEP_MAX))
 
             name = d[i]['scryfall_uri'] \
