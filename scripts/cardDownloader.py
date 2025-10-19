@@ -8,12 +8,15 @@ import json
 import logging
 import subprocess
 import time
+import random
+from pathlib import Path
 
 logging.basicConfig(format='LOG: %(message)s')
 log = logging.getLogger(__name__)
 
 SLEEP_MIN = 10 # sec
 SLEEP_MAX = 30 # sec
+DIR_NAME = "images"
 
 def wgetDownload(
         url,
@@ -45,16 +48,21 @@ def main():
     with open('unique-artwork.json') as f:
         d = json.load(f)
         n = len(d)
-        for i in range(12):
+        for i in range(50): # TODO: change range
             id = d[i]['id']
-            if i%50 == 0: # naivly try to not get banned
+            if i%50 == 0: # naively try not to get banned
                 time.sleep(random.randint(SLEEP_MIN, SLEEP_MAX))
+            
+            di = Path(DIR_NAME)
+            if any(id in file.name for file in di.iterdir() if file.is_file()): # already downloaded
+                print(f"{id} already present!")
+                continue
 
             name = d[i]['scryfall_uri'] \
             .replace('https://scryfall.com/card/', '').replace('?utm_source=api', '').replace("/", "_")
             try:
                 image = d[i]['image_uris']['png']
-                wgetDownload(image, output_path=f"images/{name}-{id}.png")
+                wgetDownload(image, output_path=f"{DIR_NAME}/{name}-{id}.png")
             except:
                 log.warning(id+": is sus")
 
