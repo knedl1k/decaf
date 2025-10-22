@@ -11,6 +11,7 @@ import time
 import random
 from pathlib import Path
 import argparse
+import re
 
 logging.basicConfig(format='LOG: %(message)s')
 log = logging.getLogger(__name__)
@@ -58,23 +59,34 @@ def downloadImage(image, name, id):
     except Exception as e:
         log.warning(id+": is sus-"+str(e))
 
-def main():
+def getDownloadedIDs(directory):
+    existing_ids = set()
+    uuid_regex = re.compile(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
+
     try:
-        existing_files = {file.name for file in Path(dir_name).iterdir() if file.is_file()}
-        print(f"Found {len(existing_files)} existing cards.")
+        for file in Path(directory).iterdir():
+            if file.is_file():
+                match = uuid_regex.search(file.name)
+                if match:
+                    existing_ids.add(match.group(1))
+        print(f"Found {len(existing_ids)} downloaded IDs!")
+        return existing_ids
     except FileNotFoundError:
-        log.error(f"Directory '{dir_name}' not found.")
+        log.error(f"Directory '{directory}' not found.")
         return None
+
+def main():
+    existing_ids = getDownloadedIDs(dir_name)
+    if existing_ids is None:
+        return
 
     with open(source_json) as f:
         d = json.load(f)
-        # d = ijson.items(f, 'item')
         n = len(d)
         for i, item in enumerate(d):
             id = item['id']
 
-            if any(id in file_name for file_name in existing_files):
-                # print(f"{id} already present!")
+            if id in existing_ids:
                 continue
 
             if item['image_status'] not in ['lowres', 'highres_scan']: # https://scryfall.com/docs/api/images
@@ -83,7 +95,7 @@ def main():
 
             if i%250 == 0 and i>0: # naively try not to get banned
                 t = random.randint(SLEEP_MIN, SLEEP_MAX)
-                print(f"Processed {i} cards. Sleeping for {t}s.")
+                print(f"Processed {i}/{n} cards. Sleeping for {t}s.")
                 time.sleep(t)
                 print("Continuing...")
 
@@ -98,13 +110,13 @@ def main():
                     try:
                         face_id = id + "_" +("back" if j else "front")
                         downloadImage(side['image_uris']['png'], name, face_id)
-                        existing_files.add(f"{name}-{face_id}.png")
+                        existing_ids.add(id)
                     except Exception as e:
                         log.warning(f"{id}: is sus- {str(e)}")
             else:
                 try:
                     downloadImage(item['image_uris']['png'], name, id)
-                    existing_files.add(f"{name}-{id}.png")
+                    existing_ids.add(id)
                 except Exception as e:
                     log.warning(f"{id}: is sus- {str(e)}")
 
