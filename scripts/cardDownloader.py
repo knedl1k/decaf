@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 
 SLEEP_MIN = 10 # sec
 SLEEP_MAX = 30 # sec
+TWO_SIDED = ["transform", "modal_dfc", "reversible_card", "double_faced_token", "meld"] # "art_series"
+
 dir_name = ""
 source_json = ""
 
@@ -90,12 +92,12 @@ def main():
                 continue
 
             if item['image_status'] not in ['lowres', 'highres_scan']: # https://scryfall.com/docs/api/images
-                log.warning(f"{id}: exists and has no image.")
+                log.warning(f"{id}: exists but has no image available.")
                 continue
 
             if i%250 == 0 and i>0: # naively try not to get banned
                 t = random.randint(SLEEP_MIN, SLEEP_MAX)
-                print(f"Processed {i}/{n} cards. Sleeping for {t}s.")
+                print(f"Processed {i}/{n} cards. Sleeping for {t} s.")
                 time.sleep(t)
                 print("Continuing...")
 
@@ -103,16 +105,20 @@ def main():
             .replace('https://scryfall.com/card/', '').replace('?utm_source=api', '').replace("/", "_")
 
             # https://scryfall.com/docs/api/layouts
-            if item['layout'] in ["transform", "modal_dfc", "reversible_card", "double_faced_token", "meld"]: # has two sides # "art_series"
-                faces = item['card_faces']
-                for j in range(2):
-                    side = faces[j]
-                    try:
-                        face_id = id + "_" +("back" if j else "front")
-                        downloadImage(side['image_uris']['png'], name, face_id)
-                        existing_ids.add(id)
-                    except Exception as e:
-                        log.warning(f"{id}: is sus- {str(e)}")
+            if item['layout'] and item['layout'] in TWO_SIDED:
+                try:
+                    faces = item['card_faces']
+                    for j in range(2):
+                        try:
+                            face_id = id + "_" +("back" if j else "front")
+                            downloadImage(faces[j]['image_uris']['png'], name, face_id)
+                            existing_ids.add(id)
+                        except Exception as e:
+                            log.warning(f"{id}: is sus- {str(e)}")
+                except Exception as e:
+                    log.warning(f"{id}: should be double faced, but has no 'card_faces' attr.")
+            if item['layout'] and item['layout'] == "art_series":
+                log.warning(f"{id}: art_series cards are being omitted.")
             else:
                 try:
                     downloadImage(item['image_uris']['png'], name, id)
