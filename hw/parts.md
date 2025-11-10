@@ -21,9 +21,10 @@
     - nějaký generátory už mají v sobě integrovaný ventil i vacuum break na uvolnění karet, to se může hodit
 
 - suction cup
+    - https://cz.rs-online.com/web/p/pneumaticke-prisavky/2038181
     - silikon (VMQ); Si-HD je heavy duty, to je zbytečnost
     - tvrdost Shore chceme co nejměkčí
-    - průměr 10 mm 
+    - průměr ? mm 
     - měchová přísavka (bellows cup), protože kompenzuje úhlové nedostatky ramena; 1.5 měchu
     - nezapomenout na upevnění pro přísavku
 
@@ -36,11 +37,13 @@
     - díky poréznosti karty bude stačit vypnout ventil, karta pak sama spadne
 
 - hadičky
+    - https://cz.rs-online.com/web/p/vzduchove-hadice/2337288
     - materiál PU
     - podle ventilu, generátoru, přísavce...
     - fitinky 
 
 - linear actuator (osa Z)
+    - https://www.gme.cz/vysledky-vyhledavani?q=servomotor
     - co třeba hobby servo? MG90S
         - není potřeba driver ani enkodér, stejně jen vyrovnáváme výškový rozdíl
     - nebo třeba pneumatický píst?
