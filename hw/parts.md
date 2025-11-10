@@ -1,3 +1,14 @@
+# Seznam součástek
+
+## Již máme
+- kompresor
+    - Sparmax TC-610H Plus
+- zdroj napětí
+- Arduino
+- stepper + enkodér + kontroler motoru
+- exhaust pro venturi generátor
+
+## Potřeba dokoupit
 - Venturi generator
     - jaký tlak zvládne kompresor
     - stačí nízký sací průtok, máme krátké hadičky a malou přísavku
@@ -5,19 +16,19 @@
     - nejspíše zbytečný (kolik l/min vzduchu spotřebuje generátor)
     - nějaký generátory už mají v sobě integrovaný ventil i vacuum break na uvolnění karet, to se může hodit
 
-- Suction cup
+- suction cup
     - materiál silikon, měkký a dobře přilne
     - měchová přísavka (bellows cup), protože kompenzuje úhlové nedostatky ramena
     - 5 až 10 mm průměr
 
-- Pneumatic ventil 3/2
+- pneumatic ventil 3/2
     - solenoidový, aby se dal ovládat Arduinem
     - napětí podle zdroje, arduino ho samo neutáhne, bude potřeba ho spínat relé / MOSFETem
     - Normally Closed typ, aby bez proudu byl defaultně zavřený.
     - velikost závitů musí odpovídat hadičkám a generátoru, nejspíš M5 nebo 1/8"
     - díky poréznosti karty bude stačit vypnout ventil, karta pak sama spadne
 
-- Linear actuator (osa Z)
+- linear actuator (osa Z)
     - co třeba hobby servo? MG90S
         - není potřeba driver ani enkodér, stejně jen vyrovnáváme výškový rozdíl
     - nebo třeba pneumatický píst?
