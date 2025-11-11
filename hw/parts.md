@@ -13,6 +13,7 @@
 
 ## Potřeba dokoupit
 - Venturi generator
+    - https://cz.rs-online.com/web/p/vyvevy/2315358
     - https://www.tme.eu/cz/katalog/prislusenstvi-pro-pneumatiku_118130/?params=1995%3A1500167_typ-prislusenstvi-pro-pneumatiku%3Azasuvny-generator-vakua
     - jaký tlak zvládne kompresor
     - stačí nízký sací průtok, máme krátké hadičky a malou přísavku
