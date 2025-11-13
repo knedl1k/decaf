@@ -1,6 +1,8 @@
 # trading_cards
 
 ## structure
+- **[software](sw/)**
+    - All programs used across the project, such as Arduino codes or machine learning.
 - **[hardware](hw/)**
     - Contains photos, diagrams, and the final selection of components for the robot.
 - **[scripts](scripts/)**
