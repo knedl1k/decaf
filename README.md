@@ -1,6 +1,6 @@
 # trading_cards
 
-## structure
+## repo structure
 - **[software](sw/)**
     - All programs used across the project, such as Arduino codes or machine learning.
 - **[hardware](hw/)**
