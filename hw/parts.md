@@ -7,9 +7,12 @@
     - průtok vzduchu: 23-28 l/min
     - velikost závitu: 1/8" PS
 - zdroj napětí
-- Arduino
-- stepper + enkodér + kontroler motoru
-- exhaust pro venturi generátor
+- Arduino Mega
+- stepper 12-24 V
+- enkodér 
+    - `AS5147-TS_EK_AB`
+- driver motoru 
+    - `TMC2209`
 
 ## Potřeba dokoupit
 - Venturi generator
