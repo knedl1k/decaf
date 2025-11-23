@@ -81,7 +81,8 @@ def main():
     existing_ids = getDownloadedIDs(dir_name)
     if existing_ids is None:
         return
-
+        
+    # https://scryfall.com/docs/api/bulk-data
     with open(source_json) as f:
         d = json.load(f)
         n = len(d)
@@ -114,7 +115,7 @@ def main():
                             downloadImage(faces[j]['image_uris']['png'], name, face_id)
                             existing_ids.add(id)
                         except Exception as e:
-                            log.warning(f"{id}: is sus- {str(e)}")
+                            log.warning(f"{id}: should have 2 faces but some problem occured - {str(e)}")
                 except Exception as e:
                     log.warning(f"{id}: should be double faced, but has no 'card_faces' attr.")
             if item['layout'] and item['layout'] == "art_series":
