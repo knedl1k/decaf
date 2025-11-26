@@ -6,31 +6,32 @@
     - maximální tlak: 60 psi (4.1 bar)
     - průtok vzduchu: 23-28 l/min
     - velikost závitu: 1/8" PS
-- zdroj napětí
+- zdroj napětí 24 V
 - Arduino Mega
 - stepper 12-24 V
 - enkodér 
-    - `AS5147-TS_EK_AB`
+    - [AS5147-TS_EK_AB](https://www.digikey.com/en/products/detail/ams-osram-usa-inc/AS5147-TS-EK-AB/5452350)
 - driver motoru 
-    - `TMC2209`
+    - [TMC2209](https://www.adafruit.com/product/6121)
 - servo motor
 
-## Vyrobíme na 3D tiskárně
+## Vyrobí se na 3D tiskárně
 - Venturi generator
+<!--
     - https://cz.rs-online.com/web/p/vyvevy/2315358
     - průměr trysky 0.5 mm --- nízká spotřeba vzduchu
     - kompresor dává 23-28 l/min, ejektor asi 15-20 l/min, takže ideál
     - má tlumič
     - výkon je naprosto dostačující
     - vnější průměr hadiček 6mm
-    <!-- - https://www.tme.eu/cz/katalog/prislusenstvi-pro-pneumatiku_118130/?params=1995%3A1500167_typ-prislusenstvi-pro-pneumatiku%3Azasuvny-generator-vakua -->
+        - https://www.tme.eu/cz/katalog/prislusenstvi-pro-pneumatiku_118130/?params=1995%3A1500167_typ-prislusenstvi-pro-pneumatiku%3Azasuvny-generator-vakua
     - poznámky:
         - jaký tlak zvládne kompresor
         - stačí nízký sací průtok, máme krátké hadičky a malou přísavku
         - dostatečnou úroveň vakua - máme papírové karty, jsou ale porézní, neustále se bude muset kompenzovat přisávání malého vzduchu. Stačí nízká nebo střední úroveň
         - nejspíše zbytečný --- kolik l/min vzduchu spotřebuje generátor
         - nějaký generátory už mají v sobě integrovaný ventil i vacuum break na uvolnění karet, to se může hodit
-
+-->
 ## Potřeba dokoupit
 **KV** je zkratka pro kompresory-vzduchotechnika\
 **rs** je zkratka pro rs-online
