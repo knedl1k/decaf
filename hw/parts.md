@@ -32,6 +32,25 @@
         - nejspíše zbytečný --- kolik l/min vzduchu spotřebuje generátor
         - nějaký generátory už mají v sobě integrovaný ventil i vacuum break na uvolnění karet, to se může hodit
 -->
+
+## Objednáno
+**KV** je zkratka pro kompresory-vzduchotechnika
+- suction cup
+    - [KV: 11 mm průměr](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-11-mm-silikon/)
+    - [KV: 15.5 mm průměr](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-15-5-mm-silikon/)
+- pneumatic ventil 3/2
+    - [KV: 155 gramů](https://www.kompresory-vzduchotechnika.cz/solenoidove-ventily-g356-18b-mosaz/)
+    - solenoid, NC, 24 V DC, 
+- hadičky
+    - [KV: 8 metrů](https://www.kompresory-vzduchotechnika.cz/hadicka-z-polyuretanu-modra-6-4-mm/)
+- fitinky
+    - [3x KV: 6 - G1/8"](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-g1-8/)
+    - [1x KV: 6 - M5](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-m5/)
+    - [1x KV: připojovací šroubení pro suction cup](https://www.kompresory-vzduchotechnika.cz/pripojovaci-sroubeni-vakuum-vs-m5a-10/)
+- misc.
+    - [KV: modré kleště na hadičky](https://www.kompresory-vzduchotechnika.cz/kleste-pro-hadicky-ptp-modre/)
+    - [KV: tlumič hluku M5](https://www.kompresory-vzduchotechnika.cz/tlumic-hluku-s-prodlouzenim-s-vnejsim-zavitem-bronzove-provedeni-m5/)
+<!--
 ## Potřeba dokoupit
 **KV** je zkratka pro kompresory-vzduchotechnika\
 **rs** je zkratka pro rs-online
@@ -40,7 +59,6 @@
         - mají i větší, ale 11 by mělo dostačovat <https://www.kompresory-vzduchotechnika.cz/prisavky-sb--s-1-5-vlnovcem/>
         - buď koupit pružinový píst anebo fitinku závit M5 na 6mm hadičku 
     - [rs: 30 mm průměr](https://cz.rs-online.com/web/p/pneumaticke-prisavky/2038181)
-
 - pneumatic ventil 3/2
     - [KV: 155 gramů](https://www.kompresory-vzduchotechnika.cz/solenoidove-ventily-g356-18b-mosaz/)
         - 1.6 mm průtok; varianta A má průtok 1.2 mm
@@ -57,20 +75,17 @@
         - 2 fitinky pro vstupní a pracovní port
         - 1 tlumič na výfuk?
         - spínač
-    <!-- - https://www.tme.eu/cz/katalog/ventily-a-rozdelovace_118125/?params=1996%3A1455528%3B2711%3A1698168%3B98%3A1439012&queryPhrase=ventil -->
     - poznámky:
         - solenoidový, aby se dal ovládat Arduinem
         - napětí podle zdroje, Arduino ho samo neutáhne, bude potřeba ho spínat relé / MOSFETem
         - Normally Closed typ, aby bez proudu byl defaultně zavřený
         - velikost závitů musí odpovídat hadičkám a generátoru
-
 - hadičky
     - [KV: volitelná délka](https://www.kompresory-vzduchotechnika.cz/hadicka-z-polyuretanu-modra-6-4-mm/)
     - [rs: 30 metrů](https://cz.rs-online.com/web/p/vzduchove-hadice/1745728)
     - vnější průměr 6mm
     - PU
-
 - fitinky
     - [KV: M5 na 6mm hadičku](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-m5/)
     - [KV: G1/8" na 6mm hadičku](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-g1-8/)
-
+-->
