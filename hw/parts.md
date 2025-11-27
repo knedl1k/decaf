@@ -14,6 +14,7 @@
 - driver motoru 
     - [TMC2209](https://www.adafruit.com/product/6121)
 - servo motor
+    - [MG90S](https://www.alldatasheet.com/datasheet-pdf/pdf/1132104/ETC2/MG90S.html)
 
 ## Vyrobí se na 3D tiskárně
 - Venturi generator
