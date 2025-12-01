@@ -1,3 +1,10 @@
+# KiCad ignore
+*.lck
+*.kicad_prl
+*.bak
+_autosave-*
+fp-info-cache
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
