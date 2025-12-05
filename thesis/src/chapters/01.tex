@@ -1,2 +1,63 @@
-\chapter{Hardware}
-sup
+\chapter{Hardware Design}\label{chap:hw}
+The design of the robotic system focuses on accessibility, replicability, and gentle handling of the trading cards. 
+This system utilizes a vacuum-based pick-and-place mechanism. This chapter details the component selection, the 
+pneumatic subsystem, circuit design, and the mechanical construction.
+
+\section{Component Selection} % TODO
+The selection of components was driven by the availability of parts on the consumer market and the cost-to-performance 
+ratio. A summary of key components is provided in 
+\reftab{tab:components}.
+\begin{table}[!h]
+    \centering
+    \caption{List of key hardware components.}
+    \label{tab:components}
+    \begin{tabular}{l|l|l}
+        \textbf{Component} & \textbf{Model/Type} & \textbf{Primary Function} \\ \hline
+        Microcontroller & Arduino Mega 2560 & Main control unit \\
+        Stepper motor & & \\
+        Stepper motor driver & TMC2209 & \\
+        Rotary position sensor & AS5147-TS\_EK\_AB & Rotation feedback \\
+        Servo motor & MG90s & \\
+        Compressor & Sparmax TC-610H Plus & Air pressure source \\
+        Venturi generator & custom 3D print & Vacuum generator \\
+        Suction cup & SB 15,5 mm silicon, bellows & Card handling \\
+        Pneumatic valve & Solenoid valve G356NC-18B & Controlling the airflow \\
+        Noise suppressor & AE-M5 & Noise reduction \\
+        Air hoses & Polyuretan, 6/4 mm & 
+    \end{tabular}
+\end{table}
+
+\subsection{Control Electronics}
+
+\subsubsection{Microcontroller: Arduino Mega}
+The \textit{Arduino Mega 2560} was selected as the central processing unit. Although modern 32-bit boards (like ESP32) 
+offer more power, the Mega provides a high number of GPIO pins (54 digital), which allows for easy expansion without 
+multiplexing. Its 5 V logic level simplifies interfacing with certain industrial sensors, and its vast community support 
+aligns with the project's educational goals.
+
+\subsubsection{Stepper Motor and Driver}
+A standard stepper motor combined with a \textit{TMC2209} driver from Trinamic is used to move the robotic arm. 
+The \textit{TMC2209} driver allows configuration of motor current and micro-steps via UART, eliminating the need to work 
+with a potentiometer directly on the driver. 
+
+\subsubsection{Feedback Loop: AS5147 Encoder}
+To ensure precise positioning, the system is equipped with an \textit{AS5147} magnetic rotary encoder. This sensor 
+communicates via SPI and provides absolute angular position. By combining the stepper motor with this encoder, the 
+system operates in a closed-loop manner, allowing it to detect missed steps or jams, which is critical for preventing 
+damage to valuable cards.
+
+\subsection{Pneumatic System}
+
+Handling trading cards mechanically (e.g., with rubber rollers) carries a risk of scratching surfaces or bending 
+corners. Therefore, a pneumatic vacuum system was designed to lift cards from the top.
+
+\subsubsection{Air Source: Sparmax TC-610H Plus} % TODO:
+
+\subsubsection{Vacuum Generation and Handling}
+Since the compressor generates positive pressure, a \textit{Venturi generator} is used to convert compressed air into a 
+vacuum. A \textit{3/2-way solenoid valve} (24 V DC, Normally Closed) controls the airflow. The 3/2 configuration is 
+essential: in the \enquote{off} state, it not only stops the supply but also vents the vacuum line to the atmosphere,
+allowing the card to drop instantly. Silicone suction cups with bellows are used to transfer contact with the cards 
+themselves. Silicone was chosen for its softness and adhesion. Bellows were chosen to help compensate for imperfections 
+in the contact between the arm and the card.
+
