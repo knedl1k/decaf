@@ -44,13 +44,17 @@ class MTGOnlineDataset(Dataset):
             if image is None:
                 raise ValueError("Image not loaded")
             
-            if image.shape[2] == 4:
+            if image.dtype == np.uint16:
+                image = (image / 256).astype(np.uint8)
+
+            if len(image.shape) == 3 and image.shape[2] == 4:
                 image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
                 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
+            image = image.astype(np.uint8)
         except Exception:
             # fallback for damaged files
+            print(f"Warning: Error loading {path}: {e}")
             image = np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8)
 
         file_stem = Path(path).stem
