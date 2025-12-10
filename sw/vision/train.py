@@ -52,7 +52,7 @@ class MTGOnlineDataset(Dataset):
                 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = image.astype(np.uint8)
-        except Exception:
+        except Exception as e:
             # fallback for damaged files
             print(f"Warning: Error loading {path}: {e}")
             image = np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8)
