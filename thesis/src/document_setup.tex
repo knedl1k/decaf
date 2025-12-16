@@ -3,7 +3,7 @@
 %% | ----------------------- page setup ----------------------- |
 
 % define documentclass based on the print/screen version of the document
-\pdfoutput=1
+% \pdfoutput=1
 \ifdefined\printversion
   \documentclass[a4paper,11pt,twoside,openright]{book}
 \else
@@ -22,7 +22,7 @@
 %% | ----------------- commonly used packages ----------------- |
 
 \usepackage[english]{babel}
-\usepackage[utf8]{inputenc}
+% \usepackage[utf8]{inputenc}
 \usepackage{csquotes}
 \usepackage{amsmath,amsfonts,amssymb,bm}
 \usepackage{nicefrac}
@@ -54,6 +54,7 @@
 \usepackage{multicol}
 \usepackage{subfig}
 \usepackage[export]{adjustbox}
+\usepackage{svg}
 
 % print version has different margins to accommodate the spine of the book
 % do not move this around, or it stops working
