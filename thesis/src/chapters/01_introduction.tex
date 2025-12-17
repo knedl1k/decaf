@@ -2,79 +2,34 @@
 
 \chapter{Introduction\label{chap:introduction}}
 
-\acp{TCG} such as Magic: The Gathering, Pokémon, and various sports card collections have evolved from 
-simple hobbies into a global market with significant economic value. For collectors and local game stores, inventory 
-management is a critical task. This involves sorting thousands of cards, assessing their condition, and determinig
-their current market value. However, as collections grow, manual sorting becomes an increasingly time-consuming, 
-tedious, and error-prone process.
+\acp{TCG} such as \ii{Magic: The Gathering}, \ii{Pokémon}, and various sports card collections have evolved from simple hobbies into a global market with significant economic value. The secondary market for these collectibles is vast, with prices fluctuating based on card condition, rarity, and demand. For collectors and local game stores, inventory management is a critical task. This involves sorting thousands of cards, assessing their condition, and determining their current market value. However, as collections grow, manual sorting becomes an increasingly time-consuming, tedious, and error-prone process.
 
-And if an individual, such as a collector, but also a store or company, wants to effectively index and sort cards, the 
-current market situation offers relatively few solutions. Moreover, these solutions are very expensive, or cannot even 
-be purchased directly or customized to individual needs. 
+And if an individual, such as a collector, but also a store or company, wants to effectively index and sort cards, the current market situation offers relatively few solutions. Moreover, these solutions are often prohibitively expensive, proprietary, or cannot be customized to individual workflow needs.
 
-The primary motivation for this work is the lack of accessible, affordable, and transparent tools for automating card 
-indexing. Existing consumer machines often do not to meet specific requirements, are not available in certain regions, 
-or lack the robustness needed to handle valuable collectibles.
+\section{Problem Statement}
+The primary motivation for this work is the lack of accessible, affordable, and transparent tools for automating card indexing. Existing consumer machines often fail to meet specific requirements, are unavailable in certain geographical regions, or lack the robustness needed to handle valuable collectibles without damaging them. 
 
-The goal of this project is to develop an automated system for recognizing and classifying trading cards that follows 
-the philosophy of Open-source software and hardware. By designing a robot based on accessible components, such as an 
-Arduino microcontroller and stepper motors, and combining it with modern computer vision techniques, this work aims to 
-democratize the technology needed for card sorting.
+\noindent
+From a technical perspective, the challenge is twofold:
+\begin{enumerate}[(a)]
+    \item \ii{Mechanical:} Designing a sorting mechanism that handles delicate paper objects reliably without jamming or causing surface damage.
+    \item \ii{Computational:} Developing a computer vision pipeline capable of fine-grained classification. Unlike standard object detection, trading cards often share identical layouts with only minor variation in artwork or text, requiring high-precision feature extraction and matching under varying lighting conditions.
+\end{enumerate}
 
-In addition to its practical application, this project serves an educational purpose. It demonstrates how complex 
-concepts in robotics and machine learning can be applied to a relatable, real-world hobby. Thanks to the replicability 
-of the design, this work encourages enthusiasts to assemble, operate, and further improve the platform at home.
-\section{Related Works}
-
-The problem of automated trading card processing involves two main domains: mechanical handling and software 
-recognition. Existing solutions can be broadly categorized into commercial proprietary systems and academic or hobbyist 
-research projects.
-
-\subsection{Commercial Solutions}
-
-Several commercial automated sorters exist on the market, primarily targeting card shops and high-volume sellers.
-
-Systems such as \textit{CardBot} \cite{cardbot} and \textit{Card Dealer Pro} \cite{carddealerpro} represent the high-end 
-segment. \textit{CardBot} utilizes silicone suction cups for gentle handling, which is a crucial feature for valuable 
-collectibles. Similarly, \textit{TCG Machines} \cite{tcgmachines} claims advanced features like foil detection using 
-specialized LED arrays and diffusers to overcome the reflective nature of holographic cards.
-
-\subsection{Academic and Research Approaches}
-
-In the research domain, several methodologies have been proposed for object detection and card classification.
-
-\subsubsection{Computer Vision Techniques}
-The use of \ac{YOLO} is prevalent in recent literature due to its real-time performance.
-\begin{itemize}
-    \item \textit{Card Detection:} A study on self-playing poker robots \cite{pokerrobot} successfully utilized 
-    \ac{YOLO}v5 combined with a robotic arm using suction mechanisms, validating the feasibility of combining vision 
-    with pneumatics.
-    \item \textit{Verification:} Research in ID card verification \cite{idcardverification} demonstrates a pipeline 
-    similar to trading cards: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}.
-    \item \textit{Synthetic Data:} A significant challenge in training neural networks is the lack of labeled data. 
-    Research on Pokémon card detection \cite{pokemonstanford} addressed this problem by creating a synthetic dataset, 
-    i.e., artificially generating card images with simulated lighting and occlusions. This approach allowed them to 
-    train a robust \ac{YOLO}v8 model without the need to manually photohraph thousands of cards.
-\end{itemize}
-
-\subsubsection{Siamese Networks}
-An alternative to standard \ac{OCR} is visual similarity matching. Lowhur \cite{lowhuryugioh} demonstrated a system for 
-Yu-Gi-Oh! cards achieving 99\% accuracy. Instead of reading text, the system uses Siamese networks and triplet loss to 
-learn a \enquote{fingerprint} of the card's artwork and match it against a database. This highlights that for cards with 
-distinct artwork, visual matching can be superior to text reading.
+\section{Objectives}
+The goal of this project is to develop an automated system for recognizing and classifying trading cards that follows the philosophy of Open-source software and hardware. By designing a robot based on accessible components, such as an Arduino microcontroller and stepper motors, and combining it with modern computer vision techniques, this work aims to democratize the technology needed for card sorting.
 
 %%%%%% FROM MRS TEMPLATE:
+\section{Thesis Contribution}
 
-\section{Contributions}
 
-This section should describe the author's contributions to the field of research.
+\section{Thesis Structure}
+
 
 \section{Mathematical notation}
-
 It is a good practice to define basic mathematical notation in the introduction.
 See \reftab{tab:mathematical_notation} for an example.
-
-\begin{table*}[!h]
+\begin{table*}[h!]
   \scriptsize
   \centering
   \noindent\rule{\textwidth}{0.5pt}

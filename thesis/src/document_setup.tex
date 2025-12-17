@@ -119,7 +119,7 @@
 
 %% | --------------- change formatting of lists --------------- |
 
-\usepackage{enumitem}
+\usepackage[shortlabels]{enumitem}
 \setlist{nosep}
 
 \renewcommand{\labelenumi}{(\roman{enumi})}
@@ -239,6 +239,11 @@
 \newcommand{\minus}{\scalebox{0.75}[1.0]{$-$}}
 \newcommand{\plus}{\scalebox{0.8}[0.8]{$+$}}
 \newcommand{\figvspace}{\vspace{-1em}}
+
+\newcommand{\ii}[1]{\textit{#1}}
+\newcommand{\bb}[1]{\textbf{#1}} 
+\newcommand{\bc}[1]{\left\lbrace #1 \right\rbrace}  % \{\} 
+\newcommand{\eps}{\varepsilon}
 
 % referencing
 \newcommand{\reffig}[1]{Fig.~\ref{#1}}
