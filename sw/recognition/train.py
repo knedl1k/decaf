@@ -75,7 +75,7 @@ class MTGOnlineDataset(Dataset):
 def get_transforms():
     return A.Compose([
         # geometric deformations
-        A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7) 
+        A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7), 
         A.Perspective(scale=(0.05, 0.1), p=0.5),
         
         # colors
@@ -137,7 +137,7 @@ def main():
 
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
@@ -149,7 +149,33 @@ def main():
     for epoch in range(NUM_EPOCHS):
         sampler.set_epoch(epoch)
         model.train()
+
+        if epoch < 3:
+            print(f"Epoch {epoch+1}: Backbone is FROZEN (Training head only)")
+            if isinstance(model, (nn.DataParallel, DDP)):
+                for param in model.module.backbone.parameters():
+                    param.requires_grad = False
+                for param in model.module.bn1.parameters():
+                    param.requires_grad = False
+            else:
+                for param in model.backbone.parameters():
+                    param.requires_grad = False
+        else:
+            if epoch == 3:
+                print("Unfreezing backbone... Fine-tuning everything now.")
+            
+            if isinstance(model, (nn.DataParallel, DDP)):
+                for param in model.module.backbone.parameters():
+                    param.requires_grad = True
+                for param in model.module.bn1.parameters():
+                    param.requires_grad = True
+            else:
+                for param in model.backbone.parameters():
+                    param.requires_grad = True
+
+
         running_loss = 0.0
+        
         
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)

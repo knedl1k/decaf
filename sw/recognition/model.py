@@ -47,7 +47,7 @@ class MTGReconModel(nn.Module):
         backbone_out = self.backbone.num_features
         self.bn1 = nn.BatchNorm1d(backbone_out)
         self.dropout = nn.Dropout(0.4)
-        self.fc = nn.Linear(backbone_out, embedding_size)
+        self.fc = nn.Linear(backbone_out, embedding_size, bias=False)
         self.bn2 = nn.BatchNorm1d(embedding_size)
         self.arcface = ArcFaceHead(embedding_size, num_classes)
 
