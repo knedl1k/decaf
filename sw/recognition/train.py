@@ -81,7 +81,7 @@ def get_transforms():
         # colors
         A.CoarseDropout(num_holes_range=(1,3), p=0.3),
         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
-        A.GaussianBlur(blur_limit=[3, 5], p=0.2),
+        A.GaussianBlur(blur_limit=(3, 5), p=0.2),
 
         # resize & padding
         A.LongestMaxSize(max_size=IMG_SIZE),
@@ -151,7 +151,8 @@ def main():
         model.train()
 
         if epoch < 3:
-            print(f"Epoch {epoch+1}: Backbone is FROZEN (Training head only)")
+            if is_master:
+                print(f"Epoch {epoch+1}: Backbone is FROZEN (Training head only)")
             if isinstance(model, (nn.DataParallel, DDP)):
                 for param in model.module.backbone.parameters():
                     param.requires_grad = False
@@ -162,7 +163,8 @@ def main():
                     param.requires_grad = False
         else:
             if epoch == 3:
-                print("Unfreezing backbone... Fine-tuning everything now.")
+                if is_master:
+                    print("Unfreezing backbone... Fine-tuning everything now.")
             
             if isinstance(model, (nn.DataParallel, DDP)):
                 for param in model.module.backbone.parameters():
