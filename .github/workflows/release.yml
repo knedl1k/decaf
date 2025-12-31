@@ -1,0 +1,35 @@
+name: Create Release with PDF
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compile LaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: thesis
+          command: make
+
+      - name: Rename PDF
+        run: mv thesis/build/main.pdf thesis/build/thesis.pdf
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startWith(github.ref, 'refs/tags/')
+        with:
+          files: thesis/build/thesis.pdf
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
