@@ -51,6 +51,10 @@ def recognize_card():
         query_vector = model(img_tensor)
         query_vector = torch.nn.functional.normalize(query_vector, p=2, dim=1)
 
+    print(f"{query_vector[:10]=}")
+    print(f"{db_vectors[0, :10]=}")
+    print(f"{db_vectors[1, :10]=}")
+    
     # Since the vectors are normalized, Cosine Similarity is just a scalar product (Dot Product).
     # We multiply the card vector (1, 512) by the entire database matrix (512, 100000).
     # The result is a similarity score for each card in the database (-1 to 1).
