@@ -18,8 +18,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 def get_inference_transforms():
     return A.Compose([
         A.LongestMaxSize(max_size=IMG_SIZE),
-        A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT),
+        A.Normalize(),
         ToTensorV2()
     ])
 

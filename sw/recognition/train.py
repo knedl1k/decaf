@@ -75,25 +75,19 @@ class MTGOnlineDataset(Dataset):
 def get_transforms():
     return A.Compose([
         # geometric deformations
-        A.SafeRotate(limit=15.0, p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0), 
-        A.Perspective(scale=[0.05, 0.1], p=0.5),
+        A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7) 
+        A.Perspective(scale=(0.05, 0.1), p=0.5),
         
         # colors
-        A.CoarseDropout(max_holes=3, max_height=30, max_width=30, p=0.3),
+        A.CoarseDropout(num_holes_range=(1,3), p=0.3),
         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
         A.GaussianBlur(blur_limit=[3, 5], p=0.2),
 
         # resize & padding
         A.LongestMaxSize(max_size=IMG_SIZE),
-        A.PadIfNeeded(
-            min_height=IMG_SIZE, 
-            min_width=IMG_SIZE, 
-            border_mode=cv2.BORDER_CONSTANT, 
-            value=[0, 0, 0]
-        ),
+        A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT),
         
         # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
-        #A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         A.Normalize(),
         # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
         ToTensorV2()
