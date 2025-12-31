@@ -11,7 +11,7 @@ import numpy as np
 # --- CONFIG ---
 MODEL_PATH = "/mnt/personal/adamej14/checkpoints/arcface_mtg_final.pth"
 DATABASE_PATH = "card_database.pth"
-TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e_9.jpg"
+TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
 IMG_SIZE = 224
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,18 +19,21 @@ def get_inference_transforms():
     return A.Compose([
         A.LongestMaxSize(max_size=IMG_SIZE),
         A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2()
     ])
 
 def recognize_card():
     print("Loading database...")
-    db = torch.load(DATABASE_PATH, map_location=DEVICE)
+    db = torch.load(DATABASE_PATH, map_location=DEVICE, weights_only=False)
     db_vectors = db["vectors"].to(DEVICE) # matrix [#classes, 512]
     db_names = db["names"]
     
     model = MTGReconModel(num_classes=1).to(DEVICE) # we do not care about num_classes
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+    checkpoint = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
+    if 'arcface.weight' in checkpoint:
+        del checkpoint['arcface.weight']
+    model.load_state_dict(checkpoint, strict=False)
     model.eval()
 
     img = cv2.imread(TEST_IMAGE_PATH)
@@ -56,8 +59,8 @@ def recognize_card():
     best_score, best_idx = torch.max(similarity_scores, dim=1)
     
     best_card_name = db_names[best_idx.item()]
-    confidence = best_score.item() * 100 # Procenta
-
+    confidence = best_score.item() * 100
+      
     print("-------------------------------")
     print(f"Test card:  {TEST_IMAGE_PATH}")
     print(f"Result:     {best_card_name}")
