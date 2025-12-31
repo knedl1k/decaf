@@ -18,7 +18,7 @@ from model import MTGReconModel # model.py
 # --- CONFIG ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 64
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 NUM_EPOCHS = 20           # every epoch is different augmentation
 INPUT_DIR = "/mnt/personal/adamej14/images"
 IMG_SIZE = 224
@@ -72,12 +72,12 @@ def get_transforms():
     return A.Compose([
         # geometric deformations
         A.SafeRotate(limit=15.0, p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0), 
-        A.Perspective(scale=(0.05, 0.1), p=0.5),
+        A.Perspective(scale=[0.05, 0.1], p=0.5),
         
         # colors
         A.CoarseDropout(max_holes=3, max_height=30, max_width=30, p=0.3),
         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
-        A.GaussianBlur(blur_limit=(3, 5), p=0.2),
+        A.GaussianBlur(blur_limit=[3, 5], p=0.2),
 
         # resize & padding
         A.LongestMaxSize(max_size=IMG_SIZE),
@@ -89,7 +89,7 @@ def get_transforms():
         ),
         
         # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
         ToTensorV2()
     ])
@@ -119,16 +119,16 @@ def main():
         train_dataset, 
         batch_size=BATCH_SIZE, 
         shuffle=True,
-        num_workers=4,
+        num_workers=10,
         pin_memory=True
     )
 
     model = MTGReconModel(num_classes=num_classes).to(DEVICE)
+
     criterion = nn.CrossEntropyLoss()
-    # Adam or SGD?
-    # https://ai.stackexchange.com/questions/11455/when-should-we-use-algorithms-like-adam-as-opposed-to-sgd
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
-    
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2)
+        
     print("Start of training...")
     total_steps = len(train_loader)
     
@@ -141,12 +141,14 @@ def main():
             labels = labels.to(DEVICE)
             
             # forward pass
-            outputs = model(images, labels) # ArcFace returns logits
+            outputs = model(images, labels)
             loss = criterion(outputs, labels)
             
             # backward pass
             optimizer.zero_grad()
             loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
             running_loss += loss.item()
@@ -156,6 +158,8 @@ def main():
             
         avg_loss = running_loss / len(train_loader)
         print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
+
+        scheduler.step(avg_loss)
         
         # save the trained model every 5 epochs 
         if (epoch + 1) % 5 == 0:
