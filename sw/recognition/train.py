@@ -13,6 +13,10 @@ import glob
 import numpy as np
 from pathlib import Path
 
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
+
 from model import MTGReconModel # model.py
 
 # --- CONFIG ---
@@ -89,56 +93,73 @@ def get_transforms():
         ),
         
         # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
-        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        #A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        A.Normalize(),
         # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
         ToTensorV2()
     ])
 
 
 def main():
-    print(f"Device in use: {DEVICE}")
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
+    dist.init_process_group(backend='nccl')
+    device = torch.device(f"cuda:{local_rank}")
+
+    is_master = (dist.get_rank() == 0)
+    if is_master:
+        print(f"Training started. World size: {dist.get_world_size()}")
+        os.makedirs(SAVE_DIR, exist_ok=True)
+    
+    all_image_paths = list(Path(INPUT_DIR).glob("*.png"))
+    if is_master:
+        print(f"Found {len(all_image_paths)} unique cards.")
 
     all_image_paths = list(Path(INPUT_DIR).glob("*.png"))
-    print(f"Found {len(all_image_paths)} unique cards.")
-    
     # NN needs numbers, not names (String -> Int)
     # 0, 1, 2...
     unique_names = sorted([p.stem for p in all_image_paths])
     label_map = {name: i for i, name in enumerate(unique_names)}
     num_classes = len(unique_names)
-    
-    print(f"No. of classes: {num_classes}")
+
+    if is_master:    
+        print(f"No. of classes: {num_classes}")
     
     train_dataset = MTGOnlineDataset(
         image_paths=all_image_paths, 
         label_map=label_map, 
         transform=get_transforms()
     )
-    
+
+    sampler = DistributedSampler(train_dataset, shuffle=True)
     train_loader = DataLoader(
         train_dataset, 
         batch_size=BATCH_SIZE, 
-        shuffle=True,
-        num_workers=10,
-        pin_memory=True
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True,
+        sampler=sampler
     )
 
-    model = MTGReconModel(num_classes=num_classes).to(DEVICE)
+    model = MTGReconModel(num_classes=num_classes).to(device)
+    model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2)
         
-    print("Start of training...")
+    if is_master:
+        print("Start of training...")
     total_steps = len(train_loader)
-    
     for epoch in range(NUM_EPOCHS):
+        sampler.set_epoch(epoch)
         model.train()
         running_loss = 0.0
         
         for i, (images, labels) in enumerate(train_loader):
-            images = images.to(DEVICE)
-            labels = labels.to(DEVICE)
+            images = images.to(device)
+            labels = labels.to(device)
             
             # forward pass
             outputs = model(images, labels)
@@ -153,24 +174,24 @@ def main():
 
             running_loss += loss.item()
             
-            if (i + 1) % LOG_INTERVAL == 0:
+            if is_master and (i + 1) % LOG_INTERVAL == 0:
                 print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Step [{i+1}/{total_steps}], Loss: {loss.item():.4f}")
             
         avg_loss = running_loss / len(train_loader)
-        print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
+        if is_master:
+            print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
 
-        scheduler.step(avg_loss)
+            scheduler.step(avg_loss)
         
-        # save the trained model every 5 epochs 
-        if (epoch + 1) % 5 == 0:
-            save_path = os.path.join(SAVE_DIR, f"arcface_mtg_ep{epoch+1}.pth")
-            torch.save(model.state_dict(), save_path)
-            print(f"Model saved to {save_path}")
+            if (epoch + 1) % 5 == 0:
+                save_path = os.path.join(SAVE_DIR, f"arcface_mtg_ep{epoch+1}.pth")
+                torch.save(model.module.state_dict(), save_path)
+                print(f"Model saved to {save_path}")
+    if is_master:
+        print("Training complete.")
+        torch.save(model.module.state_dict(), os.path.join(SAVE_DIR, "arcface_mtg_final.pth"))
 
-    print("Training complete.")
-    
-    torch.save(model.state_dict(), os.path.join(SAVE_DIR, "arcface_mtg_final.pth"))
-
-
+    dist.destroy_process_group()
+        
 if __name__ == "__main__":
     main()
