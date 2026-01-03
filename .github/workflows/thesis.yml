@@ -18,6 +18,7 @@ jobs:
         uses: xu-cheng/latex-action@v3
         with:
           working_directory: thesis
+          working_file: main.tex
           command: make
 
       - name: Upload PDF Artifact
