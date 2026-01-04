@@ -41,17 +41,17 @@
 \usepackage{multirow}
 \usepackage{dcolumn}
 \usepackage{epstopdf}
-\usepackage{url}
 \usepackage{listings}
 \usepackage{relsize}
 \usepackage{pdfpages}
-\usepackage{url}
+% \usepackage[hyphens,spaces,obeyspaces]{url}
+\usepackage{xurl}
 \usepackage{lipsum}
 \usepackage{isotope}
 \usepackage{verbatim}
 \usepackage{xcolor}
 \usepackage{tcolorbox}
-\usepackage[colorlinks]{hyperref}
+\usepackage[colorlinks,breaklinks]{hyperref}
 \usepackage{multicol}
 \usepackage{subfig}
 \usepackage[export]{adjustbox}
@@ -233,7 +233,7 @@
 \newcommand{\m}[1]{\ensuremath{\mathbf{#1}}}
 \newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
 \newcommand{\add}[1]{{\color{green} {#1}}}
-\newcommand{\todo}[1]{{\color{red} TODO {#1}}}
+\newcommand{\todo}[1]{{\color{red} TODO: {#1}}}
 \newcommand{\updated}[1]{{\color{blue} {#1}}}
 \newcommand{\real}{\mathbb{R}}
 \newcommand{\red}[1]{{\color{red} #1}}
@@ -245,6 +245,8 @@
 \newcommand{\bb}[1]{\textbf{#1}} 
 \newcommand{\bc}[1]{\left\lbrace #1 \right\rbrace}  % \{\} 
 \newcommand{\eps}{\varepsilon}
+
+\DeclareMathOperator*{\logit}{logit}
 
 % referencing
 \newcommand{\reffig}[1]{Fig.~\ref{#1}}
@@ -259,7 +261,9 @@
 \usepackage{listings}     
 \usepackage{lstautogobble}  % Fix relative indenting
 \usepackage{color}          % Code coloring
-\usepackage{zi4}            % Nice font
+% \usepackage{zi4}            % Nice font
+\usepackage{fontspec}
+% \setmonofont{Inconsolata}
 
 \definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
 \definecolor{greencomments}{rgb}{0, 0.5, 0}

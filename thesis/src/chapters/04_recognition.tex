@@ -1,52 +1,53 @@
 \chapter{Card Recognition Pipeline}\label{chap:rec}
 
-
-
 \section{Data Acquisition}
-One of the primary challenges in training deep learning models for \ac{TCG} identification is the problem of \textit{data scarcity}. While the total number of unique cards in circulation is vast (often exceeding tens of thousands for games like \ii{Magic: The Gathering}), labeled datasets containing real-world photographs of these cards are virtually non-existent. Collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming.
+One of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (often exceeding tens of thousands for games like \ac{MTG}), labeled datasets containing real-world photographs of these cards are virtually non-existent. Furthermore, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming.
 
-To address this limitation, this thesis adopts a \textit{synthetic data generation} approach. The ground truth \textit{template} images were aggregated from the Scryfall Bulk Data API, which provides a comprehensive JSON catalogue of all printed cards.
+To address this limitation, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format, enabling the automated generation of training samples.
 
 \subsection{Scraping Pipeline and Indexing}
 Custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging. % TODO: be more descriptive about where the source code is located? scripts/data_scraper.py
 
 Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number, and name with a \ac{UUID}: 
 \begin{equation}
-    \texttt{filename} = \texttt{edition}\_\texttt{number}\_\texttt{name}\text{-}\texttt{UUID}.\texttt{png}
+    \texttt{filename} = \texttt{edition\_collectorNumber\_name-UUID.png}
 \end{equation}
-For example, a card from the \textit{Zendikar} set is stored as:
+For example, a card from the \ii{Zendikar} set is stored as:
 \begin{center}
     \texttt{zen\_21\_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png}
 \end{center}
 This format allows for immediate visual identification of the card's edition and variant without requiring a lookup table, while the \ac{UUID} suffix guarantees collision-free storage even for edge cases (e.g., duplicate names across sets).
 
+
+% TODO: asi to chce zmínit, že je důležité nezapomenout trénovat _front a _back zvlášť,
+% zároveň mi tohle už nepřijde už akademicky znějící?
 \subsection{Handling Complex Layouts}
 The script also implements logic to handle complex card layouts, such as \acp{DFC} (transform, modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. Our pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers to ensure that both sides of the card are learnable by the model.
 
-Rate limiting and error handling (using \texttt{wget} with retries) were implemented to ensure stability during the bulk download of tens of thousands of assets.
+\section{Synthetic Data Generation}
+To address the lack of labeled real-world data, the training pipeline incorporates an on-the-fly synthesis module that simulates artifacts typical of physical image acquisition.
 
-\section{Synthetic Generation}
-Since manual annotation is infeasible, synthetic training samples are generated on the fly. The augmentation pipeline, implemented in \texttt{train.py}, simulates the imperfections of physical card scanning.
-
-For every training epoch, the \texttt{MTGOnlineDataset} class loads a pristine digital scan and applies a randomized composition of transformations defined in the \texttt{get\_transforms} function. Key augmentations include:
+For every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three main categories:
 \begin{itemize}
-    \item Geometric Distortions: Perspective transformations and rotation (limit $15^{\circ}$) mimic the camera angle and misalignment.
-    \item Photometric Noise: Color jitter (brightness, contrast, saturation) and Gaussian blur simulate varying lighting conditions and camera focus issues.
-    \item Occlusions: Using \texttt{CoarseDropout}, we simulate minor physical defects or dust on the card surface.
+    \item Geometric Transformations: Random perspective warping and rotation are applied to induce invariance to camera pose and alignment errors.
+    \item Photometric Distortions: Variations in brightness, contrast, and saturation, combined with Gaussian blur, approximate diverse environmental lighting and optical imperfections.
+    \item Occlusions and Artifacts: Random erasure methods (e.g., \texttt{CoarseDropout}~\footnote{Documentation available at \url{https://albumentations.ai/docs/api-reference/albumentations/augmentations/dropout/coarse_dropout/\#CoarseDropout}}) are utilized to simulate physical damage, dust, or partial occlusion of the card surface.
 \end{itemize}
-This approach exposes the model to a diverse range of tensors, effectively minimizing the likelihood of repetition, although it does not entirely eliminate the possibility.
+Consequently, the model is trained on a virtually infinite stream of unique samples. This strategy minimizes overfitting and enhances the model's generalization capabilities on unseen physical cards.
+
+\section{Theoretical Framework}
+
 
 \section{Model Architecture}
-The proposed solution utilizes a metric learning approach. Instead of traditional classification using Softmax, which is unsuitable for the open-set nature of TCGs (with thousands of classes), we employ the ArcFace loss function.
+The implemented recognition pipeline, defined in \texttt{model.py}, consists of three distrinct stages.
 
-The network architecture, defined in \texttt{architecture.py} as \texttt{MTGReconModel}, consists of three main components.
-\subsection{Backbone}
-A ResNet-50 \cite{He2015} extractor pretrained on ImageNet.
+\subsection{Backbone Network}
+A ResNet-50~\cite{He2015} extractor pretrained on ImageNet.
 
 \subsection{Embedding Head}
 A fully connected layer mapping the 2048 backbone features to a compact 512-dimensional embedding space.
 
-\subsection{Metric Loss Head}
+\subsection{ArcFace Head}
 The \texttt{ArcFaceHead} module, 
 
 
