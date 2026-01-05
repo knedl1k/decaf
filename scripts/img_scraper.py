@@ -2,131 +2,160 @@
 # -*- coding: utf-8 -*-
 
 # GNU General Public License v3.0
-# @knedl1k 2025
+# @knedl1k 2026
 
 import json
-import logging
-import subprocess
 import time
-import random
-from pathlib import Path
 import argparse
 import re
+import sys
+from pathlib import Path
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-logging.basicConfig(format='LOG: %(message)s')
-log = logging.getLogger(__name__)
+# Scryfall requests 50-100ms delay between requests.
+# Being slightly slower avoids IP bans.
+DELAY_PER_REQUEST = 0.1 
 
-SLEEP_MIN = 10 # sec
-SLEEP_MAX = 30 # sec
-TWO_SIDED = ["transform", "modal_dfc", "reversible_card", "double_faced_token", "meld"] # "art_series"
+TWO_SIDED = ["transform", "modal_dfc", "reversible_card", "double_faced_token", "meld"]
 
-dir_name = ""
-source_json = ""
+def create_session():
+    session = requests.Session()
+    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    return session
 
-def wgetDownload(
-        url,
-        output_path=None,
-        retries=1,
-        timeout=30,
-        show_progress=False
-):
-    cmd = ['wget', url]
-    if output_path:
-        cmd.extend(['-O', output_path])
-    if retries:
-        cmd.extend(['--tries', str(retries)])
-    if timeout:
-        cmd.extend(['--timeout', str(timeout)])
-    if not show_progress:
-        cmd.append('--quiet')
-
+def download_image(session, url, output_path):
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
     try:
-        subprocess.run(cmd, check=True)
-        return {"success": True, "message": "Download completed successfully."}
-    except subprocess.CalledProcessError as e:
-        return {"success": False, "message": f"Download failed: {e}"}
-
-def parse():
-    global source_json, dir_name
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", required=True, help="path to .csv file from Scryfall", type=str)
-    parser.add_argument("-s", "--store", required=True, help="path where to store downloaded images", type=str)
-    args = parser.parse_args()
-    source_json = args.file
-    dir_name = args.store
-
-def downloadImage(image, name, id):
-    try:
-        wgetDownload(image, output_path=f"{dir_name}/{name}-{id}.png")
+        response = session.get(url, stream=True, timeout=10)
+        response.raise_for_status()
+        
+        with open(path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        # Respect Scryfall API limits
+        time.sleep(DELAY_PER_REQUEST)
+        return True
     except Exception as e:
-        log.warning(id+": is sus-"+str(e))
+        print(f"Error downloading {url}: {e}")
+        return False
 
-def getDownloadedIDs(directory):
+def get_downloaded_ids(directory):
     existing_ids = set()
     uuid_regex = re.compile(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
-
-    try:
-        for file in Path(directory).iterdir():
-            if file.is_file():
-                match = uuid_regex.search(file.name)
-                if match:
-                    existing_ids.add(match.group(1))
-        print(f"Found {len(existing_ids)} downloaded IDs!")
+    
+    dir_path = Path(directory)
+    if not dir_path.exists():
+        dir_path.mkdir(parents=True)
         return existing_ids
-    except FileNotFoundError:
-        log.error(f"Directory '{directory}' not found.")
-        return None
+
+    print(f"Scanning {directory} for existing files...")
+    count = 0
+    for file in dir_path.iterdir():
+        if file.is_file():
+            match = uuid_regex.search(file.name)
+            if match:
+                existing_ids.add(match.group(1))
+                count += 1
+                
+    print(f"Found {count} already downloaded IDs.")
+    return existing_ids
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="download MTG card images from Scryfall bulk JSON.")
+    parser.add_argument("-f", "--file", required=True, help="path to .json file from Scryfall", type=str)
+    parser.add_argument("-s", "--store", required=True, help="directory where to store downloaded images", type=str)
+    return parser.parse_args()
+
+def clean_name(name_uri):
+    return name_uri.replace('https://scryfall.com/card/', '') \
+                   .replace('?utm_source=api', '') \
+                   .replace("/", "_")
 
 def main():
-    existing_ids = getDownloadedIDs(dir_name)
-    if existing_ids is None:
-        return
-        
-    # https://scryfall.com/docs/api/bulk-data
-    with open(source_json) as f:
-        d = json.load(f)
-        n = len(d)
-        for i, item in enumerate(d):
-            id = item['id']
+    args = parse_args()
+    source_json = Path(args.file)
+    store_dir = Path(args.store)
 
-            if id in existing_ids:
+    if not source_json.exists():
+        print(f"Error: JSON file '{source_json}' not found.")
+        sys.exit(1)
+
+    existing_ids = get_downloaded_ids(store_dir)
+    session = create_session()
+
+    print("Loading JSON data...")
+    try:
+        with open(source_json, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        print("Error: Failed to decode JSON. Check if the file is valid.")
+        sys.exit(1)
+
+    total_cards = len(data)
+    print(f"Starting process for {total_cards} cards...")
+
+    for i, item in enumerate(data):
+        if i % 100 == 0:
+            print(f"Progress: {i}/{total_cards} ({(i/total_cards)*100:.1f}%)")
+
+        card_id = item.get('id')
+        if not card_id or card_id in existing_ids:
+            continue
+
+        # Skip if no image is available (e.g. textless placeholders, very new cards)
+        if item.get('image_status') == 'missing':
+            continue
+
+        name_prefix = clean_name(item.get('scryfall_uri', 'unknown'))
+        layout = item.get('layout')
+
+        if layout in TWO_SIDED:
+            if 'card_faces' not in item:
+                print(f"Warning: {card_id} is {layout} but missing 'card_faces'. Skipping.")
                 continue
 
-            if item['image_status'] not in ['lowres', 'highres_scan']: # https://scryfall.com/docs/api/images
-                log.warning(f"{id}: exists but has no image available.")
-                continue
+            faces = item['card_faces']
+            # Some double faced cards (meld) might not have images on faces in JSON, but on main object
+            # Use logic: if faces have image_uris, use them.
+            try:
+                for j, face in enumerate(faces):
+                    if 'image_uris' in face:
+                        face_suffix = "back" if j else "front"
+                        face_id = f"{card_id}_{face_suffix}"                        
+                        target_file = store_dir / f"{name_prefix}-{face_id}.png"
+                        download_image(session, face['image_uris']['png'], target_file)
+                    else:
+                        # Fallback for some weird layouts where image is on parent
+                        if 'image_uris' in item:
+                             target_file = store_dir / f"{name_prefix}-{card_id}.png"
+                             download_image(session, item['image_uris']['png'], target_file)
+                             break 
+                existing_ids.add(card_id)
+            except Exception as e:
+                 print(f"Error processing faces for {card_id}: {e}")
 
-            if i%250 == 0 and i>0: # naively try not to get banned
-                t = random.randint(SLEEP_MIN, SLEEP_MAX)
-                print(f"Processed {i}/{n} cards. Sleeping for {t} s.")
-                time.sleep(t)
-                print("Continuing...")
+        elif layout == "art_series":
+            # print(f"Skipping art_series: {card_id}")
+            continue
 
-            name = item['scryfall_uri'] \
-            .replace('https://scryfall.com/card/', '').replace('?utm_source=api', '').replace("/", "_")
-
-            # https://scryfall.com/docs/api/layouts
-            if item['layout'] and item['layout'] in TWO_SIDED:
-                try:
-                    faces = item['card_faces']
-                    for j in range(2):
-                        try:
-                            face_id = id + "_" +("back" if j else "front")
-                            downloadImage(faces[j]['image_uris']['png'], name, face_id)
-                            existing_ids.add(id)
-                        except Exception as e:
-                            log.warning(f"{id}: should have 2 faces but some problem occured - {str(e)}")
-                except Exception as e:
-                    log.warning(f"{id}: should be double faced, but has no 'card_faces' attr.")
-            if item['layout'] and item['layout'] == "art_series":
-                log.warning(f"{id}: art_series cards are being omitted.")
+        else:
+            if 'image_uris' in item and 'png' in item['image_uris']:
+                target_file = store_dir / f"{name_prefix}-{card_id}.png"
+                download_image(session, item['image_uris']['png'], target_file)
+                existing_ids.add(card_id)
             else:
-                try:
-                    downloadImage(item['image_uris']['png'], name, id)
-                    existing_ids.add(id)
-                except Exception as e:
-                    log.warning(f"{id}: is sus- {str(e)}")
+                # Some cards don't have images (tokens sometimes, or placeholders)
+                pass
 
 if __name__ == "__main__":
-    parse()
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nProcess interrupted by user. Exiting.")
+        sys.exit(0)
