@@ -19,4 +19,4 @@ ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
 ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
 ml timm/0.6.13-foss-2023b-CUDA-12.4.0
 
-srun torchrun --nproc_per_node=4 --rdzv_backend=c10d --rdzv_endpoint=localhost:0 train.py
+srun torchrun --nproc_per_node=4 --rdzv_backend=c10d --rdzv_endpoint=localhost:0 train.py --input_dir="/mnt/personal/adamej14/images" --save_dir="./check"

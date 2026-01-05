@@ -12,6 +12,7 @@ import os
 import glob
 import numpy as np
 from pathlib import Path
+import argparse
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -19,24 +20,25 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import MTGReconModel # model.py
 
-# --- CONFIG ---
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 64
-LEARNING_RATE = 0.0001
-NUM_EPOCHS = 60           # every epoch is different augmentation
-INPUT_DIR = "/mnt/personal/adamej14/images"
-IMG_SIZE = 224
-SAVE_DIR = "/mnt/personal/adamej14/checkpoints/" # for models
-LOG_INTERVAL = 100        # No. of batches 
+# # --- CONFIG ---
+# DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# BATCH_SIZE = 64
+# LEARNING_RATE = 0.0001
+# NUM_EPOCHS = 60           # every epoch is different augmentation
+# INPUT_DIR = "/mnt/personal/adamej14/images"
+# IMG_SIZE = 224
+# SAVE_DIR = "/mnt/personal/adamej14/checkpoints/" # for models
+# LOG_INTERVAL = 100        # No. of batches 
 
-os.makedirs(SAVE_DIR, exist_ok=True)
+# os.makedirs(SAVE_DIR, exist_ok=True)
 
 # --- DATASET & AUGMENTATION ---
 class MTGOnlineDataset(Dataset):
-    def __init__(self, image_paths, label_map, transform=None):
+    def __init__(self, image_paths, label_map, transform=None, img_size=224):
         self.image_paths = image_paths
         self.label_map = label_map
         self.transform = transform
+        self.img_size = img_size
 
     def __len__(self):
         return len(self.image_paths)
@@ -59,7 +61,7 @@ class MTGOnlineDataset(Dataset):
         except Exception as e:
             # fallback for damaged files
             print(f"Warning: Error loading {path}: {e}")
-            image = np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8)
+            image = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
 
         file_stem = Path(path).stem
         label_id = self.label_map.get(file_stem, -1)
@@ -72,7 +74,7 @@ class MTGOnlineDataset(Dataset):
 
 
 # Augmentation Pipeline
-def get_transforms():
+def get_transforms(img_size):
     return A.Compose([
         # geometric deformations
         A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7), 
@@ -84,8 +86,8 @@ def get_transforms():
         A.GaussianBlur(blur_limit=(3, 5), p=0.2),
 
         # resize & padding
-        A.LongestMaxSize(max_size=IMG_SIZE),
-        A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT),
+        A.LongestMaxSize(max_size=img_size),
+        A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
         
         # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
         A.Normalize(),
@@ -93,8 +95,25 @@ def get_transforms():
         ToTensorV2()
     ])
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="distributed training for MTG card recognition")
+    
+    parser.add_argument("--input_dir", type=str, required=True, help="path to directory with images")
+    parser.add_argument("--save_dir", type=str, default="./checkpoints", help="directory to save models")
+    
+    parser.add_argument("--batch_size", type=int, default=64, help="batch size per GPU")
+    parser.add_argument("--epochs", type=int, default=25, help="number of epochs")
+    parser.add_argument("--lr", type=float, default=0.0001, help="learning rate")
+    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    
+    parser.add_argument("--log_interval", type=int, default=100, help="how many batches to wait before logging")
+    parser.add_argument("--num_workers", type=int, default=4, help="number of data loading workers")
+
+    return parser.parse_args()
 
 def main():
+    args = parse_args()
+    
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
     dist.init_process_group(backend='nccl')
@@ -103,13 +122,14 @@ def main():
     is_master = (dist.get_rank() == 0)
     if is_master:
         print(f"Training started. World size: {dist.get_world_size()}")
-        os.makedirs(SAVE_DIR, exist_ok=True)
+        print(f"Arguments: {args}")
+        os.makedirs(args.save_dir, exist_ok=True)
     
-    all_image_paths = list(Path(INPUT_DIR).glob("*.png"))
+    all_image_paths = list(Path(args.input_dir).glob("*.png"))
     if is_master:
         print(f"Found {len(all_image_paths)} unique cards.")
 
-    all_image_paths = list(Path(INPUT_DIR).glob("*.png"))
+    all_image_paths = list(Path(args.input_dir).glob("*.png"))
     # NN needs numbers, not names (String -> Int)
     # 0, 1, 2...
     unique_names = sorted([p.stem for p in all_image_paths])
@@ -120,17 +140,18 @@ def main():
         print(f"No. of classes: {num_classes}")
     
     train_dataset = MTGOnlineDataset(
-        image_paths=all_image_paths, 
-        label_map=label_map, 
-        transform=get_transforms()
+        image_paths = all_image_paths, 
+        label_map = label_map, 
+        transform = get_transforms(args.img_size),
+        img_size = args.img_size
     )
 
     sampler = DistributedSampler(train_dataset, shuffle=True)
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=BATCH_SIZE, 
+        batch_size=args.batch_size, 
         shuffle=False,
-        num_workers=4,
+        num_workers=args.num_works,
         pin_memory=True,
         sampler=sampler
     )
@@ -140,13 +161,13 @@ def main():
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=2)
         
     if is_master:
         print("Start of training...")
     total_steps = len(train_loader)
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(args.epoch):
         sampler.set_epoch(epoch)
         model.train()
 
@@ -175,9 +196,7 @@ def main():
                 for param in model.backbone.parameters():
                     param.requires_grad = True
 
-
         running_loss = 0.0
-        
         
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
@@ -196,8 +215,8 @@ def main():
 
             running_loss += loss.item()
             
-            if is_master and (i + 1) % LOG_INTERVAL == 0:
-                print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Step [{i+1}/{total_steps}], Loss: {loss.item():.4f}")
+            if is_master and (i + 1) % args.log_interval == 0:
+                print(f"Epoch [{epoch+1}/{args.epochs}], Step [{i+1}/{total_steps}], Loss: {loss.item():.4f}")
             
         avg_loss = running_loss / len(train_loader)
         if is_master:
@@ -206,12 +225,12 @@ def main():
             scheduler.step(avg_loss)
         
             if (epoch + 1) % 5 == 0:
-                save_path = os.path.join(SAVE_DIR, f"arcface_mtg_ep{epoch+1}.pth")
+                save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch+1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
     if is_master:
         print("Training complete.")
-        torch.save(model.module.state_dict(), os.path.join(SAVE_DIR, "arcface_mtg_final.pth"))
+        torch.save(model.module.state_dict(), os.path.join(args.save_dir, "arcface_mtg_final.pth"))
 
     dist.destroy_process_group()
         
