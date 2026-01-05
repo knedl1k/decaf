@@ -61,7 +61,7 @@ class MTGOnlineDataset(Dataset):
         except Exception as e:
             # fallback for damaged files
             print(f"Warning: Error loading {path}: {e}")
-            image = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+            image = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
 
         file_stem = Path(path).stem
         label_id = self.label_map.get(file_stem, -1)
@@ -151,7 +151,7 @@ def main():
         train_dataset, 
         batch_size=args.batch_size, 
         shuffle=False,
-        num_workers=args.num_works,
+        num_workers=args.num_workers,
         pin_memory=True,
         sampler=sampler
     )
@@ -167,7 +167,7 @@ def main():
     if is_master:
         print("Start of training...")
     total_steps = len(train_loader)
-    for epoch in range(args.epoch):
+    for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         model.train()
 
