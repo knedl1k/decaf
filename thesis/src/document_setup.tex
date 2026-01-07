@@ -21,7 +21,8 @@
 
 %% | ----------------- commonly used packages ----------------- |
 
-\usepackage[english]{babel}
+\usepackage{polyglossia}
+\setdefaultlanguage{english}
 \usepackage[en-US]{datetime2}
 \DTMlangsetup{showdayofmonth=false}
 \usepackage{csquotes}
@@ -235,7 +236,7 @@
 
 %% | ---------------------- custom macros --------------------- |
 
-\newcommand{\strong}[1]{\textbf{#1}}
+% \newcommand{\strong}[1]{\textbf{#1}}
 \newcommand{\coord}[1]{\textbf{#1}}
 \newcommand{\norm}[1]{\left\lvert#1\right\rvert}
 \newcommand{\m}[1]{\ensuremath{\mathbf{#1}}}
