@@ -80,7 +80,15 @@
 
 %% | ---------------------- abbreviations --------------------- |
 
-\usepackage[printonlyused]{acronym}
+% \usepackage[printonlyused]{acronym}
+\usepackage{acro}
+\newcommand{\acro}[3]{%
+  \DeclareAcronym{#1}{%
+    short = #2,%
+    long  = #3,%
+    sort  = #2 %
+  }%
+}
 
 % use to change margins around abbreviations block
 \def\changemargin#1#2{\list{}{\rightmargin#2\leftmargin#1}\item[]}

@@ -26,6 +26,7 @@
 
 %% | ---------------------- the contents ---------------------- |
 
+\input{src/abbreviations.tex}
 \begin{document}
 
 % this will prevent unwanted line overflows
@@ -89,10 +90,10 @@
 
 ~\vfill{}
 
-\section*{Abbreviations}
+% \section*{Abbreviations}
 
+\printacronyms[name=Abbreviations, heading=section*]
 % this will print only the used abbreviations
-\input{src/abbreviations.tex}
 
 \vskip 2.5cm
 
