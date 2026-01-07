@@ -20,9 +20,9 @@
 }
 
 %% | ----------------- commonly used packages ----------------- |
-
-\usepackage{polyglossia}
-\setdefaultlanguage{english}
+\usepackage[english]{babel}
+% \usepackage{polyglossia}
+% \setdefaultlanguage{english}
 \usepackage[en-US]{datetime2}
 \DTMlangsetup{showdayofmonth=false}
 \usepackage{csquotes}
@@ -166,7 +166,7 @@
 
 %% | ------------------------ biblatex ------------------------ |
 
-\usepackage[backend=bibtex,defernumbers=true,style=ieee,sorting=ydnt,sortcites=true]{biblatex}
+\usepackage[backend=biber,defernumbers=true,style=ieee,sorting=ydnt,sortcites=true]{biblatex}
 
 % define the source file with bibliography
 \addbibresource{main.bib}
