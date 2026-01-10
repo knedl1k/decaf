@@ -13,6 +13,7 @@ import glob
 import numpy as np
 from pathlib import Path
 import argparse
+import math
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -58,6 +59,38 @@ class MTGOnlineDataset(Dataset):
             image = augmented["image"]
             
         return image, label_id
+
+
+def visualize_augmentations(dataset, output_path, num_images=16):
+    indices = np.random.choice(len(dataset), num_images, replace=False)
+    
+    images = []
+    for idx in indices:
+        img_tensor, _ = dataset[idx]
+        img = img_tensor.permute(1, 2, 0).cpu().numpy()
+        
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        img = std * img + mean
+        
+        img = np.clip(img, 0, 1) * 255
+        img = img.astype(np.uint8)
+        
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        images.append(img)
+    
+    grid_size = int(math.ceil(math.sqrt(num_images)))
+    h, w, c = images[0].shape
+    
+    grid_img = np.zeros((grid_size * h, grid_size * w, c), dtype=np.uint8)
+    
+    for i, img in enumerate(images):
+        row = i // grid_size
+        col = i % grid_size
+        grid_img[row*h:(row+1)*h, col*w:(col+1)*w, :] = img
+        
+    cv2.imwrite(output_path, grid_img)
+    print(f"Augmentation preview saved to: {output_path}")
 
 
 # Augmentation Pipeline
@@ -132,6 +165,14 @@ def main():
         transform = get_transforms(args.img_size),
         img_size = args.img_size
     )
+
+    if is_master:
+        print("Generating augment preview")
+        preview_path = os.path.join(args.save_dir, "preview_aug.png")
+        try:
+            visualize_augmentations(train_dataset, preview_path, num_images=16)
+        except Exception as e:
+            print(f"Warning: Failed to generate aug visualization: {e}")
 
     sampler = DistributedSampler(train_dataset, shuffle=True)
     train_loader = DataLoader(
