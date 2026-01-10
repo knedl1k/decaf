@@ -131,6 +131,105 @@ def parse_args():
 
     return parser.parse_args()
 
+
+class MTGValidationDataset(Dataset):
+    def __init__(self, image_paths, label_map, img_size=224):
+        self.image_paths = image_paths
+        self.label_map = label_map
+        self.img_size = img_size
+
+        self.transform_gallery = A.Compose(
+            [
+                A.LongestMaxSize(max_size=img_size),
+                A.PadIfNeeded(
+                    min_height=img_size,
+                    min_width=img_size,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    value=[0, 0, 0],
+                ),
+                A.Normalize(),
+                ToTensorV2(),
+            ]
+        )
+
+        self.transform_query = get_transforms(img_size)
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        path = self.image_paths[idx]
+        try:
+            image = cv2.imread(str(path))
+            if image is None:
+                raise ValueError("Img not found")
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        except Exception:
+            image = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
+
+        gallery_img = self.transform_gallery(image=image)["image"]
+        query_img = self.transform_query(image=image)["image"]
+
+        file_stem = Path(path).stem
+        label_id = self.label_map.get(file_stem, -1)
+
+        return gallery_img, query_img, label_id
+
+
+def evaluate_metrics(model, val_loader, device):
+    model.eval()
+
+    gallery_vecs = []
+    query_vecs = []
+
+    with torch.no_grad():
+        for img_gallery, img_query, _ in val_loader:
+            img_gallery = img_gallery.to(device)
+            img_query = img_query.to(device)
+
+            emb_g = model(img_gallery)
+            emb_g = torch.nn.functional.normalize(emb_g, p=2, dim=1)
+
+            emb_q = model(img_query)
+            emb_q = torch.nn.functional.normalize(emb_q, p=2, dim=1)
+
+            gallery_vecs.append(emb_g.cpu())
+            query_vecs.append(emb_q.cpu())
+
+    gallery_matrix = torch.cat(gallery_vecs)  # [N, 512]
+    query_matrix = torch.cat(query_vecs)  # [N, 512]
+
+    # similarity[i, j] = how much is query img 'i' similar to the gallery img 'j'
+    similarity_matrix = torch.mm(query_matrix, gallery_matrix.t())  # [N, N]
+
+    positives = similarity_matrix.diag()  # [N]
+
+    eye = torch.eye(similarity_matrix.shape[0], device=similarity_matrix.device).bool()
+    negatives = similarity_matrix[~eye]  # [N * (N-1)]
+
+    # True Match Rate
+    target_tmr = 0.95
+    pos_sorted, _ = torch.sort(positives)
+    cutoff_index = int(len(positives) * (1 - target_tmr))
+    threshold = pos_sorted[cutoff_index].item()
+
+    # False Match Rate
+    false_matches = (negatives > threshold).sum().item()
+    num_negatives = negatives.numel()
+
+    fmr = false_matches / num_negatives
+
+    avg_pos = positives.mean().item()
+    avg_neg = negatives.mean().item()
+
+    return {
+        "fmr_at_95_tmr": fmr,
+        "threshold": threshold,
+        "avg_pos_sim": avg_pos,
+        "avg_neg_sim": avg_neg,
+    }
+
+
 def main():
     args = parse_args()
     
@@ -146,24 +245,27 @@ def main():
         os.makedirs(args.save_dir, exist_ok=True)
     
     all_image_paths = list(Path(args.input_dir).glob("*.png"))
+    all_image_paths.sort()
+    rng = np.random.RandomState(42)
+    rng.shuffle(all_image_paths)
+    VAL_SIZE = 1000
+    train_paths = all_image_paths[VAL_SIZE:]
+    val_paths = all_image_paths[:VAL_SIZE]
     if is_master:
         print(f"Found {len(all_image_paths)} unique cards.")
+        print(f"Dataset split: {len(train_paths)} train cards, {len(val_paths)} val cards.")
 
-    all_image_paths = list(Path(args.input_dir).glob("*.png"))
     # NN needs numbers, not names (String -> Int)
     # 0, 1, 2...
-    unique_names = sorted([p.stem for p in all_image_paths])
+    unique_names = sorted([p.stem for p in train_paths])
     label_map = {name: i for i, name in enumerate(unique_names)}
     num_classes = len(unique_names)
 
-    if is_master:    
-        print(f"No. of classes: {num_classes}")
-    
     train_dataset = MTGOnlineDataset(
-        image_paths = all_image_paths, 
-        label_map = label_map, 
-        transform = get_transforms(args.img_size),
-        img_size = args.img_size
+        image_paths=train_paths,
+        label_map=label_map,
+        transform=get_transforms(args.img_size),
+        img_size=args.img_size,
     )
 
     if is_master:
@@ -176,12 +278,21 @@ def main():
 
     sampler = DistributedSampler(train_dataset, shuffle=True)
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=args.batch_size, 
+        train_dataset,
+        batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
         pin_memory=True,
-        sampler=sampler
+        sampler=sampler,
+    )
+
+    val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
     )
 
     model = MTGReconModel(num_classes=num_classes).to(device)
@@ -242,20 +353,31 @@ def main():
             optimizer.step()
 
             running_loss += loss.item()
-            
-            if is_master and (i + 1) % args.log_interval == 0:
-                print(f"Epoch [{epoch+1}/{args.epochs}], Step [{i+1}/{total_steps}], Loss: {loss.item():.4f}")
-            
-        avg_loss = running_loss / len(train_loader)
-        if is_master:
-            print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
 
-            scheduler.step(avg_loss)
-        
+            if is_master and (i + 1) % args.log_interval == 0:
+                print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
+
+        #avg_loss = running_loss / len(train_loader)
+        if is_master:
+            print(f"Starting validation for epoch #{epoch + 1}")
+            metrics = evaluate_metrics(model.module, val_loader, device)
+            print(f"--- VALIDATION RESULTS (Epoch {epoch + 1}) ---")
+            print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
+            print(f"Threshold:     {metrics['threshold']:.4f}")
+            print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
+            print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
+            print(f"------------------------------------------")
+            scheduler.step(metrics["fmr_at_95_tmr"])
+            # print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
+            # scheduler.step(avg_loss)
+
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch+1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
+
+        dist.barrier()
+
     if is_master:
         print("Training complete.")
         torch.save(model.module.state_dict(), os.path.join(args.save_dir, "arcface_mtg_final.pth"))
