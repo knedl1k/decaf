@@ -20,19 +20,6 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import MTGReconModel # model.py
 
-# # --- CONFIG ---
-# DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-# BATCH_SIZE = 64
-# LEARNING_RATE = 0.0001
-# NUM_EPOCHS = 60           # every epoch is different augmentation
-# INPUT_DIR = "/mnt/personal/adamej14/images"
-# IMG_SIZE = 224
-# SAVE_DIR = "/mnt/personal/adamej14/checkpoints/" # for models
-# LOG_INTERVAL = 100        # No. of batches 
-
-# os.makedirs(SAVE_DIR, exist_ok=True)
-
-# --- DATASET & AUGMENTATION ---
 class MTGOnlineDataset(Dataset):
     def __init__(self, image_paths, label_map, transform=None, img_size=224):
         self.image_paths = image_paths
