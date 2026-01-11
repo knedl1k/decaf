@@ -19,4 +19,13 @@ ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
 ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
 ml timm/0.6.13-foss-2023b-CUDA-12.4.0
 
-srun python3 create_database.py
+MODEL_PATH="/mnt/personal/adamej14/checkpoints/arcface_mtg_final.pth"
+IMG_DIR="/mnt/personal/adamej14/images"
+OUT_PATH="./card_database.pth"
+
+srun python3 build_index.py \
+    --model "$MODEL_PATH" \
+    --images "$IMG_DIR" \
+    --save_dir "$OUT_PATH" \
+    --batch_size 128 \
+    --num_workers 4
