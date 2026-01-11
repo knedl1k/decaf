@@ -19,7 +19,7 @@ ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
 ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
 ml timm/0.6.13-foss-2023b-CUDA-12.4.0
 
-IMG_DIR="/mnt/personal/adamej14/images"
+IMG_DIR="/mnt/personal/adamej14/dataset"
 SAVE_DIR="./check"
 
 srun torchrun \
