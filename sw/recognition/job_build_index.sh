@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#SBATCH --job-name=mtg_recon
+#SBATCH --job-name=mtg_idx
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1         # 1 main process
 #SBATCH --cpus-per-task=4           # 4 CPU cores for DataLoader
@@ -19,8 +19,8 @@ ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
 ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
 ml timm/0.6.13-foss-2023b-CUDA-12.4.0
 
-MODEL_PATH="/mnt/personal/adamej14/checkpoints/arcface_mtg_final.pth"
-IMG_DIR="/mnt/personal/adamej14/images"
+MODEL_PATH="./check/arcface_mtg_final.pth"
+IMG_DIR="/mnt/personal/adamej14/dataset"
 OUT_PATH="./card_database.pth"
 
 srun python3 build_index.py \
