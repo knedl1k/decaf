@@ -7,30 +7,35 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from model import MTGReconModel
 import numpy as np
+import argparse
 
-# --- CONFIG ---
-MODEL_PATH = "/mnt/personal/adamej14/checkpoints/arcface_mtg_final.pth"
-DATABASE_PATH = "card_database.pth"
 TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
-IMG_SIZE = 224
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-def get_inference_transforms():
+def parse_args():
+    parser = argparse.ArgumentParser(description="create an index of vectors with ArcFace NN")
+    parser.add_argument("--model", type=str, required=True, help="path to trained model")
+    parser.add_argument("--database", type=str, required=True, help="path to index database")
+    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    parser.add_argument("--num_candidates", type=int, default=3, help="number of candidates with the best confidence")
+    return parser.parse_args()
+
+def get_inference_transforms(img_size):
     return A.Compose([
-        A.LongestMaxSize(max_size=IMG_SIZE),
-        A.PadIfNeeded(min_height=IMG_SIZE, min_width=IMG_SIZE, border_mode=cv2.BORDER_CONSTANT),
+        A.LongestMaxSize(max_size=img_size),
+        A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
         A.Normalize(),
         ToTensorV2()
     ])
 
-def recognize_card():
+def recognize_card(args):
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     print("Loading database...")
-    db = torch.load(DATABASE_PATH, map_location=DEVICE, weights_only=False)
-    db_vectors = db["vectors"].to(DEVICE) # matrix [#classes, 512]
+    db = torch.load(args.database, map_location=DEVICE, weights_only=False)
+    db_vectors = db["vectors"].to(DEVICE)
     db_names = db["names"]
     
-    model = MTGReconModel(num_classes=1).to(DEVICE) # we do not care about num_classes
-    checkpoint = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
+    model = MTGReconModel(num_classes=1).to(DEVICE)
+    checkpoint = torch.load(args.model, map_location=DEVICE, weights_only=False)
     if 'arcface.weight' in checkpoint:
         del checkpoint['arcface.weight']
     model.load_state_dict(checkpoint, strict=False)
@@ -43,7 +48,7 @@ def recognize_card():
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
-    transform = get_inference_transforms()
+    transform = get_inference_transforms(args.img_size)
     aug = transform(image=img)["image"]
     img_tensor = aug.unsqueeze(0).to(DEVICE)
 
@@ -71,12 +76,12 @@ def recognize_card():
     print(f"Confidence: {confidence:.2f} %")
     print("--------------------------------")
     
-    top_scores, top_idxs = torch.topk(similarity_scores, 3)
-    print("TOP 3 candidates:")
-    for i in range(3):
+    top_scores, top_idxs = torch.topk(similarity_scores, args.num_candidates)
+    for i in range(args.num_candidates):
         idx = top_idxs[0][i].item()
         score = top_scores[0][i].item()
         print(f"{i+1}. {db_names[idx]} ({score*100:.2f}%)")
 
 if __name__ == "__main__":
-    recognize_card()
+    args = parse_args()
+    recognize_card(args)
