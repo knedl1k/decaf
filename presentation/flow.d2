@@ -1,0 +1,119 @@
+direction: right
+grid-rows: 2
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  process: {
+    shape: rectangle
+    style: {
+      border-radius: 5
+      stroke-width: 2
+      fill: "#f5f5f5"
+      stroke: "#333333"
+    }
+  }
+  data: {
+    shape: parallelogram
+    style: {
+      fill: "#e1eaff"
+      stroke: "#2a5caa"
+    }
+  }
+  component: {
+    style: {
+      fill: "white"
+      stroke-dash: 3
+    }
+  }
+}
+
+phase1: Phase 1: Feature Extraction {
+  direction: right
+  style: {stroke: white; fill: transparent}
+
+  input: Input {
+    class: data
+    icon: image
+  }
+
+  preprocessing: Preprocessing {
+    class: component
+
+    resize: Resize\n(224px) {class: process}
+    pad: Padding {class: process}
+    norm: Normalize {class: process}
+    tensor: ToTensor {class: process}
+
+    resize -> pad -> norm -> tensor
+  }
+
+  model: MTGReconModel {
+    class: component
+    style: {fill: "#fff8dc"; stroke: "#d4a017"}
+
+    backbone: ResNet50 {
+      class: process
+      tooltip: "2048 features"
+    }
+
+    neck: Embedding Head {
+      style: {fill: "transparent"; stroke-width: 0}
+      fc: Linear\n(2048->512) {class: process; style: {fill: "#ffcccc"}}
+    }
+
+    backbone -> neck.fc
+  }
+
+  " ": {
+    style: {stroke: transparent; fill: transparent}
+  }
+  input -> preprocessing.resize
+  preprocessing.tensor -> model.backbone
+  model.neck.fc -> " "
+}
+
+phase2: Phase 2: Metric Learning & Retrieval {
+  direction: right
+  style: {stroke: transparent; fill: transparent}
+
+  embedding_raw: Raw Embedding\n(512 dim) {class: data}
+
+  normalization: L2 Norm {
+    class: process
+    label: "L2 Normalize\n(Hypersphere)"
+  }
+
+  query_vec: Query Vector {class: data}
+
+  database: Index (.pth) {
+    shape: cylinder
+    style: {fill: "#e6e6fa"}
+  }
+
+  matching: Matching Engine {
+    class: component
+
+    cosine: Cosine Similarity {class: process}
+    topk: Top-K Result {class: process}
+
+    cosine -> topk
+  }
+
+  output: Card ID\n+ Confidence {
+    class: data
+    style: {fill: "#d4edda"; stroke: "#155724"}
+  }
+
+  " ": {
+    style: {stroke: transparent; fill: transparent}
+  }
+
+  " " -> embedding_raw -> normalization -> query_vec -> matching.cosine
+  database -> matching.cosine
+  matching.topk -> output
+}
