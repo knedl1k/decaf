@@ -1,0 +1,120 @@
+\documentclass[aspectratio=169, 10pt, t]{beamer} 
+
+\usepackage{polyglossia}
+\setdefaultlanguage{czech}
+
+\usepackage{fontspec}
+\fontspec [Path = fonts/,
+    RegularFont = *-Regular,
+    ItalicFont = *-Italic]
+    {Technika.otf}
+
+% \setmainfont[ Path = ./fonts/ ] {Technika-Regular.otf}[
+%     BoldFont = Technika-Bold.otf,
+%     ItalicFont = Technika-Italic.otf,
+% ]
+% \usefonttheme{professionalfonts}
+% \usefonttheme{serif}
+
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\usefonttheme[onlymath]{serif} 
+\usefonttheme{professionalfonts}
+
+\definecolor{CVUTBlue}{RGB}{0, 101, 189}      
+\definecolor{CVUTLightBlue}{RGB}{106, 173, 228} 
+\definecolor{CVUTGrey}{RGB}{155, 155, 155}    
+\definecolor{CVUTBlack}{RGB}{0, 0, 0}         
+
+\setbeamercolor{title}{fg=CVUTBlue}
+\setbeamercolor{frametitle}{fg=CVUTBlue}
+\setbeamercolor{structure}{fg=CVUTBlue}       
+\setbeamercolor{normal text}{fg=CVUTBlack}
+\setbeamercolor{alerted text}{fg=CVUTLightBlue} 
+\setbeamercolor{footnote}{fg=CVUTGrey}
+
+\setbeamertemplate{navigation symbols}{}      
+\setbeamertemplate{headline}{}                
+
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,left]{author in head/foot}%
+    \hspace*{2em} \color{CVUTGrey} \textbf{\insertframenumber{} / \inserttotalframenumber}
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+    \color{CVUTGrey}\usebeamerfont{date in head/foot}\insertshortauthor\hspace*{2em}
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+
+\setbeamerfont{frametitle}{size=\Large, series=\bfseries}
+\setbeamertemplate{frametitle}{%
+    \vspace{0.3cm}
+    
+    \begin{columns}[c]
+        \begin{column}{0.83\textwidth}
+            \hspace{0.1cm}
+            \insertframetitle
+        \end{column}
+        
+        \begin{column}{0.3\textwidth}
+            \raggedleft
+            \includegraphics[width=1.8cm, keepaspectratio]{logo_fel.jpg} 
+            \hspace{0.3cm}
+        \end{column}
+    \end{columns}
+    \noindent\makebox[\linewidth]{\color{CVUTBlue}\rule{\paperwidth}{0.4pt}} 
+}
+
+\title{Automated Recognition \\ \& Classification of Trading Cards} 
+\subtitle{Presentation of the Unassisted project} 
+\author{Jakub Adamec} 
+\institute{     
+    \textbf{Czech Technical University in Prague}\\     
+    Faculty of Electrical Engineering\\     
+    Department of Cybernetics\\     
+    Machine Learning Group 
+}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \vspace{1cm}
+  {\usebeamerfont{title}\usebeamercolor[fg]{title}\huge \textbf{\inserttitle}}\par
+  \vspace{0.3cm}
+  {\large \color{CVUTGrey}\insertsubtitle}\par
+  \vspace{1.5cm}
+  \textbf{\insertauthor}\par
+  \vspace{0.2cm}
+  \footnotesize \insertinstitute\par
+\end{frame}
+
+\begin{frame}{Motivation and Objective}
+    \textbf{Problem:}
+    \begin{itemize}
+        \item Manual sorting of trading cards (TCG) is time-consuming and prone to errors.
+        \item Existing commercial solutions (e.g., CardBot) are proprietary and/or expensive. 
+        \item Many different similar cards. MTG has >100k unique cards.
+    \end{itemize}
+
+    \vspace{0.5cm}
+    \textbf{Objective of the work}
+    \begin{itemize}
+        \item Software: Recognition pipeline that recognizes cards even from poor-quality photos.
+        \item Hardware: Affordable and widely available components (Arduino, stepper motors...).
+        \item The entire project is FOSS and well documented so that it can serve as educational material.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Recognition Pipeline}
+    \begin{figure}
+        \includegraphics[scale=0.7]{../../flow.png}
+    \end{figure}
+\end{frame}
+
+\end{document}
