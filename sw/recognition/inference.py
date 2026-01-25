@@ -11,6 +11,7 @@ import argparse
 
 TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="create an index of vectors with ArcFace NN")
     parser.add_argument("--model", type=str, required=True, help="path to trained model")
@@ -19,13 +20,17 @@ def parse_args():
     parser.add_argument("--num_candidates", type=int, default=3, help="number of candidates with the best confidence")
     return parser.parse_args()
 
+
 def get_inference_transforms(img_size):
-    return A.Compose([
-        A.LongestMaxSize(max_size=img_size),
-        A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
-        A.Normalize(),
-        ToTensorV2()
-    ])
+    return A.Compose(
+        [
+            A.LongestMaxSize(max_size=img_size),
+            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
+            A.Normalize(),
+            ToTensorV2(),
+        ]
+    )
+
 
 def recognize_card(args):
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,11 +38,11 @@ def recognize_card(args):
     db = torch.load(args.database, map_location=DEVICE, weights_only=False)
     db_vectors = db["vectors"].to(DEVICE)
     db_names = db["names"]
-    
+
     model = MTGReconModel(num_classes=1).to(DEVICE)
     checkpoint = torch.load(args.model, map_location=DEVICE, weights_only=False)
-    if 'arcface.weight' in checkpoint:
-        del checkpoint['arcface.weight']
+    if "arcface.weight" in checkpoint:
+        del checkpoint["arcface.weight"]
     model.load_state_dict(checkpoint, strict=False)
     model.eval()
 
@@ -47,7 +52,7 @@ def recognize_card(args):
         return
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    
+
     transform = get_inference_transforms(args.img_size)
     aug = transform(image=img)["image"]
     img_tensor = aug.unsqueeze(0).to(DEVICE)
@@ -59,28 +64,29 @@ def recognize_card(args):
     print(f"{query_vector[:10]=}")
     print(f"{db_vectors[0, :10]=}")
     print(f"{db_vectors[1, :10]=}")
-    
+
     # Since the vectors are normalized, Cosine Similarity is just a scalar product (Dot Product).
     # We multiply the card vector (1, 512) by the entire database matrix (512, 100000).
     # The result is a similarity score for each card in the database (-1 to 1).
     similarity_scores = torch.mm(query_vector, db_vectors.t())
-    
+
     best_score, best_idx = torch.max(similarity_scores, dim=1)
-    
+
     best_card_name = db_names[best_idx.item()]
     confidence = best_score.item() * 100
-      
+
     print("-------------------------------")
     print(f"Test card:  {TEST_IMAGE_PATH}")
     print(f"Result:     {best_card_name}")
     print(f"Confidence: {confidence:.2f} %")
     print("--------------------------------")
-    
+
     top_scores, top_idxs = torch.topk(similarity_scores, args.num_candidates)
     for i in range(args.num_candidates):
         idx = top_idxs[0][i].item()
         score = top_scores[0][i].item()
-        print(f"{i+1}. {db_names[idx]} ({score*100:.2f}%)")
+        print(f"{i + 1}. {db_names[idx]} ({score * 100:.2f}%)")
+
 
 if __name__ == "__main__":
     args = parse_args()
