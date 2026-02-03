@@ -9,11 +9,12 @@ from model import MTGReconModel
 import numpy as np
 import argparse
 
-TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
+# TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="create an index of vectors with ArcFace NN")
+    parser.add_argument("--img", type=str, required=True, help="relative path to image")
     parser.add_argument("--model", type=str, required=True, help="path to trained model")
     parser.add_argument("--database", type=str, required=True, help="path to index database")
     parser.add_argument("--img_size", type=int, default=224, help="input image size")
@@ -46,7 +47,7 @@ def recognize_card(args):
     model.load_state_dict(checkpoint, strict=False)
     model.eval()
 
-    img = cv2.imread(TEST_IMAGE_PATH)
+    img = cv2.imread(args.img)
     if img is None:
         print("Error: Test image not found.")
         return
@@ -76,7 +77,7 @@ def recognize_card(args):
     confidence = best_score.item() * 100
 
     print("-------------------------------")
-    print(f"Test card:  {TEST_IMAGE_PATH}")
+    print(f"Test card:  {args.img}")
     print(f"Result:     {best_card_name}")
     print(f"Confidence: {confidence:.2f} %")
     print("--------------------------------")
