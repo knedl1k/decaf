@@ -20,7 +20,7 @@
     BoldItalicFont = *-BoldItalic
 ]
 
-\title{Automated Recognition \\ \& Classification of Trading Cards} 
+\title{Automated Recognition and \\ Classification of Trading Cards} 
 \subtitle{Presentation of the Unassisted project} 
 \author{Jakub Adamec} 
 \institute{     
@@ -34,18 +34,30 @@
 \begin{document}
 
 \begin{frame}[plain, noframenumbering]
-  \vspace{1cm}
-  {\usebeamerfont{title}\usebeamercolor[fg]{title}\huge \bb{\inserttitle}}\par
-  \vspace{0.3cm}
-  {\large \color{CVUTGrey}\insertsubtitle}\par
-  \vspace{1.5cm}
-  \bb{\insertauthor}\par
-  \vspace{0.2cm}
-  \footnotesize \insertinstitute\par
+    \vspace{2cm} 
+    \begin{columns}[t] 
+        \begin{column}{0.65\textwidth}
+            {\usebeamerfont{title}\usebeamercolor[fg]{title}\huge \bb{\inserttitle}}\par
+            \vspace{0.3cm}
+            {\large \color{CVUTGrey}\insertsubtitle}\par
+            
+            \vspace{1.5cm}
+            \bb{\insertauthor}\par
+            \vspace{0.2cm}
+            \footnotesize \insertinstitute\par
+        \end{column}
+
+        \begin{column}{0.3\textwidth}
+            \raggedleft
+            \vspace{-0.5cm}
+
+            \includegraphics[width=2cm, keepaspectratio]{../configs/media/logo_CTU_vertical.pdf} 
+        \end{column}
+    \end{columns}
 \end{frame}
 
 \begin{frame}{Motivation and Objective}
-    \bb{Problem:}
+    \bb{The problem}
     \begin{itemize}
         \item Manual sorting of trading cards (TCG) is time-consuming and prone to errors.
         \item Existing commercial solutions (e.g., CardBot) are proprietary and/or expensive. 
