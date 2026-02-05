@@ -19,6 +19,13 @@
     ItalicFont = *-Italic,
     BoldItalicFont = *-BoldItalic
 ]
+\usepackage{pdfpages}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, calc, positioning, shapes.geometric, angles, quotes, backgrounds}
+
+\definecolor{academicBlue}{RGB}{0, 85, 164}
+\definecolor{academicRed}{RGB}{200, 30, 40}
+\definecolor{marginGray}{RGB}{220, 220, 220}
 
 \title{Automated Recognition and \\ Classification of Trading Cards} 
 \subtitle{Presentation of the Unassisted project} 
@@ -65,18 +72,190 @@
     \end{itemize}
 
     \vspace{0.5cm}
-    \bb{Objective of the work}
+    \bb{Objectives of the work}
     \begin{itemize}
         \item Software: Recognition pipeline that recognizes cards even from poor-quality photos.
         \item Hardware: Affordable and widely available components (Arduino, stepper motors...).
-        \item The entire project is FOSS and well documented so that it can serve as educational material.
+        \item The entire project FOSS and well documented so that it can serve as educational material.
     \end{itemize}
+\end{frame}
+
+\begin{frame}{Hardware: Concept}
+    \begin{itemize}
+        \item Focus on affordable components (FOSS philosophy).
+        \item Control logic implemented on Arduino Platform.
+        \item \textbf{Milestone reached:} Precise stepper motor control using rotation encoders feedback loop.
+    \end{itemize}
+    \begin{center}
+        \includegraphics[width=0.6\textwidth]{../../robotic-arm_cards.pdf}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Data Acquisition \& Augmentation}
+    \begin{columns}[t]
+        \begin{column}{0.5\textwidth}
+            \bb{Synthetic Dataset Generation}
+            \begin{itemize}
+                \item Real-world labeled dataset is non-existent.
+                \item Scans retrieved via \ii{Scryfall API}.
+                \item Custom naming convention for human-readability \& uniqueness:
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \bb{Bridge the Domain Gap}
+            \begin{itemize}
+                \item Heavy augmentation pipeline required to match camera output.
+                \item \textbf{Geometric:} Random perspective, rotation.
+                \item \textbf{Photometric:} Blur, noise, lighting conditions, partial occlusions.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+    \vspace{2em}
+    \begin{center}
+        \Large
+        \texttt{filename = edition\_collectorNumber\_name-UUID.png}
+        \texttt{zen\_21\_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Augmentation Pipeline}
+    
+\end{frame}
+
+\begin{frame}{Softmax vs ArcFace}
+    \bb{Limitations of Standard Softmax}
+    \begin{itemize}
+        \item Huge number of classes ($10^5+$) $\rightarrow$ computationally expensive.
+        \item Open-set problem: New cards are released frequently.
+    \end{itemize}
+    
+    \vspace{0.5cm}
+    
+    \bb{Metric Learning Approach (ArcFace)}
+    \begin{itemize}
+        \item Learning a mapping to a hypersphere embedding space.
+        \item Intra-class \ii{compactness}. Images of the same card are pulled together.
+        \item Intra-class \ii{separability}. Different cards are pushed apart.
+        \item Inference via \ii{Cosine Similarity} (Nearest Neighbor).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Geometric Interpretation}
+    \centering
+    \tikzset{
+        >=Stealth,
+        feature_point/.style={circle, inner sep=1.5pt, fill=black!70},
+        class1_point/.style={feature_point, fill=academicBlue},
+        class2_point/.style={feature_point, fill=academicRed},
+        weight_vec/.style={->, thick, shorten >=1pt},
+        boundary_line/.style={dashed, thick, black!60},
+        margin_area/.style={fill=marginGray, opacity=0.5},
+        axis_style/.style={->, thin, black!40}
+    }
+    \vspace{1em}
+    \begin{columns}[b]
+        \begin{column}{0.54\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=2.5]
+                \coordinate (O) at (0,0);
+                \draw[axis_style] (-0.2,0) -- (1.8,0);
+                \draw[axis_style] (0,-0.2) -- (0,1.8);
+            
+                \def\angWone{30}
+                \def\angWtwo{130}
+                \pgfmathsetmacro{\angBoundary}{(\angWone + \angWtwo)/2}
+
+                \coordinate (W1_tip) at (\angWone:1.4);
+                \coordinate (W2_tip) at (\angWtwo:1.2);
+
+                \draw[weight_vec, academicBlue] (O) -- (W1_tip) node[right] {$\mathbf{W}_1$};
+                \draw[weight_vec, academicRed] (O) -- (W2_tip) node[left] {$\mathbf{W}_2$};
+                \draw[boundary_line] (O) -- (\angBoundary:1.8) node[above right, font=\footnotesize] {};
+
+                \coordinate (X_sample) at (\angWone+15:1.1);
+                \draw[->, thin, black!80] (O) -- (X_sample) node[midway, below, font=\footnotesize] {$\mathbf{x}_i$};
+            
+                \pic [draw, angle radius=0.5cm, "$\theta_{1,i}$", font=\footnotesize, angle eccentricity=1.3] {angle = X_sample--O--W1_tip};
+
+                \foreach \r/\a in {1.0/20, 1.3/35, 0.8/25, 1.5/40, 1.1/15, 0.9/30, 1.2/10}
+                    \node[class1_point] at (\a:\r) {};
+                \foreach \r/\a in {1.1/120, 0.9/135, 1.4/125, 1.0/140, 1.2/115, 0.8/130, 1.3/145}
+                    \node[class2_point] at (\a:\r) {};
+            \end{tikzpicture}
+            
+            \vspace{0.2cm}
+            \footnotesize{(a) Standard Softmax Loss}
+        \end{column}
+
+        \begin{column}{0.46\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=1.7]
+                \coordinate (O) at (0,0);
+                \def\radius{1.5}
+                \draw[thick, black!80] (O) circle (\radius);
+                \node at (115:\radius+0.3) [font=\footnotesize] {Hypersphere};
+
+                \def\angWone{30}
+                \def\angWtwo{130}
+                \def\marginDeg{25}
+                \pgfmathsetmacro{\angBoundary}{(\angWone + \angWtwo)/2}
+                \pgfmathsetmacro{\angMarginOne}{\angBoundary - \marginDeg}
+                \pgfmathsetmacro{\angMarginTwo}{\angBoundary + \marginDeg}
+
+                \coordinate (W1_pt) at (\angWone:\radius);
+                \coordinate (W2_pt) at (\angWtwo:\radius+0.05);
+                \coordinate (M1_pt) at (\angMarginOne:\radius);
+                \coordinate (M2_pt) at (\angMarginTwo:\radius);
+
+                \begin{scope}[on background layer]
+                    \fill[marginGray] (O) -- (M1_pt) arc (\angMarginOne:\angMarginTwo:\radius) -- cycle;
+                \end{scope}
+            
+                \draw[boundary_line, thin] (O) -- (M1_pt);
+                \draw[boundary_line, thin] (O) -- (M2_pt);
+                \draw[dashed, thin, black!30] (O) -- (\angBoundary:\radius);
+
+                \draw[weight_vec, academicBlue] (O) -- (W1_pt) node[right] {$\mathbf{W}_1$};
+                \draw[weight_vec, academicRed] (O) -- (W2_pt) node[left] {$\mathbf{W}_2$};
+
+                \pic [draw, <->, angle radius=0.8*\radius cm, "$m$", font=\small, angle eccentricity=1.15, academicBlue] {angle = W1_pt--O--M1_pt};
+                \pic [draw, <->, angle radius=0.8*\radius cm, "$m$", font=\small, angle eccentricity=1.15, academicRed] {angle = M2_pt--O--W2_pt};
+
+                \foreach \a in {28, 32, 25, 35, 30, 22, 38}
+                    \node[class1_point] at (\a:\radius) {};
+                \foreach \a in {128, 132, 125, 135, 130, 122, 138}
+                    \node[class2_point] at (\a:\radius) {};
+
+                \node at (\angBoundary:0.6*\radius) [font=\footnotesize, align=center, rotate=\angBoundary-90] {Margin\\Gap};
+            \end{tikzpicture}
+            
+            \vspace{0.2cm}
+            \footnotesize{(b) ArcFace Loss}
+        \end{column}
+    \end{columns}
 \end{frame}
 
 \begin{frame}{Recognition Pipeline}
     \begin{figure}
         \includegraphics[scale=0.7]{../../flow.png}
     \end{figure}
+\end{frame}
+
+\begin{frame}{Conclusion and Future Work}
+    \bb{Summary}
+    \begin{itemize}
+        \item Robust recognition pipeline implemented (Synthetic Data + ArcFace).
+        \item Basic HW control operational.
+    \end{itemize}
+    
+    \vspace{0.5cm}
+    
+    \bb{Next Steps}
+    \begin{itemize}
+        \item Finalize mechanical construction (feeding mechanism).
+        \item Full integration of the recognition module with the robotic control.
+        \item Final evaluation on a physical test set.
+    \end{itemize}
 \end{frame}
 
 \end{document}
