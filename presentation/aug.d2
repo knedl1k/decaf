@@ -1,0 +1,85 @@
+direction: right
+# grid-rows: 2
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  process_step: {
+    shape: rectangle
+    style: {
+      border-radius: 5
+      stroke-width: 2
+    }
+  }
+  container_style: {
+    style: {
+      fill: "#fcfcfc"
+      stroke: "#aaaaaa"
+      stroke-dash: 3
+    }
+  }
+}
+
+input: "Clean Card Scan" {
+	shape: parallelogram
+	style: {
+		fill: "#e1eaff"
+		stroke: "#2a5caa"
+	}
+	icon: image
+}
+
+pipeline: "Albumentations Pipeline" {
+  class: container_style
+  
+  geometry: "Geometric Distortions" {
+    style: {fill: "#fff3e0"}
+    
+    rotate: "SafeRotate\n(Limit ±15°, p=0.7)" {
+      class: process_step
+      tooltip: "Simulates crooked placement"
+    }
+    perspective: "Perspective\n(Scale 0.05-0.1, p=0.5)" {
+      class: process_step
+      tooltip: "Simulates camera angle view"
+    }
+    
+    rotate -> perspective
+  }
+
+  photometric: "Environment & Artifacts" {
+    style: {fill: "#e8f5e9"}
+    
+    dropout: "CoarseDropout\n(Holes 1-3, p=0.3)" {
+      class: process_step
+      tooltip: "Simulates dust or physical damage"
+    }
+    jitter: "ColorJitter\n(Bright/Contr/Sat, p=0.5)" {
+      class: process_step
+      tooltip: "Simulates lighting conditions"
+    }
+    blur: "GaussianBlur\n(Limit 3-5, p=0.2)" {
+      class: process_step
+      tooltip: "Simulates focus issues"
+    }
+    
+    dropout -> jitter -> blur
+  }
+
+  geometry.perspective -> photometric.dropout
+}
+
+output: "Synthetic Training Sample\n(Tensor [3, 224, 224])" {
+  shape: parallelogram
+  style: {
+    fill: "#e0f7fa"
+    stroke: "#006064"
+  }
+}
+
+input -> pipeline.geometry.rotate
+pipeline.photometric.blur -> output

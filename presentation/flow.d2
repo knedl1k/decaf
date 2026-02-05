@@ -36,7 +36,7 @@ phase1: Phase 1: Feature Extraction {
   direction: right
   style: {stroke: white; fill: transparent}
 
-  input: Input {
+  input: "Augmented Input"{
     class: data
     icon: image
   }
@@ -44,12 +44,11 @@ phase1: Phase 1: Feature Extraction {
   preprocessing: Preprocessing {
     class: component
 
-    resize: Resize\n(224px) {class: process}
+    resize: Resize\n224 x 224 px {class: process}
     pad: Padding {class: process}
     norm: Normalize {class: process}
-    tensor: ToTensor {class: process}
 
-    resize -> pad -> norm -> tensor
+    resize -> pad -> norm
   }
 
   model: MTGReconModel {
@@ -63,7 +62,7 @@ phase1: Phase 1: Feature Extraction {
 
     neck: Embedding Head {
       style: {fill: "transparent"; stroke-width: 0}
-      fc: Linear\n(2048->512) {class: process; style: {fill: "#ffcccc"}}
+      fc: Linear\n2048->512 {class: process; style: {fill: "#ffcccc"}}
     }
 
     backbone -> neck.fc
@@ -73,7 +72,7 @@ phase1: Phase 1: Feature Extraction {
     style: {stroke: transparent; fill: transparent}
   }
   input -> preprocessing.resize
-  preprocessing.tensor -> model.backbone
+  preprocessing.norm -> model.backbone
   model.neck.fc -> " "
 }
 
