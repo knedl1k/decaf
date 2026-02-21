@@ -21,6 +21,8 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import MTGReconModel  # model.py
 
+cv2.setNumThreads(0)
+
 
 def apply_random_background(img_bgra):
     h, w, _ = img_bgra.shape
@@ -134,9 +136,7 @@ def get_transforms(img_size):
             A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
             # resize & padding
             A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(
-                min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=[128.0, 128.0, 128.0]
-            ),
+            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=128),
             A.Normalize(),
             ToTensorV2(),
         ]
@@ -285,7 +285,7 @@ def main():
 
     # NN needs numbers, not names (String -> Int)
     # 0, 1, 2...
-    unique_names = sorted([p.stem for p in train_paths])
+    unique_names = sorted(list(set([p.stem for p in train_paths])))
     label_map = {name: i for i, name in enumerate(unique_names)}
     num_classes = len(unique_names)
 
@@ -387,6 +387,12 @@ def main():
             images = images.to(device)
             labels = labels.to(device)
 
+            # TODO: should be useless, but getting some weird errors, so this stays here for now
+            if (labels < 0).any() or (labels >= num_classes).any():
+                raise ValueError(
+                    f"CRITICAL: Label out of bounds! Min: {labels.min()}, Max: {labels.max()}, Num Classes: {num_classes}"
+                )
+
             # forward pass
             outputs = model(images, labels)
             loss = criterion(outputs, labels)
@@ -404,23 +410,29 @@ def main():
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
 
         # avg_loss = running_loss / len(train_loader)
+
+        metric_tensors = torch.zeros(1, device=device)
+
         if is_master:
             print(f"Starting validation for epoch #{epoch + 1}")
             metrics = evaluate_metrics(model.module, val_loader, device)
+
             print(f"--- VALIDATION RESULTS (Epoch {epoch + 1}) ---")
             print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
             print(f"Threshold:     {metrics['threshold']:.4f}")
             print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
             print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
             print(f"------------------------------------------")
-            scheduler.step(metrics["fmr_at_95_tmr"])
-            # print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
-            # scheduler.step(avg_loss)
+
+            metric_tensors[0] = metrics["fmr_at_95_tmr"]
 
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
+
+        dist.broadcast(metric_tensors, src=0)
+        scheduler.step(metric_tensors.item())
 
         dist.barrier()
 
