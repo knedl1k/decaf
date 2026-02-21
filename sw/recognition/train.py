@@ -316,6 +316,9 @@ def main():
 
     val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
 
+    with open("vals.txt", "w") as val_txt:
+        print(f"{val_dataset.label_map}", file=val_txt)
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=args.batch_size,
