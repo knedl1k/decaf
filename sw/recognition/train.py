@@ -99,21 +99,45 @@ def get_transforms(img_size):
     return A.Compose(
         [
             # geometric deformations
-            A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7),
-            A.Perspective(scale=(0.05, 0.1), p=0.5),
+            A.SafeRotate(limit=[-90.0, 90.0], border_mode=cv2.BORDER_CONSTANT, p=0.7),
+            A.Perspective(scale=(0.05, 0.15), p=0.5),
             # colors
-            A.CoarseDropout(num_holes_range=(1, 3), p=0.3),
-            A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
+            A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.7),
+            # A.HueSaturationValue(hue_shift_limit=15, sat_shift_limit=30, val_shift_limit=20, p=0.7),
+            A.CoarseDropout(num_holes_range=(1, 4), max_holes=5, max_height=100, max_width=100, p=0.4),
             A.GaussianBlur(blur_limit=(3, 5), p=0.2),
+            A.CLAHE(p=0.3),
             # resize & padding
             A.LongestMaxSize(max_size=img_size),
             A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
-            # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
             A.Normalize(),
-            # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
             ToTensorV2(),
         ]
     )
+
+
+# def get_transforms(img_size):
+#     return A.Compose(
+#         [
+#             # geometric deformations
+#             A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7),
+#             A.Perspective(scale=(0.05, 0.1), p=0.5),
+#             # colors
+#             A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.7),
+#             A.HueSaturationValue(hue_shift_limit=15, sat_shift_limit=30, val_shift_limit=20, p=0.7),
+#             A.RandomGamma(gamma_limit=(80, 120), p=0.5),
+#             A.CoarseDropout(num_holes_range=(1, 3), max_holes=5, max_height=20, max_width=20, p=0.3),
+#             A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
+#             A.GaussianBlur(blur_limit=(3, 5), p=0.2),
+#             # resize & padding
+#             A.LongestMaxSize(max_size=img_size),
+#             A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
+#             # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
+#             A.Normalize(),
+#             # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
+#             ToTensorV2(),
+#         ]
+#     )
 
 
 def parse_args():
@@ -124,7 +148,7 @@ def parse_args():
 
     parser.add_argument("--batch_size", type=int, default=64, help="batch size per GPU")
     parser.add_argument("--epochs", type=int, default=25, help="number of epochs")
-    parser.add_argument("--lr", type=float, default=0.0001, help="learning rate")
+    parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
     parser.add_argument("--img_size", type=int, default=224, help="input image size")
 
     parser.add_argument("--log_interval", type=int, default=100, help="how many batches to wait before logging")
@@ -298,10 +322,25 @@ def main():
 
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    # TODO: https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
+
+    backbone_params = list(model.module.backbone.parameters())
+
+    head_params = {
+        list(model.module.bn1.parameters())
+        + list(model.module.fc.parameters())
+        + list(model.module.bn2.parameters())
+        + list(model.module.arcface.parameters())
+    }
+
+    optimizer = optim.AdamW(
+        [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
+    )
+
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
 
     if is_master:
@@ -311,30 +350,30 @@ def main():
         sampler.set_epoch(epoch)
         model.train()
 
-        if epoch < 3:
-            if is_master:
-                print(f"Epoch {epoch + 1}: Backbone is FROZEN (Training head only)")
-            if isinstance(model, (nn.DataParallel, DDP)):
-                for param in model.module.backbone.parameters():
-                    param.requires_grad = False
-                for param in model.module.bn1.parameters():
-                    param.requires_grad = False
-            else:
-                for param in model.backbone.parameters():
-                    param.requires_grad = False
-        else:
-            if epoch == 3:
-                if is_master:
-                    print("Unfreezing backbone... Fine-tuning everything now.")
+        # if epoch < 3:
+        #     if is_master:
+        #         print(f"Epoch {epoch + 1}: Backbone is FROZEN (Training head only)")
+        #     if isinstance(model, (nn.DataParallel, DDP)):
+        #         for param in model.module.backbone.parameters():
+        #             param.requires_grad = False
+        #         for param in model.module.bn1.parameters():
+        #             param.requires_grad = False
+        #     else:
+        #         for param in model.backbone.parameters():
+        #             param.requires_grad = False
+        # else:
+        #     if epoch == 3:
+        #         if is_master:
+        #             print("Unfreezing backbone... Fine-tuning everything now.")
 
-            if isinstance(model, (nn.DataParallel, DDP)):
-                for param in model.module.backbone.parameters():
-                    param.requires_grad = True
-                for param in model.module.bn1.parameters():
-                    param.requires_grad = True
-            else:
-                for param in model.backbone.parameters():
-                    param.requires_grad = True
+        #     if isinstance(model, (nn.DataParallel, DDP)):
+        #         for param in model.module.backbone.parameters():
+        #             param.requires_grad = True
+        #         for param in model.module.bn1.parameters():
+        #             param.requires_grad = True
+        #     else:
+        #         for param in model.backbone.parameters():
+        #             param.requires_grad = True
 
         running_loss = 0.0
 
