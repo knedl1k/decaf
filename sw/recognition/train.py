@@ -24,11 +24,11 @@ from model import MTGReconModel  # model.py
 
 def apply_random_background(img_bgra):
     h, w, _ = img_bgra.shape
-    bgr = image_bgra[:, :, :3]
-    alpha = image_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
+    bgr = img_bgra[:, :, :3]
+    alpha = img_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
 
     random_bg = np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
-    alpha_3d = np.xpand_dims(alpha, axis=2)
+    alpha_3d = np.expand_dims(alpha, axis=2)
     composited = (bgr * alpha_3d) + (random_bg * (1.0 - alpha_3d))
 
     return composited.astype(np.uint8)
@@ -336,12 +336,12 @@ def main():
 
     backbone_params = list(model.module.backbone.parameters())
 
-    head_params = {
+    head_params = (
         list(model.module.bn1.parameters())
         + list(model.module.fc.parameters())
         + list(model.module.bn2.parameters())
         + list(model.module.arcface.parameters())
-    }
+    )
 
     optimizer = optim.AdamW(
         [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
