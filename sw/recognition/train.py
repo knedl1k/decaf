@@ -99,45 +99,35 @@ def get_transforms(img_size):
     return A.Compose(
         [
             # geometric deformations
-            A.SafeRotate(limit=[-90.0, 90.0], border_mode=cv2.BORDER_CONSTANT, p=0.7),
+            A.SafeRotate(border_mode=cv2.BORDER_CONSTANT, p=0.8),
             A.Perspective(scale=(0.05, 0.15), p=0.5),
+            A.Affine(shear=(-5, 5), p=0.3),
+            # lighting & sleeve glare simulation
+            A.RandomSunFlare(src_radius=150, num_flare_circles_range=(1, 2), p=0.3),
+            A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.2),
+            # camera artifacts
+            A.CoarseDropout(
+                num_holes=(1, 4),
+                hole_height_rage=(0.1, img_size * 0.15),
+                hole_width_range=(0.1, img_size * 0.15),
+                p=0.4,
+            ),
+            A.GaussianBlur(blur_limit=(3, 5), p=0.3),
+            A.ImageCompression(quality_range=(60, 100), p=0.2),
+            A.ISONoise(p=0.2),
             # colors
-            A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.7),
-            # A.HueSaturationValue(hue_shift_limit=15, sat_shift_limit=30, val_shift_limit=20, p=0.7),
-            A.CoarseDropout(num_holes_range=(1, 4), max_holes=5, max_height=100, max_width=100, p=0.4),
-            A.GaussianBlur(blur_limit=(3, 5), p=0.2),
+            A.RandomBrightnessContrast(brightness_limit=0.25, contrast_limit=0.25, p=0.7),
             A.CLAHE(p=0.3),
+            A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
             # resize & padding
             A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
+            A.PadIfNeeded(
+                min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=[128.0, 128.0, 128.0]
+            ),
             A.Normalize(),
             ToTensorV2(),
         ]
     )
-
-
-# def get_transforms(img_size):
-#     return A.Compose(
-#         [
-#             # geometric deformations
-#             A.SafeRotate(limit=15.0, border_mode=cv2.BORDER_CONSTANT, p=0.7),
-#             A.Perspective(scale=(0.05, 0.1), p=0.5),
-#             # colors
-#             A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.7),
-#             A.HueSaturationValue(hue_shift_limit=15, sat_shift_limit=30, val_shift_limit=20, p=0.7),
-#             A.RandomGamma(gamma_limit=(80, 120), p=0.5),
-#             A.CoarseDropout(num_holes_range=(1, 3), max_holes=5, max_height=20, max_width=20, p=0.3),
-#             A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05, p=0.5),
-#             A.GaussianBlur(blur_limit=(3, 5), p=0.2),
-#             # resize & padding
-#             A.LongestMaxSize(max_size=img_size),
-#             A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
-#             # (0-255) -> (0.0-1.0) & normalizes according to the ImageNet standard
-#             A.Normalize(),
-#             # HWC (Height, Width, Channel) -> CHW (Channel, Height, Width)
-#             ToTensorV2(),
-#         ]
-#     )
 
 
 def parse_args():
