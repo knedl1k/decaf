@@ -9,7 +9,7 @@ import math
 
 
 class ArcFaceHead(nn.Module):
-    def __init__(self, in_features, out_features, s=30.0, m=0.50):
+    def __init__(self, in_features, out_features, s=64.0, m=0.50):
         super(ArcFaceHead, self).__init__()
         self.in_features = in_features
         self.out_features = out_features  # number of classes (unique card IDs)
