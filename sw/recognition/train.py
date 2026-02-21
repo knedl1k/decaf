@@ -22,6 +22,18 @@ from torch.utils.data.distributed import DistributedSampler
 from model import MTGReconModel  # model.py
 
 
+def apply_random_background(img_bgra):
+    h, w, _ = img_bgra.shape
+    bgr = image_bgra[:, :, :3]
+    alpha = image_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
+
+    random_bg = np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
+    alpha_3d = np.xpand_dims(alpha, axis=2)
+    composited = (bgr * alpha_3d) + (random_bg * (1.0 - alpha_3d))
+
+    return composited.astype(np.uint8)
+
+
 class MTGOnlineDataset(Dataset):
     def __init__(self, image_paths, label_map, transform=None, img_size=224):
         self.image_paths = image_paths
@@ -43,7 +55,8 @@ class MTGOnlineDataset(Dataset):
                 image = (image / 256).astype(np.uint8)
 
             if len(image.shape) == 3 and image.shape[2] == 4:
-                image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+                # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+                image = apply_random_background(image)
 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = image.astype(np.uint8)
