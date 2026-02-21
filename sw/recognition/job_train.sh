@@ -22,10 +22,12 @@ ml timm/0.6.13-foss-2023b-CUDA-12.4.0
 IMG_DIR="/mnt/personal/adamej14/dataset"
 SAVE_DIR="./check"
 
-srun torchrun \
+torchrun \
     --nproc_per_node=4 \
     --rdzv_backend=c10d \
     --rdzv_endpoint=localhost:0 \
     train.py \
     --input_dir="$IMG_DIR" \
-    --save_dir="$SAVE_DIR"
+    --save_dir="$SAVE_DIR" \
+    --img_size=512 \
+    --batch_size=24

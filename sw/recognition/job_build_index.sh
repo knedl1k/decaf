@@ -28,4 +28,6 @@ srun python3 build_index.py \
     --images "$IMG_DIR" \
     --save_dir "$OUT_PATH" \
     --batch_size 128 \
-    --num_workers 4
+    --num_workers 4 \
+    --img_size 512 \
+    --batch_size 64
