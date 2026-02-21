@@ -30,4 +30,4 @@ torchrun \
     --input_dir="$IMG_DIR" \
     --save_dir="$SAVE_DIR" \
     --img_size=512 \
-    --batch_size=24
+    --batch_size=32
