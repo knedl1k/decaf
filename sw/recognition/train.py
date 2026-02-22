@@ -27,14 +27,23 @@ cv2.setNumThreads(0)
 
 def apply_random_background(img_bgra):
     h, w, _ = img_bgra.shape
+
+    canvas_size = int(max(h, w) * 1.5)
+    canvas = np.random.randint(0, 256, (canvas_size, canvas_size, 3), dtype=np.uint8)
+
+    y_offset = (canvas_size - h) // 2
+    x_offset = (canvas_size - w) // 2
+
     bgr = img_bgra[:, :, :3]
-    alpha = img_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
-
-    random_bg = np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
+    alpha = img_bgra[:, :, 3] / 255.0
     alpha_3d = np.expand_dims(alpha, axis=2)
-    composited = (bgr * alpha_3d) + (random_bg * (1.0 - alpha_3d))
 
-    return composited.astype(np.uint8)
+    roi = canvas[y_offset : y_offset + h, x_offset : x_offset + w]
+
+    composited_roi = (bgr * alpha_3d) + (roi * (1.0 - alpha_3d))
+    canvas[y_offset : y_offset + h, x_offset : x_offset + w] = composited_roi
+
+    return canvas
 
 
 class MTGOnlineDataset(Dataset):
@@ -58,7 +67,6 @@ class MTGOnlineDataset(Dataset):
                 image = (image / 256).astype(np.uint8)
 
             if len(image.shape) == 3 and image.shape[2] == 4:
-                # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
                 image = apply_random_background(image)
 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -136,8 +144,9 @@ def get_transforms(img_size):
             A.CLAHE(p=0.3),
             A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
             # resize & padding
-            A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=128),
+            # A.LongestMaxSize(max_size=img_size),
+            # A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=128),
+            A.Resize(height=img_size, width=img_size),
             A.Normalize(),
             ToTensorV2(),
         ]
@@ -357,32 +366,6 @@ def main():
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         model.train()
-
-        # if epoch < 3:
-        #     if is_master:
-        #         print(f"Epoch {epoch + 1}: Backbone is FROZEN (Training head only)")
-        #     if isinstance(model, (nn.DataParallel, DDP)):
-        #         for param in model.module.backbone.parameters():
-        #             param.requires_grad = False
-        #         for param in model.module.bn1.parameters():
-        #             param.requires_grad = False
-        #     else:
-        #         for param in model.backbone.parameters():
-        #             param.requires_grad = False
-        # else:
-        #     if epoch == 3:
-        #         if is_master:
-        #             print("Unfreezing backbone... Fine-tuning everything now.")
-
-        #     if isinstance(model, (nn.DataParallel, DDP)):
-        #         for param in model.module.backbone.parameters():
-        #             param.requires_grad = True
-        #         for param in model.module.bn1.parameters():
-        #             param.requires_grad = True
-        #     else:
-        #         for param in model.backbone.parameters():
-        #             param.requires_grad = True
-
         running_loss = 0.0
 
         for i, (images, labels) in enumerate(train_loader):
