@@ -14,6 +14,7 @@ import numpy as np
 from pathlib import Path
 import argparse
 import math
+import matplotlib.pyplot as plt
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -351,6 +352,7 @@ def main():
 
     if is_master:
         print("Start of training...")
+        history = {"epoch": [], "loss": [], "fmr": [], "threshold": [], "pos_sim": [], "neg_sim": []}
     total_steps = len(train_loader)
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
@@ -409,7 +411,7 @@ def main():
             if is_master and (i + 1) % args.log_interval == 0:
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
 
-        # avg_loss = running_loss / len(train_loader)
+        avg_loss = running_loss / len(train_loader)
 
         metric_tensors = torch.zeros(1, device=device)
 
@@ -424,9 +426,60 @@ def main():
             print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
             print(f"------------------------------------------")
 
+            history["epoch"].append(epoch + 1)
+            history["loss"].append(avg_loss)
+            history["fmr"].append(metrics["fmr_at_95_tmr"] * 100)
+            history["threshold"].append(metrics["threshold"])
+            history["pos_sim"].append(metrics["avg_pos_sim"])
+            history["neg_sim"].append(metrics["avg_neg_sim"])
+
+            try:
+                fig, axs = plt.subplots(2, 2, figsize=(16, 10))
+                fig.suptitle("MTG ArcFace Training Metrics", fontsize=16)
+
+                # Plot 1: Training Loss
+                axs[0, 0].plot(history["epoch"], history["loss"], "m-o", linewidth=2)
+                axs[0, 0].set_title("Training Loss")
+                axs[0, 0].set_xlabel("Epoch")
+                axs[0, 0].set_ylabel("Loss")
+                axs[0, 0].grid(True)
+
+                # Plot 2: FMR (Log Scale because it drops drastically)
+                axs[0, 1].plot(history["epoch"], history["fmr"], "r-o", linewidth=2)
+                axs[0, 1].set_yscale("log")
+                axs[0, 1].set_title("Validation FMR @ 95% TMR (Log Scale)")
+                axs[0, 1].set_xlabel("Epoch")
+                axs[0, 1].set_ylabel("FMR (%)")
+                axs[0, 1].grid(True, which="both", ls="--")
+
+                # Plot 3: Similarities
+                axs[1, 0].plot(history["epoch"], history["pos_sim"], "g-o", label="Avg Pos Sim", linewidth=2)
+                axs[1, 0].plot(history["epoch"], history["neg_sim"], "r-o", label="Avg Neg Sim", linewidth=2)
+                axs[1, 0].set_title("Cosine Similarity (Gallery vs Query)")
+                axs[1, 0].set_xlabel("Epoch")
+                axs[1, 0].set_ylabel("Similarity (-1 to 1)")
+                axs[1, 0].set_ylim(-0.2, 1.0)
+                axs[1, 0].legend()
+                axs[1, 0].grid(True)
+
+                # Plot 4: Threshold
+                axs[1, 1].plot(history["epoch"], history["threshold"], "b-o", linewidth=2)
+                axs[1, 1].set_title("Threshold for 95% TMR")
+                axs[1, 1].set_xlabel("Epoch")
+                axs[1, 1].set_ylabel("Threshold")
+                axs[1, 1].grid(True)
+
+                plt.tight_layout()
+                plot_path = os.path.join(args.save_dir, "training_curves.png")
+                plt.savefig(plot_path)
+                plt.close()
+                print(f"Updated training curves saved to {plot_path}")
+            except Exception as e:
+                print(f"Warning: Failed to generate plots: {e}")
+
             metric_tensors[0] = metrics["fmr_at_95_tmr"]
 
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % 3 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
