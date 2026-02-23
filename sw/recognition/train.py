@@ -14,7 +14,6 @@ import numpy as np
 from pathlib import Path
 import argparse
 import math
-import matplotlib.pyplot as plt
 
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -22,26 +21,19 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import MTGReconModel  # model.py
 
+cv2.setNumThreads(0)
+
 
 def apply_random_background(img_bgra):
     h, w, _ = img_bgra.shape
-
-    canvas_size = int(max(h, w) * 1.5)
-    canvas = np.random.randint(0, 256, (canvas_size, canvas_size, 3), dtype=np.uint8)
-
-    y_offset = (canvas_size - h) // 2
-    x_offset = (canvas_size - w) // 2
-
     bgr = img_bgra[:, :, :3]
-    alpha = img_bgra[:, :, 3] / 255.0
+    alpha = img_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
+
+    random_bg = np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
     alpha_3d = np.expand_dims(alpha, axis=2)
+    composited = (bgr * alpha_3d) + (random_bg * (1.0 - alpha_3d))
 
-    roi = canvas[y_offset : y_offset + h, x_offset : x_offset + w]
-
-    composited_roi = (bgr * alpha_3d) + (roi * (1.0 - alpha_3d))
-    canvas[y_offset : y_offset + h, x_offset : x_offset + w] = composited_roi
-
-    return canvas
+    return composited.astype(np.uint8)
 
 
 class MTGOnlineDataset(Dataset):
@@ -65,6 +57,7 @@ class MTGOnlineDataset(Dataset):
                 image = (image / 256).astype(np.uint8)
 
             if len(image.shape) == 3 and image.shape[2] == 4:
+                # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
                 image = apply_random_background(image)
 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -143,9 +136,7 @@ def get_transforms(img_size):
             A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
             # resize & padding
             A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(
-                min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=[128.0, 128.0, 128.0]
-            ),
+            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=128),
             A.Normalize(),
             ToTensorV2(),
         ]
@@ -294,7 +285,7 @@ def main():
 
     # NN needs numbers, not names (String -> Int)
     # 0, 1, 2...
-    unique_names = sorted([p.stem for p in train_paths])
+    unique_names = sorted(list(set([p.stem for p in train_paths])))
     label_map = {name: i for i, name in enumerate(unique_names)}
     num_classes = len(unique_names)
 
@@ -360,16 +351,47 @@ def main():
 
     if is_master:
         print("Start of training...")
-        history = {"epoch": [], "loss": [], "fmr": [], "threshold": [], "pos_sim": [], "neg_sim": []}
     total_steps = len(train_loader)
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         model.train()
+
+        # if epoch < 3:
+        #     if is_master:
+        #         print(f"Epoch {epoch + 1}: Backbone is FROZEN (Training head only)")
+        #     if isinstance(model, (nn.DataParallel, DDP)):
+        #         for param in model.module.backbone.parameters():
+        #             param.requires_grad = False
+        #         for param in model.module.bn1.parameters():
+        #             param.requires_grad = False
+        #     else:
+        #         for param in model.backbone.parameters():
+        #             param.requires_grad = False
+        # else:
+        #     if epoch == 3:
+        #         if is_master:
+        #             print("Unfreezing backbone... Fine-tuning everything now.")
+
+        #     if isinstance(model, (nn.DataParallel, DDP)):
+        #         for param in model.module.backbone.parameters():
+        #             param.requires_grad = True
+        #         for param in model.module.bn1.parameters():
+        #             param.requires_grad = True
+        #     else:
+        #         for param in model.backbone.parameters():
+        #             param.requires_grad = True
+
         running_loss = 0.0
 
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
             labels = labels.to(device)
+
+            # TODO: should be useless, but getting some weird errors, so this stays here for now
+            if (labels < 0).any() or (labels >= num_classes).any():
+                raise ValueError(
+                    f"CRITICAL: Label out of bounds! Min: {labels.min()}, Max: {labels.max()}, Num Classes: {num_classes}"
+                )
 
             # forward pass
             outputs = model(images, labels)
@@ -388,23 +410,29 @@ def main():
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
 
         # avg_loss = running_loss / len(train_loader)
+
+        metric_tensors = torch.zeros(1, device=device)
+
         if is_master:
             print(f"Starting validation for epoch #{epoch + 1}")
             metrics = evaluate_metrics(model.module, val_loader, device)
+
             print(f"--- VALIDATION RESULTS (Epoch {epoch + 1}) ---")
             print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
             print(f"Threshold:     {metrics['threshold']:.4f}")
             print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
             print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
             print(f"------------------------------------------")
-            scheduler.step(metrics["fmr_at_95_tmr"])
-            # print(f"Epoch #{epoch+1} done. Average Loss: {avg_loss:.4f}")
-            # scheduler.step(avg_loss)
 
-            if (epoch + 1) % 3 == 0:
+            metric_tensors[0] = metrics["fmr_at_95_tmr"]
+
+            if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
+
+        dist.broadcast(metric_tensors, src=0)
+        scheduler.step(metric_tensors.item())
 
         dist.barrier()
 
