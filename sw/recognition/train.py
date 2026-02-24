@@ -25,16 +25,30 @@ from torch.utils.data.distributed import DistributedSampler
 from model import MTGReconModel  # model.py
 
 
-def apply_random_background(img_bgra):
-    h, w, _ = img_bgra.shape
-    bgr = img_bgra[:, :, :3]
-    alpha = img_bgra[:, :, 3] / 255.0  # [0.0, 1.0]
+def apply_random_background(image, target_size):
+    h, w = image.shape[:2]
+    scale = (target_size * 0.9) / max(h, w)
+    new_w, new_h = int(w * scale), int(h * scale)
+    resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    random_bg = np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
-    alpha_3d = np.expand_dims(alpha, axis=2)
-    composited = (bgr * alpha_3d) + (random_bg * (1.0 - alpha_3d))
+    base_color = np.random.randint(20, 230, (1, 1, 3), dtype=np.uint8)
+    canvas = np.ones((target_size, target_size, 3), dtype=np.uint8) * base_color
+    noise = np.random.normal(0, 4, (target_size, target_size, 3))
+    canvas = np.clip(canvas + noise, 0, 255).astype(np.uint8)
 
-    return composited.astype(np.uint8)
+    y_offset = (target_size - new_h) // 2
+    x_offset = (target_size - new_w) // 2
+
+    if len(resized_card.shape) == 3 and resized_card.shape[2] == 4:
+        bgr = resized_card[:, :, :3]
+        alpha = resized_card[:, :, 3] / 255.0
+        alpha_3d = np.expand_dims(alpha, axis=2)
+        roi = canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w]
+        canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = (bgr * alpha_3d) + (roi * (1.0 - alpha_3d))
+    else:
+        canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = resized_card[:, :, :3]
+
+    return canvas
 
 
 class MTGOnlineDataset(Dataset):
@@ -57,10 +71,11 @@ class MTGOnlineDataset(Dataset):
             if image.dtype == np.uint16:
                 image = (image / 256).astype(np.uint8)
 
-            if len(image.shape) == 3 and image.shape[2] == 4:
-                # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-                image = apply_random_background(image)
+            # if len(image.shape) == 3 and image.shape[2] == 4:
+            #     # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+            #     image = apply_random_background(image)
 
+            image = apply_random_background(image, self.img_size)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = image.astype(np.uint8)
         except Exception as e:
