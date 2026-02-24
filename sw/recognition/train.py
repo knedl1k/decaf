@@ -130,17 +130,19 @@ def get_transforms(img_size):
     return A.Compose(
         [
             # geometric deformations
-            A.SafeRotate(border_mode=cv2.BORDER_CONSTANT, p=0.8),
+            # A.SafeRotate(border_mode=cv2.BORDER_CONSTANT, p=0.8),
+            A.ShiftScaleRotate(
+                shift_limit=0.05, scale_limit=0.05, rotate_limit=35, border_mode=cv2.BORDER_REPLICATE, p=0.8
+            ),
             A.Perspective(scale=(0.05, 0.15), p=0.5),
-            A.Affine(shear=(-5, 5), p=0.3),
+            # A.Affine(shear=(-5, 5), p=0.3),
             # lighting & sleeve glare simulation
-            A.RandomSunFlare(src_radius=150, num_flare_circles_range=(1, 2), p=0.3),
+            A.RandomSunFlare(src_radius=100, num_flare_circles_range=(1, 2), p=0.3),
             A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.2),
             # camera artifacts
             A.CoarseDropout(
-                num_holes=(1, 4),
-                hole_height_rage=(0.1, img_size * 0.15),
-                hole_width_range=(0.1, img_size * 0.15),
+                hole_height_range=(int(img_size * 0.1), int(img_size * 0.25)),
+                hole_width_range=(int(img_size * 0.1), int(img_size * 0.25)),
                 p=0.4,
             ),
             A.GaussianBlur(blur_limit=(3, 5), p=0.3),
@@ -150,9 +152,6 @@ def get_transforms(img_size):
             A.RandomBrightnessContrast(brightness_limit=0.25, contrast_limit=0.25, p=0.7),
             A.CLAHE(p=0.3),
             A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
-            # resize & padding
-            A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT, fill=128),
             A.Normalize(),
             ToTensorV2(),
         ]
@@ -189,7 +188,6 @@ class MTGValidationDataset(Dataset):
                     min_height=img_size,
                     min_width=img_size,
                     border_mode=cv2.BORDER_CONSTANT,
-                    value=[0, 0, 0],
                 ),
                 A.Normalize(),
                 ToTensorV2(),
@@ -204,15 +202,25 @@ class MTGValidationDataset(Dataset):
     def __getitem__(self, idx):
         path = self.image_paths[idx]
         try:
-            image = cv2.imread(str(path))
-            if image is None:
-                raise ValueError("Img not found")
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        except Exception:
-            image = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
+            raw_image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+            if raw_image is None:
+                raise ValueError(f"Image {str(path)} not found.")
+            if raw_image.dtype == np.uint16:
+                raw_image = (raw_image / 256).astype(np.uint8)
 
-        gallery_img = self.transform_gallery(image=image)["image"]
-        query_img = self.transform_query(image=image)["image"]
+            if len(raw_image.shape) == 3 and raw_image.shape[2] == 4:
+                rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGRA2RGB)
+            else:
+                rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB)
+
+            gallery_img = self.transform_gallery(image=rgb)["image"]
+            playmat_bgr = apply_random_background(raw_image, self.img_size)
+            playmat_rgb = cv2.cvtColor(playmat_bgr, cv2.COLOR_BGR2RGB)
+            query_img = self.transform_query(image=playmat_rgb)["image"]
+        except Exception as e:
+            print(f"Validation error on {path}: {e}\n")
+            gallery_img = torch.zeros((3, self.img_size, self.img_size))
+            query_img = torch.zeros((3, self.img_size, self.img_size))
 
         file_stem = Path(path).stem
         label_id = self.label_map.get(file_stem, -1)
