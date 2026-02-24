@@ -357,32 +357,6 @@ def main():
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         model.train()
-
-        # if epoch < 3:
-        #     if is_master:
-        #         print(f"Epoch {epoch + 1}: Backbone is FROZEN (Training head only)")
-        #     if isinstance(model, (nn.DataParallel, DDP)):
-        #         for param in model.module.backbone.parameters():
-        #             param.requires_grad = False
-        #         for param in model.module.bn1.parameters():
-        #             param.requires_grad = False
-        #     else:
-        #         for param in model.backbone.parameters():
-        #             param.requires_grad = False
-        # else:
-        #     if epoch == 3:
-        #         if is_master:
-        #             print("Unfreezing backbone... Fine-tuning everything now.")
-
-        #     if isinstance(model, (nn.DataParallel, DDP)):
-        #         for param in model.module.backbone.parameters():
-        #             param.requires_grad = True
-        #         for param in model.module.bn1.parameters():
-        #             param.requires_grad = True
-        #     else:
-        #         for param in model.backbone.parameters():
-        #             param.requires_grad = True
-
         running_loss = 0.0
 
         for i, (images, labels) in enumerate(train_loader):
@@ -410,8 +384,6 @@ def main():
 
             if is_master and (i + 1) % args.log_interval == 0:
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
-
-        # avg_loss = running_loss / len(train_loader)
 
         metric_tensors = torch.zeros(1, device=device)
 
