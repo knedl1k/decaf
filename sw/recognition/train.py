@@ -66,7 +66,6 @@ def main():
     if is_master:
         print(f"Dataset split: {len(train_paths)} train cards, {len(val_paths)} val cards. Total: {num_classes}")
 
-    # Datasets & Loaders
     train_dataset = MTGTrainDataset(
         image_paths=train_paths,
         label_map=label_map,
@@ -101,7 +100,6 @@ def main():
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
-    # Optimizer & Scheduler Setup
     criterion = nn.CrossEntropyLoss()
 
     backbone_params = list(model.module.backbone.parameters())
