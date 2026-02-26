@@ -42,17 +42,18 @@ class ArcFaceHead(nn.Module):
 
 
 class MTGReconModel(nn.Module):
-    def __init__(self, num_classes, embedding_size=512):
-        super(MTGReconModel, self).__init__()
+    def __init__(self, num_classes: int, embedding_size: int = 512):
+        super().__init__()
         self.backbone = timm.create_model("resnet50", pretrained=True, num_classes=0)
         backbone_out = self.backbone.num_features
+
         self.bn1 = nn.BatchNorm1d(backbone_out)
         self.dropout = nn.Dropout(0.4)
         self.fc = nn.Linear(backbone_out, embedding_size, bias=False)
         self.bn2 = nn.BatchNorm1d(embedding_size)
         self.arcface = ArcFaceHead(embedding_size, num_classes)
 
-    def forward(self, x, labels=None):
+    def forward(self, x: torch.Tensor, labels: torch.Tensor = None) -> torch.Tensor:
         features = self.backbone(x)
 
         features = self.bn1(features)
