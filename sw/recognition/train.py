@@ -1,161 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import argparse
+import numpy as np
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-import cv2
-
-cv2.setNumThreads(0)
-import os
-import glob
-import numpy as np
-from pathlib import Path
-import argparse
-import math
-import matplotlib.pyplot as plt
-
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from model import MTGReconModel  # model.py
-
-
-def apply_random_background(image, target_size):
-    h, w = image.shape[:2]
-    scale = (target_size * 0.9) / max(h, w)
-    new_w, new_h = int(w * scale), int(h * scale)
-    resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-    base_color = np.random.randint(20, 230, (1, 1, 3), dtype=np.uint8)
-    canvas = np.ones((target_size, target_size, 3), dtype=np.uint8) * base_color
-    noise = np.random.normal(0, 4, (target_size, target_size, 3))
-    canvas = np.clip(canvas + noise, 0, 255).astype(np.uint8)
-
-    y_offset = (target_size - new_h) // 2
-    x_offset = (target_size - new_w) // 2
-
-    if len(resized_card.shape) == 3 and resized_card.shape[2] == 4:
-        bgr = resized_card[:, :, :3]
-        alpha = resized_card[:, :, 3] / 255.0
-        alpha_3d = np.expand_dims(alpha, axis=2)
-        roi = canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w]
-        canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = (bgr * alpha_3d) + (roi * (1.0 - alpha_3d))
-    else:
-        canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = resized_card[:, :, :3]
-
-    return canvas
-
-
-class MTGOnlineDataset(Dataset):
-    def __init__(self, image_paths, label_map, transform=None, img_size=224):
-        self.image_paths = image_paths
-        self.label_map = label_map
-        self.transform = transform
-        self.img_size = img_size
-
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, idx):
-        path = self.image_paths[idx]
-        try:
-            image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
-            if image is None:
-                raise ValueError("Image not loaded")
-
-            if image.dtype == np.uint16:
-                image = (image / 256).astype(np.uint8)
-
-            # if len(image.shape) == 3 and image.shape[2] == 4:
-            #     # image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-            #     image = apply_random_background(image)
-
-            image = apply_random_background(image, self.img_size)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            image = image.astype(np.uint8)
-        except Exception as e:
-            # fallback for damaged files
-            print(f"Warning: Error loading {path}: {e}")
-            image = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
-
-        file_stem = Path(path).stem
-        label_id = self.label_map.get(file_stem, -1)
-
-        if self.transform:
-            augmented = self.transform(image=image)
-            image = augmented["image"]
-
-        return image, label_id
-
-
-def visualize_augmentations(dataset, output_path, num_images=16):
-    indices = np.random.choice(len(dataset), num_images, replace=False)
-
-    images = []
-    for idx in indices:
-        img_tensor, _ = dataset[idx]
-        img = img_tensor.permute(1, 2, 0).cpu().numpy()
-
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        img = std * img + mean
-
-        img = np.clip(img, 0, 1) * 255
-        img = img.astype(np.uint8)
-
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        images.append(img)
-
-    grid_size = int(math.ceil(math.sqrt(num_images)))
-    h, w, c = images[0].shape
-
-    grid_img = np.zeros((grid_size * h, grid_size * w, c), dtype=np.uint8)
-
-    for i, img in enumerate(images):
-        row = i // grid_size
-        col = i % grid_size
-        grid_img[row * h : (row + 1) * h, col * w : (col + 1) * w, :] = img
-
-    cv2.imwrite(output_path, grid_img)
-    print(f"Augmentation preview saved to: {output_path}")
-
-
-# Augmentation Pipeline
-def get_transforms(img_size):
-    return A.Compose(
-        [
-            # geometric deformations
-            # A.SafeRotate(border_mode=cv2.BORDER_CONSTANT, p=0.8),
-            A.ShiftScaleRotate(
-                shift_limit=0.05, scale_limit=0.05, rotate_limit=35, border_mode=cv2.BORDER_REPLICATE, p=0.8
-            ),
-            A.Perspective(scale=(0.05, 0.15), p=0.5),
-            # A.Affine(shear=(-5, 5), p=0.3),
-            # lighting & sleeve glare simulation
-            A.RandomSunFlare(src_radius=100, num_flare_circles_range=(1, 2), p=0.3),
-            A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.2),
-            # camera artifacts
-            A.CoarseDropout(
-                hole_height_range=(int(img_size * 0.1), int(img_size * 0.25)),
-                hole_width_range=(int(img_size * 0.1), int(img_size * 0.25)),
-                p=0.4,
-            ),
-            A.GaussianBlur(blur_limit=(3, 5), p=0.3),
-            A.ImageCompression(quality_range=(60, 100), p=0.2),
-            A.ISONoise(p=0.2),
-            # colors
-            A.RandomBrightnessContrast(brightness_limit=0.25, contrast_limit=0.25, p=0.7),
-            A.CLAHE(p=0.3),
-            A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
-            A.Normalize(),
-            ToTensorV2(),
-        ]
-    )
+from model import MTGReconModel
+from data import MTGTrainDataset, MTGValidationDataset, get_train_transforms, visualize_augmentations
+from utils import evaluate_metrics, plot_training_curves
 
 
 def parse_args():
@@ -175,113 +36,6 @@ def parse_args():
     return parser.parse_args()
 
 
-class MTGValidationDataset(Dataset):
-    def __init__(self, image_paths, label_map, img_size=224):
-        self.image_paths = image_paths
-        self.label_map = label_map
-        self.img_size = img_size
-
-        self.transform_gallery = A.Compose(
-            [
-                A.LongestMaxSize(max_size=img_size),
-                A.PadIfNeeded(
-                    min_height=img_size,
-                    min_width=img_size,
-                    border_mode=cv2.BORDER_CONSTANT,
-                ),
-                A.Normalize(),
-                ToTensorV2(),
-            ]
-        )
-
-        self.transform_query = get_transforms(img_size)
-
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, idx):
-        path = self.image_paths[idx]
-        try:
-            raw_image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
-            if raw_image is None:
-                raise ValueError(f"Image {str(path)} not found.")
-            if raw_image.dtype == np.uint16:
-                raw_image = (raw_image / 256).astype(np.uint8)
-
-            if len(raw_image.shape) == 3 and raw_image.shape[2] == 4:
-                rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGRA2RGB)
-            else:
-                rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB)
-
-            gallery_img = self.transform_gallery(image=rgb)["image"]
-            playmat_bgr = apply_random_background(raw_image, self.img_size)
-            playmat_rgb = cv2.cvtColor(playmat_bgr, cv2.COLOR_BGR2RGB)
-            query_img = self.transform_query(image=playmat_rgb)["image"]
-        except Exception as e:
-            print(f"Validation error on {path}: {e}\n")
-            gallery_img = torch.zeros((3, self.img_size, self.img_size))
-            query_img = torch.zeros((3, self.img_size, self.img_size))
-
-        file_stem = Path(path).stem
-        label_id = self.label_map.get(file_stem, -1)
-
-        return gallery_img, query_img, label_id
-
-
-def evaluate_metrics(model, val_loader, device):
-    model.eval()
-
-    gallery_vecs = []
-    query_vecs = []
-
-    with torch.no_grad():
-        for img_gallery, img_query, _ in val_loader:
-            img_gallery = img_gallery.to(device)
-            img_query = img_query.to(device)
-
-            emb_g = model(img_gallery)
-            emb_g = torch.nn.functional.normalize(emb_g, p=2, dim=1)
-
-            emb_q = model(img_query)
-            emb_q = torch.nn.functional.normalize(emb_q, p=2, dim=1)
-
-            gallery_vecs.append(emb_g.cpu())
-            query_vecs.append(emb_q.cpu())
-
-    gallery_matrix = torch.cat(gallery_vecs)  # [N, 512]
-    query_matrix = torch.cat(query_vecs)  # [N, 512]
-
-    # similarity[i, j] = how much is query img 'i' similar to the gallery img 'j'
-    similarity_matrix = torch.mm(query_matrix, gallery_matrix.t())  # [N, N]
-
-    positives = similarity_matrix.diag()  # [N]
-
-    eye = torch.eye(similarity_matrix.shape[0], device=similarity_matrix.device).bool()
-    negatives = similarity_matrix[~eye]  # [N * (N-1)]
-
-    # True Match Rate
-    target_tmr = 0.95
-    pos_sorted, _ = torch.sort(positives)
-    cutoff_index = int(len(positives) * (1 - target_tmr))
-    threshold = pos_sorted[cutoff_index].item()
-
-    # False Match Rate
-    false_matches = (negatives > threshold).sum().item()
-    num_negatives = negatives.numel()
-
-    fmr = false_matches / num_negatives
-
-    avg_pos = positives.mean().item()
-    avg_neg = negatives.mean().item()
-
-    return {
-        "fmr_at_95_tmr": fmr,
-        "threshold": threshold,
-        "avg_pos_sim": avg_pos,
-        "avg_neg_sim": avg_neg,
-    }
-
-
 def main():
     args = parse_args()
 
@@ -289,39 +43,38 @@ def main():
     torch.cuda.set_device(local_rank)
     dist.init_process_group(backend="nccl")
     device = torch.device(f"cuda:{local_rank}")
-
     is_master = dist.get_rank() == 0
+
     if is_master:
         print(f"Training started. World size: {dist.get_world_size()}")
-        print(f"Arguments: {args}")
         os.makedirs(args.save_dir, exist_ok=True)
 
     all_image_paths = list(Path(args.input_dir).glob("*.png"))
     all_image_paths.sort()
     rng = np.random.RandomState(42)
     rng.shuffle(all_image_paths)
+
     VAL_SIZE = 1000
     train_paths = all_image_paths[VAL_SIZE:]
     val_paths = all_image_paths[:VAL_SIZE]
-    if is_master:
-        print(f"Found {len(all_image_paths)} unique cards.")
-        print(f"Dataset split: {len(train_paths)} train cards, {len(val_paths)} val cards.")
 
-    # NN needs numbers, not names (String -> Int)
-    # 0, 1, 2...
+    # NN requires integer labels
     unique_names = sorted(list(set([p.stem for p in train_paths])))
     label_map = {name: i for i, name in enumerate(unique_names)}
     num_classes = len(unique_names)
 
-    train_dataset = MTGOnlineDataset(
+    if is_master:
+        print(f"Dataset split: {len(train_paths)} train cards, {len(val_paths)} val cards. Total: {num_classes}")
+
+    # Datasets & Loaders
+    train_dataset = MTGTrainDataset(
         image_paths=train_paths,
         label_map=label_map,
-        transform=get_transforms(args.img_size),
+        transform=get_train_transforms(args.img_size),
         img_size=args.img_size,
     )
 
     if is_master:
-        print("Generating augment preview")
         preview_path = os.path.join(args.save_dir, "preview_aug.png")
         try:
             visualize_augmentations(train_dataset, preview_path, num_images=16)
@@ -339,27 +92,19 @@ def main():
     )
 
     val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     with open("vals.txt", "w") as val_txt:
         print(f"{val_dataset.label_map}", file=val_txt)
-
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-    )
 
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
+    # Optimizer & Scheduler Setup
     criterion = nn.CrossEntropyLoss()
-    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    # TODO: https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
 
     backbone_params = list(model.module.backbone.parameters())
-
     head_params = (
         list(model.module.bn1.parameters())
         + list(model.module.fc.parameters())
@@ -367,6 +112,8 @@ def main():
         + list(model.module.arcface.parameters())
     )
 
+    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    # TODO: https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
     optimizer = optim.AdamW(
         [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
     )
@@ -376,20 +123,21 @@ def main():
     if is_master:
         print("Start of training...")
         history = {"epoch": [], "loss": [], "fmr": [], "threshold": [], "pos_sim": [], "neg_sim": []}
+
     total_steps = len(train_loader)
+
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         model.train()
         running_loss = 0.0
 
         for i, (images, labels) in enumerate(train_loader):
-            images = images.to(device)
-            labels = labels.to(device)
+            images, labels = images.to(device), labels.to(device)
 
             # TODO: should be useless, but getting some weird errors, so this stays here for now
             if (labels < 0).any() or (labels >= num_classes).any():
                 raise ValueError(
-                    f"CRITICAL: Label out of bounds! Min: {labels.min()}, Max: {labels.max()}, Num Classes: {num_classes}"
+                    f"Label out of bounds! Min: {labels.min()}, Max: {labels.max()}, Classes: {num_classes}"
                 )
 
             # forward pass
@@ -399,7 +147,6 @@ def main():
             # backward pass
             optimizer.zero_grad()
             loss.backward()
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
@@ -411,7 +158,6 @@ def main():
         metric_tensors = torch.zeros(1, device=device)
 
         if is_master:
-            print(f"Starting validation for epoch #{epoch + 1}")
             metrics = evaluate_metrics(model.module, val_loader, device)
 
             print(f"--- VALIDATION RESULTS (Epoch {epoch + 1}) ---")
@@ -419,7 +165,7 @@ def main():
             print(f"Threshold:     {metrics['threshold']:.4f}")
             print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
             print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
-            print(f"------------------------------------------")
+            print("-" * 42)
 
             metric_tensors[0] = metrics["fmr_at_95_tmr"]
 
@@ -430,58 +176,16 @@ def main():
             history["pos_sim"].append(metrics["avg_pos_sim"])
             history["neg_sim"].append(metrics["avg_neg_sim"])
 
-            try:
-                fig, axs = plt.subplots(2, 2, figsize=(16, 10))
-                fig.suptitle("MTG ArcFace Training Metrics", fontsize=16)
-
-                # Plot 1: Training Loss
-                axs[0, 0].plot(history["epoch"], history["loss"], "m-o", linewidth=2)
-                axs[0, 0].set_title("Training Loss")
-                axs[0, 0].set_xlabel("Epoch")
-                axs[0, 0].set_ylabel("Loss")
-                axs[0, 0].grid(True)
-
-                # Plot 2: FMR (Log Scale because it drops drastically)
-                axs[0, 1].plot(history["epoch"], history["fmr"], "r-o", linewidth=2)
-                axs[0, 1].set_yscale("log")
-                axs[0, 1].set_title("Validation FMR @ 95% TMR (Log Scale)")
-                axs[0, 1].set_xlabel("Epoch")
-                axs[0, 1].set_ylabel("FMR (%)")
-                axs[0, 1].grid(True, which="both", ls="--")
-
-                # Plot 3: Similarities
-                axs[1, 0].plot(history["epoch"], history["pos_sim"], "g-o", label="Avg Pos Sim", linewidth=2)
-                axs[1, 0].plot(history["epoch"], history["neg_sim"], "r-o", label="Avg Neg Sim", linewidth=2)
-                axs[1, 0].set_title("Cosine Similarity (Gallery vs Query)")
-                axs[1, 0].set_xlabel("Epoch")
-                axs[1, 0].set_ylabel("Similarity (-1 to 1)")
-                axs[1, 0].set_ylim(-0.2, 1.0)
-                axs[1, 0].legend()
-                axs[1, 0].grid(True)
-
-                # Plot 4: Threshold
-                axs[1, 1].plot(history["epoch"], history["threshold"], "b-o", linewidth=2)
-                axs[1, 1].set_title("Threshold for 95% TMR")
-                axs[1, 1].set_xlabel("Epoch")
-                axs[1, 1].set_ylabel("Threshold")
-                axs[1, 1].grid(True)
-
-                plt.tight_layout()
-                plot_path = os.path.join(args.save_dir, "training_curves.png")
-                plt.savefig(plot_path)
-                plt.close()
-                print(f"Updated training curves saved to {plot_path}")
-            except Exception as e:
-                print(f"Warning: Failed to generate plots: {e}")
+            plot_training_curves(history, args.save_dir)
 
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
                 torch.save(model.module.state_dict(), save_path)
                 print(f"Model saved to {save_path}")
 
+        # sync metrics across all GPUs for the scheduler
         dist.broadcast(metric_tensors, src=0)
         scheduler.step(metric_tensors.item())
-
         dist.barrier()
 
     if is_master:
