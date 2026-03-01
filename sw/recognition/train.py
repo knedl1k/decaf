@@ -110,7 +110,6 @@ def main():
         + list(model.module.arcface.parameters())
     )
 
-    # optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     # TODO: https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
     optimizer = optim.AdamW(
         [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
@@ -131,12 +130,6 @@ def main():
 
         for i, (images, labels) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
-
-            # TODO: should be useless, but getting some weird errors, so this stays here for now
-            if (labels < 0).any() or (labels >= num_classes).any():
-                raise ValueError(
-                    f"Label out of bounds! Min: {labels.min()}, Max: {labels.max()}, Classes: {num_classes}"
-                )
 
             # forward pass
             outputs = model(images, labels)
