@@ -36,6 +36,15 @@ def parse_args():
     return parser.parse_args()
 
 
+def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: int, loss: float):
+    history["epoch"].append(epoch)
+    history["loss"].append(loss)
+    history["fmr"].append(metrics["fmr_at_95_tmr"] * 100)
+    history["threshold"].append(metrics["threshold"])
+    history["pos_sim"].append(metrics["avg_pos_sim"])
+    history["neg_sim"].append(metrics["avg_neg_sim"])
+
+
 def main():
     args = parse_args()
 
@@ -150,23 +159,9 @@ def main():
 
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
-
-            print(f"--- VALIDATION RESULTS (Epoch {epoch + 1}) ---")
-            print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
-            print(f"Threshold:     {metrics['threshold']:.4f}")
-            print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
-            print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
-            print("-" * 42)
-
+            print_metrics(metrics, epoch + 1)
             metric_tensors[0] = metrics["fmr_at_95_tmr"]
-
-            history["epoch"].append(epoch + 1)
-            history["loss"].append(running_loss / len(train_loader))
-            history["fmr"].append(metrics["fmr_at_95_tmr"] * 100)
-            history["threshold"].append(metrics["threshold"])
-            history["pos_sim"].append(metrics["avg_pos_sim"])
-            history["neg_sim"].append(metrics["avg_neg_sim"])
-
+            update_history(history, metrics, epoch + 1, running_loss / len(train_loader))
             plot_training_curves(history, args.save_dir)
 
             if (epoch + 1) % 5 == 0:

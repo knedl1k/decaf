@@ -89,6 +89,15 @@ def evaluate_metrics(
     }
 
 
+def print_metrics(metrics: Dict[str, float], epoch: int):
+    print(f"--- VALIDATION RESULTS (Epoch {epoch}) ---")
+    print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
+    print(f"Threshold:     {metrics['threshold']:.4f}")
+    print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
+    print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
+    print("-" * 42)
+
+
 def plot_training_curves(history: Dict[str, list], save_dir: str) -> None:
     """
     Generates and saves a 2x2 grid of training metrics plots.
