@@ -5,6 +5,7 @@ import os
 import argparse
 import numpy as np
 from pathlib import Path
+from typing import Dict, Any
 
 import torch
 import torch.nn as nn
@@ -16,7 +17,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import MTGReconModel
 from data import MTGTrainDataset, MTGValidationDataset, get_train_transforms, visualize_augmentations
-from utils import evaluate_metrics, plot_training_curves
+from utils import evaluate_metrics, plot_training_curves, print_metrics
 
 
 def parse_args():
@@ -24,6 +25,7 @@ def parse_args():
 
     parser.add_argument("--input_dir", type=str, required=True, help="path to directory with images")
     parser.add_argument("--save_dir", type=str, default="./checkpoints", help="directory to save models")
+    parser.add_argument("--resume", type=str, default=None, help="path to checkpoint to resume training from")
 
     parser.add_argument("--batch_size", type=int, default=64, help="batch size per GPU")
     parser.add_argument("--epochs", type=int, default=25, help="number of epochs")
@@ -43,6 +45,26 @@ def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: i
     history["threshold"].append(metrics["threshold"])
     history["pos_sim"].append(metrics["avg_pos_sim"])
     history["neg_sim"].append(metrics["avg_neg_sim"])
+
+
+def save_model(
+    mod_st: Dict[str, torch.Tensor],
+    opt_st: Dict[str, Any],
+    sch_st: Dict[str, Any],
+    epoch: int,
+    history: Dict[str, list],
+    save_path: str,
+):
+    torch.save(
+        {
+            "epoch": epoch,
+            "model_state_dict": mod_st,
+            "optimizer_state_dict": opt_st,
+            "scheduler_state_dict": sch_st,
+            "history": history,
+        },
+        save_path,
+    )
 
 
 def main():
@@ -126,13 +148,33 @@ def main():
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
 
+    start_epoch = 0
     if is_master:
         print("Start of training...")
         history = {"epoch": [], "loss": [], "fmr": [], "threshold": [], "pos_sim": [], "neg_sim": []}
+    else:
+        history = {}
+
+    if args.resume and os.path.isfile(args.resume):
+        if is_master:
+            print(f"Loading checkpoint '{args.resume}'...")
+        checkpoint = torch.load(args.resume, map_location=device)
+
+        if "model_state_dict" in checkpoint:
+            model.module.load_state_dict(checkpoint["model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            start_epoch = checkpoint["epoch"]
+            if is_master and "history" in checkpoint:
+                history = checkpoint["history"]
+            if is_master:
+                print(f"Successfully resumed from epoch {start_epoch}")
+    elif args.resume and is_master:
+        print(f"Warning: Checkpoint '{args.resume}' not found. Starting from scratch.")
 
     total_steps = len(train_loader)
 
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         sampler.set_epoch(epoch)
         model.train()
         running_loss = 0.0
@@ -166,7 +208,14 @@ def main():
 
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
-                torch.save(model.module.state_dict(), save_path)
+                save_model(
+                    model.module.state_dict(),
+                    optimizer.state_dict(),
+                    scheduler.state_dict(),
+                    epoch + 1,
+                    history,
+                    save_path,
+                )
                 print(f"Model saved to {save_path}")
 
         # sync metrics across all GPUs for the scheduler
@@ -175,8 +224,11 @@ def main():
         dist.barrier()
 
     if is_master:
-        print("Training complete.")
-        torch.save(model.module.state_dict(), os.path.join(args.save_dir, "arcface_mtg_final.pth"))
+        save_path = os.path.join(args.save_dir, f"arcface_mtg_final.pth")
+        save_model(
+            model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict(), args.epochs, history, save_path
+        )
+        print(f"Training complete, model saved to '{save_path}''.")
 
     dist.destroy_process_group()
 

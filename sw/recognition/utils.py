@@ -16,12 +16,14 @@ def load_model_weights(model: torch.nn.Module, checkpoint_path: str, device: tor
     print(f"Loading model weights from {checkpoint_path}...")
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
+    state_dict = checkpoint["model_state_dict"]
+
     # care only about the backbone and embedding layer for inference/transfer learning
-    if "arcface.weight" in checkpoint:
-        del checkpoint["arcface.weight"]
+    if "arcface.weight" in state_dict:
+        del state_dict["arcface.weight"]
 
     try:
-        model.load_state_dict(checkpoint, strict=False)
+        model.load_state_dict(state_dict, strict=False)
     except RuntimeError as e:
         print(f"Warning during loading weights: {e}")
 
