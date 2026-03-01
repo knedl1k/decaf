@@ -3,60 +3,49 @@
 
 import torch
 import cv2
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-from model import MTGReconModel
-import numpy as np
 import argparse
 
-# TEST_IMAGE_PATH = "data/zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e.png"
+from model import MTGReconModel
+from data import load_image, get_inference_transforms
+from utils import load_model_weights
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="create an index of vectors with ArcFace NN")
-    parser.add_argument("--img", type=str, required=True, help="relative path to image")
-    parser.add_argument("--model", type=str, required=True, help="path to trained model")
-    parser.add_argument("--database", type=str, required=True, help="path to index database")
+    parser = argparse.ArgumentParser(description="recognize a single MTG card image using ArcFace index")
+    parser.add_argument("--img", type=str, required=True, help="path to the query image")
+    parser.add_argument("--model", type=str, required=True, help="path to the trained model checkpoint")
+    parser.add_argument("--database", type=str, required=True, help="path to the index database")
     parser.add_argument("--img_size", type=int, default=224, help="input image size")
-    parser.add_argument("--num_candidates", type=int, default=3, help="number of candidates with the best confidence")
+    parser.add_argument("--num_candidates", type=int, default=3, help="number of top candidates to display")
     return parser.parse_args()
 
 
-def get_inference_transforms(img_size):
-    return A.Compose(
-        [
-            A.LongestMaxSize(max_size=img_size),
-            A.PadIfNeeded(min_height=img_size, min_width=img_size, border_mode=cv2.BORDER_CONSTANT),
-            A.Normalize(),
-            ToTensorV2(),
-        ]
-    )
-
-
 def recognize_card(args):
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     print("Loading database...")
-    db = torch.load(args.database, map_location=DEVICE, weights_only=False)
-    db_vectors = db["vectors"].to(DEVICE)
+    db = torch.load(args.database, map_location=device, weights_only=False)
+    db_vectors = db["vectors"].to(device)
     db_names = db["names"]
 
-    model = MTGReconModel(num_classes=1).to(DEVICE)
-    checkpoint = torch.load(args.model, map_location=DEVICE, weights_only=False)
-    if "arcface.weight" in checkpoint:
-        del checkpoint["arcface.weight"]
-    model.load_state_dict(checkpoint, strict=False)
+    print("Loading model...")
+    # initialize with 1 class (head weights are ignored during inference anyway)
+    model = MTGReconModel(num_classes=1).to(device)
+    model = load_model_weights(model, args.model, device)
     model.eval()
 
-    img = cv2.imread(args.img)
-    if img is None:
-        print("Error: Test image not found.")
+    try:
+        img = load_image(args.img)
+        if len(img.shape) == 3 and img.shape[2] == 4:
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    except Exception as e:
+        print(f"Error loading test image: {e}")
         return
-
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     transform = get_inference_transforms(args.img_size)
     aug = transform(image=img)["image"]
-    img_tensor = aug.unsqueeze(0).to(DEVICE)
+    img_tensor = aug.unsqueeze(0).to(device)
 
     with torch.no_grad():
         query_vector = model(img_tensor)
@@ -67,21 +56,20 @@ def recognize_card(args):
     print(f"{db_vectors[1, :10]=}")
 
     # Since the vectors are normalized, Cosine Similarity is just a scalar product (Dot Product).
-    # We multiply the card vector (1, 512) by the entire database matrix (512, 100000).
-    # The result is a similarity score for each card in the database (-1 to 1).
+    # Multiply the query vector (1, 512) by the database matrix (N, 512).T -> Result is (1, N)
     similarity_scores = torch.mm(query_vector, db_vectors.t())
 
     best_score, best_idx = torch.max(similarity_scores, dim=1)
-
     best_card_name = db_names[best_idx.item()]
     confidence = best_score.item() * 100
 
-    print("-------------------------------")
+    print("\n" + "-" * 40)
     print(f"Test card:  {args.img}")
     print(f"Result:     {best_card_name}")
     print(f"Confidence: {confidence:.2f} %")
-    print("--------------------------------")
+    print("-" * 40 + "\n")
 
+    print(f"Top {args.num_candidates} candidates:")
     top_scores, top_idxs = torch.topk(similarity_scores, args.num_candidates)
     for i in range(args.num_candidates):
         idx = top_idxs[0][i].item()

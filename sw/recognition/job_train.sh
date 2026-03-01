@@ -23,11 +23,12 @@ IMG_DIR="/mnt/personal/adamej14/dataset"
 SAVE_DIR="./check"
 
 torchrun \
+    --standalone \
+    --nnodes=1 \
     --nproc_per_node=4 \
-    --rdzv_backend=c10d \
-    --rdzv_endpoint=localhost:0 \
     train.py \
     --input_dir="$IMG_DIR" \
     --save_dir="$SAVE_DIR" \
     --img_size=512 \
-    --batch_size=32
+    --batch_size=64 \
+    --lr=3e-4
