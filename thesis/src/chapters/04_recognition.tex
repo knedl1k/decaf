@@ -6,7 +6,7 @@ One of the primary challenges in training deep learning models for \ac{TCG} iden
 To address this limitation, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format, enabling the automated generation of training samples.
 
 \subsection{Scraping Pipeline and Indexing}
-Custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging. % TODO: má smysl zmiňovat, kde se skript nachází? scripts/data_scraper.py
+Custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging.
 
 Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number, and name with a \ac{UUID}: 
 \begin{equation}
