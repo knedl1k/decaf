@@ -39,10 +39,21 @@ def get_train_transforms(img_size: int) -> A.Compose:
             # lighting & sleeve glare simulation
             A.RandomSunFlare(src_radius=100, num_flare_circles_range=(1, 2), p=0.3),
             A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.2),
+            A.MotionBlur(blur_limit=5, p=0.2),
+            A.GlassBlur(sigma=0.7, max_delta=4, iterations=2, p=0.2),
             # mera artifacts
             A.CoarseDropout(
-                hole_height_range=(int(img_size * 0.1), int(img_size * 0.25)),
-                hole_width_range=(int(img_size * 0.1), int(img_size * 0.25)),
+                num_holes_range=(1, 3),
+                hole_height_range=(int(img_size * 0.2), int(img_size * 0.45)),
+                hole_width_range=(int(img_size * 0.2), int(img_size * 0.45)),
+                fill="random",
+                p=0.6,
+            ),
+            A.CoarseDropout(
+                num_holes_range=(3, 8),
+                hole_height_range=(int(img_size * 0.05), int(img_size * 0.1)),
+                hole_width_range=(int(img_size * 0.05), int(img_size * 0.1)),
+                fill="random",
                 p=0.4,
             ),
             A.GaussianBlur(blur_limit=(3, 5), p=0.3),
