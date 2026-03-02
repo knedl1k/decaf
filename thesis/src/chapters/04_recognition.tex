@@ -29,15 +29,15 @@ When a neural network is trained exclusively on clean digital templates but depl
 In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These physical captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
 
 \section{Synthetic Data Generation}
-To address the lack of labeled real-world data, the training pipeline incorporates an on-the-fly synthesis module that simulates artifacts typical of physical image acquisition.
+To bridge the domain gap described above, the training pipeline incorporates an on-te-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
-For every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three main categories:
+During every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three primary categories:
 \begin{itemize}
-    \item Geometric Transformations: Random perspective warping and rotation are applied to induce invariance to camera pose and alignment errors.
-    \item Photometric Distortions: Variations in brightness, contrast, and saturation, combined with Gaussian blur, approximate diverse environmental lighting and optical imperfections.
-    \item Occlusions and Artifacts: Random erasure methods (e.g., \texttt{CoarseDropout}~\footnote{Documentation available at \url{https://albumentations.ai/docs/api-reference/albumentations/augmentations/dropout/coarse_dropout/\#CoarseDropout}}) are utilized to simulate physical damage, dust, or partial occlusion of the card surface.
+    \item Geometric Transformations: Random perspective warping and rotation are applied to inducemodel invariance to camera pose and alignment errors.
+    \item Photometric Distortions: Variations in brightness, contrast, and saturation, combined with Gaussian blur, are utilized to approximate diverse environmental lighting and optical imperfections.
+    \item Occlusions and Artifacts: Random erasure methods (e.g., \texttt{CoarseDropout}~\footnote{Documentation available at \url{https://albumentations.ai/docs/api-reference/albumentations/augmentations/dropout/coarse_dropout/\#CoarseDropout}}) are implemented to simulate physical damage, dust, or partial occlusion of the card surface.
 \end{itemize}
-Consequently, the model is trained on a virtually infinite stream of unique samples. This strategy minimizes overfitting and enhances the model's generalization capabilities on unseen physical cards.
+By applying this stochastic pipeline, the model is trained on a continuously varying stream of unique samples.
 
 \section{Theoretical Framework}
 
