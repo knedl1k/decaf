@@ -18,12 +18,9 @@ For example, a card from the \ii{Zendikar} set is stored as:
 \end{center}
 This format allows for immediate visual identification of the card's edition and variant without requiring a lookup table, while the \ac{UUID} suffix guarantees collision-free storage even for edge cases (e.g., duplicate names across sets).
 
-
-% TODO: asi to chce zmínit, že je důležité nezapomenout trénovat _front a _back zvlášť,
-% zároveň mi tohle už nepřijde už akademicky znějící?
 \subsection{Handling Complex Layouts}
-The script also implements logic to handle complex card layouts, such as \acp{DFC} (transform, modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. Our pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers to ensure that both sides of the card are learnable by the model.
 
+The script also implements logic to handle complex card layouts, such as \acp{DFC} (transform, modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures te network learns to independently classify either face of the physical card without conflating the features of both sides.
 \section{Synthetic Data Generation}
 To address the lack of labeled real-world data, the training pipeline incorporates an on-the-fly synthesis module that simulates artifacts typical of physical image acquisition.
 
