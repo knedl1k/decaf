@@ -21,6 +21,13 @@ This format allows for immediate visual identification of the card's edition and
 \subsection{Handling Complex Layouts}
 
 The script also implements logic to handle complex card layouts, such as \acp{DFC} (transform, modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures te network learns to independently classify either face of the physical card without conflating the features of both sides.
+
+\section{Domain Shift}
+
+When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon widely documented as \ii{domain shift}~\cite{torralba_efros_2011}. In the formal mathematical framework of statistical learning theory, domain shift occurs when the underlying distribution of the training data differs significantly from that of the deployment data~\cite{ben_david_2010}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
+
+In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These physical captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
+
 \section{Synthetic Data Generation}
 To address the lack of labeled real-world data, the training pipeline incorporates an on-the-fly synthesis module that simulates artifacts typical of physical image acquisition.
 
