@@ -49,7 +49,7 @@ Standard image classification models typically employ the Softmax loss function 
 \end{enumerate}
 To address these challenges, a \ac{DML} approach was adopted. Instead of classifying images directly, the goal is to learn a mapping function $f(\mathbf{x})$ that embeds input images into a low-dimensional Euclidean space (typically constrained to a hypersphere). In this space, the distance between embeddings corresponds directly to semantic similarity, allowing for card identification via Nearest Neighbor Search rather than direct classification.
 
-\subsection{ArcFace: Additive Angular Margin Loss}
+\subsection{ArcFace: Additive Angular Margin Loss}\label{sec:arcface}
 ArcFace (Additive Angular Margin Loss)~\cite{Deng_2022} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
 
 \subsection{Geometric Interpretation}
@@ -80,18 +80,33 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with label $y_i$ is defined a
 \end{equation}
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded, and the recognition is performed solely by computing the cosine similarity between the query embedding $f(\mathbf{x})$ and the database of card embeddings.
 
+\newpage
 \section{Model Architecture}
-The implemented recognition pipeline, defined in \texttt{model.py}, consists of three distrinct stages.
+The implemented recognition pipeline, defined in \texttt{model.py}, consists of three distinct stages designed to map raw pixel data into a highly discriminative 512-dimensional Euclidean space.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width = 1\textwidth]{fig/plots/pipeline_flow.png}
+    \caption{The end-to-end inference pipeline used in this thesis.}
+    \label{fig:pipeline_flow}
+\end{figure}
 
 \subsection{Backbone Network}
-A ResNet-50~\cite{He2015} extractor pretrained on ImageNet.
+The foundational feature extractor is a ResNet-50~\cite{He2015} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.
 
-\subsection{Embedding Head}
-A fully connected layer mapping the 2048 backbone features to a compact 512-dimensional embedding space.
+\subsection{Embedding Head}\label{sub:embedhead}
+The 2048-dimensional feature maps extracted by the ResNet-50 backbone are projected into a compact embedding space via a custom architectural neck. This embedding head consists of the following sequential operations:
+\begin{enumerate}
+    \item 1D Batch Normalization: Stabilizes the high-dimensional output from the backbone. During distributed training across multiple GPUs, this is converted to Synchronized Batch Normalization to ensure accurate batch statistic computation.
+    \item Dropout: A dropout layer with a probability of $p=0.4$ is applied to regularize the network and mitigate overfitting, a common failure mode in fine-grained open-set classification.
+    \item Linear Projection: A fully connected layer without bias parameters reduces the dimensionality from 2048 to the target embedding size of $d=512$.
+    \item 1D Batch Normalization: A final normalization step applied immediately before the features are projected onto the hypersphere.
+\end{enumerate}
 
 \subsection{ArcFace Head}
-The \texttt{ArcFaceHead} module, 
+During the training phase, the 512-dimensional embeddings are passed to the \texttt{ArcFaceHead} module, which implements the additive angular margin penalty described in \refsec{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization.
 
+% TODO: zde bych asi zminil i ostatni hyperparametry, jakmile se objevi sweet spot;
+% napriklad `s` a `m` v samotnem modelu
+The calculated cosine similarities are limited to the interval $[-1.0 + 10^{-7}, \, 1.0 - 10^{-7}]$ to ensure numerical stability during backpropagation and to prevent undefined behavior of the $\arccos$ function.
 
-During inference (see \texttt{inference.py}), the ArcFace head is discarded, and similarity is computed using the cosine distance between the 512-dimensional embeddings.
-
+It is important to note that this module is used exclusively during training. After deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The pipeline then performs recognition by calculating the raw cosine similarity between the $L_2$-normalized 512-dimensional vectors produced by the \hyperref[sub:embedhead]{Embedding Head}.
