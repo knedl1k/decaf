@@ -1,3 +1,5 @@
+<img src="./decaf_logo.jpg" alt="decaf logo" />
+
 # Automated Recognition and Classification of Trading Cards
 This thesis will explore the development of an automated system for recognizing and classifying trading cards. The goal is to design and build a simple robot using an Arduino board and stepper motors to move trading cards one at a time. The robot will transport the cards under a camera, where each card is scanned and processed using OCR and other machine learning techniques for recognition and classification. The project involves constructing the robotic system, creating a dataset from the scanned images, and developing a baseline recognition software. 
 
