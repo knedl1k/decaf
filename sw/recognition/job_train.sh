@@ -31,4 +31,5 @@ torchrun \
     --save_dir="$SAVE_DIR" \
     --img_size=512 \
     --batch_size=64 \
-    --lr=3e-4
+    --lr=3e-4 \
+    --epochs=60
