@@ -6,7 +6,7 @@ One of the primary challenges in training deep learning models for \ac{TCG} iden
 To address this limitation, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format, enabling the automated generation of training samples.
 
 \subsection{Scraping Pipeline and Indexing}
-Custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging.
+A custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging.
 
 Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number, and name with a \ac{UUID}: 
 \begin{equation}
@@ -20,20 +20,20 @@ This format allows for immediate visual identification of the card's edition and
 
 \subsection{Handling Complex Layouts}
 
-The script also implements logic to handle complex card layouts, such as \acp{DFC} (transform, modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures te network learns to independently classify either face of the physical card without conflating the features of both sides.
+The script also implements logic to handle complex card layouts, such as \acp{DFC} (e.g., transform and modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures the network learns to independently classify either face of the physical card without conflating the features of both sides.
 
 \section{Domain Shift}
 
 When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon widely documented as \ii{domain shift}~\cite{quinonero2009dataset}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
 
-In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These physical captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
+In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
 
 \section{Synthetic Data Generation}
-To bridge the domain gap described above, the training pipeline incorporates an on-te-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
+To bridge the domain gap described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
 During every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three primary categories:
 \begin{itemize}
-    \item Geometric Transformations: Random perspective warping and rotation are applied to inducemodel invariance to camera pose and alignment errors.
+    \item Geometric Transformations: Random perspective warping and rotation are applied to induce model invariance to camera pose and alignment errors.
     \item Photometric Distortions: Variations in brightness, contrast, and saturation, combined with Gaussian blur, are utilized to approximate diverse environmental lighting and optical imperfections.
     \item Occlusions and Artifacts: Random erasure methods (e.g., \texttt{CoarseDropout}~\footnote{Documentation available at \url{https://albumentations.ai/docs/api-reference/albumentations/augmentations/dropout/coarse_dropout/\#CoarseDropout}}) are implemented to simulate physical damage, dust, or partial occlusion of the card surface.
 \end{itemize}
@@ -80,15 +80,16 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with label $y_i$ is defined a
 \end{equation}
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded, and the recognition is performed solely by computing the cosine similarity between the query embedding $f(\mathbf{x})$ and the database of card embeddings.
 
-\newpage
+% \newpage
 \section{Model Architecture}
-The implemented recognition pipeline, defined in \texttt{model.py}, consists of three distinct stages designed to map raw pixel data into a highly discriminative 512-dimensional Euclidean space.
+The complete end-to-end inference pipeline, illustrated in Figure~\ref{fig:pipeline_flow}, consists of three high-level operational blocks: image preprocessing, feature extraction, and similarity matching. 
 \begin{figure}[H]
     \centering
     \includegraphics[width = 1\textwidth]{fig/plots/pipeline_flow.png}
     \caption{The end-to-end inference pipeline used in this thesis.}
     \label{fig:pipeline_flow}
 \end{figure}
+However, the core neural network (\texttt{MTGReconModel}) utilized for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
 
 \subsection{Backbone Network}
 The foundational feature extractor is a ResNet-50~\cite{He2015} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.
@@ -109,4 +110,4 @@ During the training phase, the 512-dimensional embeddings are passed to the \tex
 % napriklad `s` a `m` v samotnem modelu
 The calculated cosine similarities are limited to the interval $[-1.0 + 10^{-7}, \, 1.0 - 10^{-7}]$ to ensure numerical stability during backpropagation and to prevent undefined behavior of the $\arccos$ function.
 
-It is important to note that this module is used exclusively during training. After deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The pipeline then performs recognition by calculating the raw cosine similarity between the $L_2$-normalized 512-dimensional vectors produced by the \hyperref[sub:embedhead]{Embedding Head}.
+It is important to note that this module is used exclusively during training. After deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The pipeline then performs recognition by calculating the raw cosine similarity between the $L^2$-normalized 512-dimensional vectors produced by the \hyperref[sub:embedhead]{Embedding Head}.
