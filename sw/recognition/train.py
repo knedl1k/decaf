@@ -38,13 +38,17 @@ def parse_args():
     return parser.parse_args()
 
 
-def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: int, loss: float):
+def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: int, loss: float, lr: float):
     history["epoch"].append(epoch)
     history["loss"].append(loss)
-    history["fmr"].append(metrics["fmr_at_95_tmr"] * 100)
+    history["lr"].append(lr)
+    history["fmr"].append(metrics["fmr_at_95_tmr"])
     history["threshold"].append(metrics["threshold"])
     history["pos_sim"].append(metrics["avg_pos_sim"])
+    history["std_pos_sim"].append(metrics["std_pos_sim"])
     history["neg_sim"].append(metrics["avg_neg_sim"])
+    history["std_neg_sim"].append(metrics["std_neg_sim"])
+    history["top1_acc"].append(metrics["top1_acc"])
 
 
 def save_model(
@@ -151,7 +155,18 @@ def main():
     start_epoch = 0
     if is_master:
         print("Start of training...")
-        history = {"epoch": [], "loss": [], "fmr": [], "threshold": [], "pos_sim": [], "neg_sim": []}
+        history = {
+            "epoch": [],
+            "loss": [],
+            "lr": [],
+            "fmr": [],
+            "threshold": [],
+            "pos_sim": [],
+            "std_pos_sim": [],
+            "neg_sim": [],
+            "std_neg_sim": [],
+            "top1_acc": [],
+        }
     else:
         history = {}
 
@@ -203,7 +218,8 @@ def main():
             metrics = evaluate_metrics(model.module, val_loader, device)
             print_metrics(metrics, epoch + 1)
             metric_tensors[0] = metrics["fmr_at_95_tmr"]
-            update_history(history, metrics, epoch + 1, running_loss / len(train_loader))
+            current_lr = optimizer.param_groups[1]["lr"]
+            update_history(history, metrics, epoch + 1, running_loss / len(train_loader), current_lr)
             plot_training_curves(history, args.save_dir)
 
             if (epoch + 1) % 5 == 0:

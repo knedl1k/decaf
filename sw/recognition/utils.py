@@ -75,19 +75,20 @@ def evaluate_metrics(
     cutoff_index = int(len(positives) * (1 - target_tmr))
     threshold = pos_sorted[cutoff_index].item()
 
-    # False Match Rate
-    false_matches = (negatives > threshold).sum().item()
-    num_negatives = negatives.numel()
-    fmr = false_matches / num_negatives
+    fmr = (negatives > threshold).sum().item() / num_negatives.numel()
 
-    avg_pos = positives.mean().item()
-    avg_neg = negatives.mean().item()
+    # Top-1 accuracy
+    top1_correct = (similarity_matrix.argmax(dim=1) == torch.arange(similarity_matrix.shape[0])).sum().item()
+    top1_acc = top1_correct / similarity_matrix.shape[0]
 
     return {
         "fmr_at_95_tmr": fmr,
         "threshold": threshold,
-        "avg_pos_sim": avg_pos,
-        "avg_neg_sim": avg_neg,
+        "avg_pos_sim": positives.mean().item(),
+        "std_pos_sim": positives.std().item(),
+        "avg_neg_sim": negatives.mean().item(),
+        "std_neg_sim": negatives.std().item(),
+        "top1_acc": top1_acc,
     }
 
 
@@ -106,39 +107,58 @@ def plot_training_curves(history: Dict[str, list], save_dir: str) -> None:
     """
     try:
         fig, axs = plt.subplots(2, 2, figsize=(16, 10))
-        fig.suptitle("MTG ArcFace Training Metrics", fontsize=16)
+        fig.suptitle("Training Metrics", fontsize=16)
+        epochs = history["epoch"]
 
-        # Plot 1: Training Loss
-        axs[0, 0].plot(history["epoch"], history["loss"], "m-o", linewidth=2)
-        axs[0, 0].set_title("Training Loss")
-        axs[0, 0].set_xlabel("Epoch")
-        axs[0, 0].set_ylabel("Loss")
-        axs[0, 0].grid(True)
+        ax1 = axs[0, 0]
+        ax1.plot(epochs, history["loss"], "m-o", linewidth=2, label="Loss")
+        ax1.set_title("Training Loss & Learning Rate")
+        ax1.set_xlabel("Epoch")
+        ax1.set_ylabel("Loss")
+        ax1.grid(True)
+        ax1_lr = ax1.twinx()
+        ax1_lr.plot(epochs, history["lr"], "k--", linewidth=2, alpha=0.7, label="Learning Rate")
+        ax1_lr.set_ylabel("Learning Rate")
+        ax1_lr.set_yscale("log")
 
-        # Plot 2: FMR
-        axs[0, 1].plot(history["epoch"], history["fmr"], "r-o", linewidth=2)
-        axs[0, 1].set_yscale("log")
-        axs[0, 1].set_title("Validation FMR @ 95% TMR")
-        axs[0, 1].set_xlabel("Epoch")
-        axs[0, 1].set_ylabel("FMR (%)")
-        axs[0, 1].grid(True, which="both", ls="--")
+        lines, labels = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax1_lr.get_legend_handles_labels()
+        ax1.legend(lines + lines2, labels + labels2, loc="upper right")
 
-        # Plot 3: Similarities
-        axs[1, 0].plot(history["epoch"], history["pos_sim"], "g-o", label="Avg Pos Sim", linewidth=2)
-        axs[1, 0].plot(history["epoch"], history["neg_sim"], "r-o", label="Avg Neg Sim", linewidth=2)
-        axs[1, 0].set_title("Cosine Similarity (Gallery vs Query)")
-        axs[1, 0].set_xlabel("Epoch")
-        axs[1, 0].set_ylabel("Similarity (-1 to 1)")
-        axs[1, 0].set_ylim(-0.2, 1.0)
-        axs[1, 0].legend()
-        axs[1, 0].grid(True)
+        ax2 = axs[0, 1]
+        ax2.plot(epochs, history["fmr"] * 100, "r-o", linewidth=2)
+        ax2.set_yscale("log")
+        ax2.set_title("Validation FMR @ 95% TMR")
+        ax2.set_xlabel("Epoch")
+        ax2.set_ylabel("FMR (%)")
+        ax2.grid(True, which="both", ls="--")
 
-        # Plot 4: Threshold
-        axs[1, 1].plot(history["epoch"], history["threshold"], "b-o", linewidth=2)
-        axs[1, 1].set_title("Threshold for 95% TMR")
-        axs[1, 1].set_xlabel("Epoch")
-        axs[1, 1].set_ylabel("Threshold")
-        axs[1, 1].grid(True)
+        ax3 = axs[1, 0]
+        pos = np.array(history["pos_sim"])
+        pos_std = np.array(history.get("std_pos_sim", [0] * len(pos)))
+        neg = np.array(history["neg_sim"])
+        neg_std = np.array(history.get("std_neg_sim", [0] * len(neg)))
+        thresh = np.array(history["threshold"])
+        ax3.plot(epochs, pos, "g-o", label="Avg Pos Sim", linewidth=2)
+        ax3.fill_between(epochs, pos - pos_std, pos + pos_std, color="green", alpha=0.2)
+        ax3.plot(epochs, neg, "g-o", label="Avg Neg Sim", linewidth=2)
+        ax3.fill_between(epochs, neg - neg_std, neg + neg_std, color="green", alpha=0.2)
+        ax3.plot(epochs, thresh, "b--", label="Threshold (95 % TMR)", linewidth=2)
+        ax3.set_title("Cosine Similarities & Threshold")
+        ax3.set_xlabel("Epoch")
+        ax3.set_ylabel("Similarity (-1 to 1)")
+        ax3.set_ylim(-0.2, 1.0)
+        ax3.legend(loc="center right")
+        ax3.grid(True)
+
+        ax4 = axs[1, 1]
+        top1 = np.array(history["top1_acc"]) * 100
+        ax4.plot(epochs, top1, "c-o", linewidth=2)
+        ax4.set_title("Top-1 Validation Accuracy")
+        ax4.set_xlabel("Epoch")
+        ax4.set_ylabel("Accuracy (%)")
+        ax4.set_ylim(max(0, min(top1) - 5), 100.5)
+        ax4.grid(True)
 
         plt.tight_layout()
         plot_path = os.path.join(save_dir, "training_curves.png")
