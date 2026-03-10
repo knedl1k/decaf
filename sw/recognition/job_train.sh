@@ -8,16 +8,16 @@
 #SBATCH --partition=h200
 #SBATCH --mem=64G                   # RAM
 #SBATCH --time=24:00:00             # time limit
-#SBATCH --output=train_%j.out
-#SBATCH --error=train_%j.err
+#SBATCH --output=logs/train_%j.out
+#SBATCH --error=logs/train_%j.err
 #SBATCH --mail-user=adamej14@fel.cvut.cz
 #SBATCH --mail-type=END
 
-ml Python/3.11.5-GCCcore-13.2.0
-ml PyTorch/2.4.0-foss-2023b-CUDA-12.4.0
-ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
-ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
-ml timm/0.6.13-foss-2023b-CUDA-12.4.0
+ml Python/3.13.5-GCCcore-14.3.0
+ml PyTorch/2.10.0-foss-2025b-CUDA-12.9.1
+ml Albumentations/2.0.8-foss-2025b-CUDA-12.9.1
+ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
+ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
 IMG_DIR="/mnt/personal/adamej14/dataset"
 SAVE_DIR="./check"

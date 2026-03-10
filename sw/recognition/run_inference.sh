@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-ml Python/3.11.5-GCCcore-13.2.0
-ml PyTorch/2.4.0-foss-2023b-CUDA-12.4.0
-ml Albumentations/1.4.4-foss-2023b-CUDA-12.4.0
-ml OpenCV/4.10.0-foss-2023b-CUDA-12.4.0-contrib
-ml timm/0.6.13-foss-2023b-CUDA-12.4.0
+
+ml Python/3.13.5-GCCcore-14.3.0
+ml PyTorch/2.10.0-foss-2025b-CUDA-12.9.1
+ml Albumentations/2.0.8-foss-2025b-CUDA-12.9.1
+ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
+ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
 MODEL_PATH="./check/arcface_mtg_final.pth"
 DATABASE_PATH="card_database.pth"
-# TEST_IMG="../10e_131_consume-spirit-b8117171-08a7-44f6-9c14-12e8b96c7632.png"
 TEST_IMG="../001.png"
 
 python3 inference.py \
