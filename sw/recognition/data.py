@@ -135,7 +135,7 @@ class InferenceDataset(Dataset):
 
 
 class MTGTrainDataset(Dataset):
-    def __init__(self, image_paths: List[Path], label_map: Dict[str, int], transform: Callable, img_size: int = 224):
+    def __init__(self, image_paths: List[Path], label_map: Dict[str, int], transform: Callable, img_size: int):
         self.image_paths = image_paths
         self.label_map = label_map
         self.transform = transform
@@ -163,7 +163,7 @@ class MTGTrainDataset(Dataset):
 
 
 class MTGValidationDataset(Dataset):
-    def __init__(self, image_paths: List[Path], label_map: Dict[str, int], img_size: int = 224):
+    def __init__(self, image_paths: List[Path], label_map: Dict[str, int], img_size: int):
         self.image_paths = image_paths
         self.label_map = label_map
         self.img_size = img_size

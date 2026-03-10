@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument("--real_dir", type=str, required=True, help="directory with real photos")
     parser.add_argument("--ref_dir", type=str, required=True, help="directory with reference digital images")
     parser.add_argument("--save_dir", type=str, default="./eval_results", help="directory to save results")
-    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    parser.add_argument("--img_size", type=int, default=512, help="input image size")
     parser.add_argument("--batch_size", type=int, default=32, help="batch size for faster inference")
     parser.add_argument("--num_workers", type=int, default=4, help="number of dataloader workers")
     return parser.parse_args()

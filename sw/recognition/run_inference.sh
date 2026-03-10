@@ -13,5 +13,4 @@ TEST_IMG="../001.png"
 python3 inference.py \
     --model="$MODEL_PATH" \
     --database="$DATABASE_PATH" \
-    --img="$TEST_IMG" \
-    --img_size 512
+    --img="$TEST_IMG"

@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument("--img", type=str, required=True, help="path to the query image")
     parser.add_argument("--model", type=str, required=True, help="path to the trained model checkpoint")
     parser.add_argument("--database", type=str, required=True, help="path to the index database")
-    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    parser.add_argument("--img_size", type=int, default=512, help="input image size")
     parser.add_argument("--num_candidates", type=int, default=3, help="number of top candidates to display")
     return parser.parse_args()
 

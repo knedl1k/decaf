@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=64, help="batch size per GPU")
     parser.add_argument("--epochs", type=int, default=25, help="number of epochs")
     parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
-    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    parser.add_argument("--img_size", type=int, default=512, help="input image size")
 
     parser.add_argument("--log_interval", type=int, default=100, help="how many batches to wait before logging")
     parser.add_argument("--num_workers", type=int, default=4, help="number of data loading workers")
