@@ -32,8 +32,12 @@ def get_train_transforms(img_size: int) -> A.Compose:
     return A.Compose(
         [
             # geometric deformations
-            A.ShiftScaleRotate(
-                shift_limit=0.05, scale_limit=0.05, rotate_limit=35, border_mode=cv2.BORDER_REPLICATE, p=0.8
+            A.Affine(
+                scale=(0.95, 1.05),
+                translate_percent=(-0.05, 0.05),
+                rotate=(-35, 35),
+                border_mode=cv2.BORDER_REPLICATE,
+                p=0.8,
             ),
             A.Perspective(scale=(0.05, 0.15), p=0.5),
             # lighting & sleeve glare simulation
@@ -123,7 +127,7 @@ class InferenceDataset(Dataset):
             image = np.zeros((224, 224, 3), dtype=np.uint8)
 
         if self.transform:
-            image = self.transform(image=image)["image"]
+            image = self.transform(image=image)["image"].contiguous()
 
         return image, path.stem
 
@@ -151,7 +155,7 @@ class MTGTrainDataset(Dataset):
         label_id = self.label_map.get(path.stem, -1)
 
         if self.transform:
-            image = self.transform(image=image)["image"]
+            image = self.transform(image=image)["image"].contiguous()
 
         return image, label_id
 
@@ -177,13 +181,12 @@ class MTGValidationDataset(Dataset):
                 rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGRA2RGB)
             else:
                 rgb = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB)
-            gallery_img = self.transform_gallery(image=rgb)["image"]
+            gallery_img = self.transform_gallery(image=rgb)["image"].contiguous()
 
             # augmented query image
             playmat_bgr = apply_random_background(raw_image, self.img_size)
             playmat_rgb = cv2.cvtColor(playmat_bgr, cv2.COLOR_BGR2RGB)
-            query_img = self.transform_query(image=playmat_rgb)["image"]
-
+            query_img = self.transform_query(image=playmat_rgb)["image"].contiguous()
         except Exception as e:
             print(f"Validation error on {path}: {e}")
             gallery_img = torch.zeros((3, self.img_size, self.img_size))
