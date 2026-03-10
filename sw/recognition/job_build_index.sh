@@ -26,8 +26,4 @@ OUT_PATH="./card_database.pth"
 srun python3 build_index.py \
     --model "$MODEL_PATH" \
     --images "$IMG_DIR" \
-    --save_dir "$OUT_PATH" \
-    --batch_size 128 \
-    --num_workers 4 \
-    --img_size 512 \
-    --batch_size 64
+    --save_dir "$OUT_PATH"

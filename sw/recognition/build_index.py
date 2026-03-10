@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument("--model", type=str, required=True, help="path to trained model checkpoint")
     parser.add_argument("--images", type=str, required=True, help="path to directory with images")
     parser.add_argument("--save_dir", type=str, required=True, help="path to save the output index database")
-    parser.add_argument("--img_size", type=int, default=224, help="input image size")
+    parser.add_argument("--img_size", type=int, default=512, help="input image size")
     parser.add_argument("--batch_size", type=int, default=128, help="batch size for inference")
     parser.add_argument("--num_workers", type=int, default=4, help="number of dataloader workers")
     return parser.parse_args()
