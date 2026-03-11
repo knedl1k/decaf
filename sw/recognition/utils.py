@@ -3,6 +3,7 @@
 
 import os
 import torch
+import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, Any
 
@@ -75,7 +76,7 @@ def evaluate_metrics(
     cutoff_index = int(len(positives) * (1 - target_tmr))
     threshold = pos_sorted[cutoff_index].item()
 
-    fmr = (negatives > threshold).sum().item() / num_negatives.numel()
+    fmr = (negatives > threshold).sum().item() / negatives.numel()
 
     # Top-1 accuracy
     top1_correct = (similarity_matrix.argmax(dim=1) == torch.arange(similarity_matrix.shape[0])).sum().item()
