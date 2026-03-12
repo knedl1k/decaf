@@ -76,8 +76,8 @@ def main():
 
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
-    dist.init_process_group(backend="nccl")
     device = torch.device(f"cuda:{local_rank}")
+    dist.init_process_group(backend="nccl", device_id=device)
     is_master = dist.get_rank() == 0
 
     if is_master:
