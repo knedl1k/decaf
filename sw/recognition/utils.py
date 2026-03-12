@@ -128,7 +128,8 @@ def plot_training_curves(history: Dict[str, list], save_dir: str) -> None:
         ax1.legend(lines + lines2, labels + labels2, loc="upper right")
 
         ax2 = axs[0, 1]
-        ax2.plot(epochs, np.array(history["fmr"]) * 100, "r-o", linewidth=2)
+        fmr = np.array(history["fmr"]) * 100
+        ax2.plot(epochs, fmr, "r-o", linewidth=2)
         ax2.set_yscale("log")
         ax2.set_title("Validation FMR @ 95% TMR")
         ax2.set_xlabel("Epoch")
