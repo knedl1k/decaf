@@ -198,8 +198,9 @@ def main():
             images, labels = images.to(device), labels.to(device)
 
             # forward pass
-            outputs = model(images, labels)
-            loss = criterion(outputs, labels)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                outputs = model(images, labels)
+                loss = criterion(outputs, labels)
 
             # backward pass
             optimizer.zero_grad()

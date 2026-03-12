@@ -49,8 +49,9 @@ def evaluate_metrics(
             img_gallery = img_gallery.to(device)
             img_query = img_query.to(device)
 
-            emb_g = model(img_gallery)
-            emb_g = torch.nn.functional.normalize(emb_g, p=2, dim=1)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                emb_g = model(img_gallery)
+                emb_g = torch.nn.functional.normalize(emb_g, p=2, dim=1)
 
             emb_q = model(img_query)
             emb_q = torch.nn.functional.normalize(emb_q, p=2, dim=1)
