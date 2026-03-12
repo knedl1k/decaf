@@ -5,9 +5,9 @@
 #SBATCH --ntasks-per-node=1         # 1 main process
 #SBATCH --cpus-per-task=4           # 4 CPU cores for DataLoader
 #SBATCH --gres=gpu:1                # 1 GPU card
-#SBATCH --partition=gpu
+#SBATCH --partition=gpufast
 #SBATCH --mem=32G                   # RAM
-#SBATCH --time=24:00:00             # time limit
+#SBATCH --time=4:00:00              # time limit
 #SBATCH --output=logs/idx_%j.out
 #SBATCH --error=logs/idx_%j.err
 #SBATCH --mail-user=adamej14@fel.cvut.cz
