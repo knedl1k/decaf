@@ -1,1 +1,23 @@
 \chapter{Experiments and Results}\label{chap:er}
+
+\section{Evaluation Metrics}
+Because the proposed recognition pipeline relies on Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the model's robustness. The system acts as an image retrieval mechanism, comparing a queried card against a known database using cosine similarity. 
+
+To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain_2011}. Specifically, the performance is quantified using the \ac{FMR} at a fixed \ac{TMR} of 95\%.
+
+Let the similarity between two embeddings be their cosine similarity. We define two distributions of pairs from the validation set
+\begin{itemize}
+    \item Genuine Pairs: The similarity scores between augmented query images and their corresponding clean digital templates.
+    \item Imposter Pairs: The similarity scores between query images and entirely different reference cards.
+\end{itemize}
+The \ac{TMR} defines the proportion of genuine pairs that are correctly matched above a given decision threshold $\tau$. On the other hand, the \ac{FMR} defines the proportion of imposter pairs that falsely yield a similarity score above that same threshold $\tau$.
+
+To compute the \ac{FMR} @ 95\% \ac{TMR}, the threshold $\tau$ is strictly empirically determined such that exactly 95\% of all positive pairs are accepted:
+\begin{equation}
+    P(\cos(\theta_{\text{genuine}}) > \tau) = 0.95
+\end{equation}
+Once $\tau$ is established, the \ac{FMR} is calculated as:
+\begin{equation}
+    \text{\ac{FMR}} = P(\cos(\theta_{\text{imposter}}) > \tau)
+\end{equation}
+This metric reflects the system's strictness. A highly robust model will maintain an \ac{FMR} approaching zero at this operating point, indicating that it can successfully recognize 95\% of targeted cards despite severe noise and domain shift, without falsely confusing visually similar, yet distinct, cards.
