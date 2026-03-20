@@ -1,1 +1,7 @@
 \chapter{System Implementation \& Integration}\label{chap:sw}
+
+\section{Scalable Training Architecture}
+Training a deep metric learning model on a dataset with extreme cardinality (e.g., over $10^5$ unique classes) introduces significant computational bottlenecks. Specifically, the weight matrix $\mathbf{W}$ in the ArcFace head requires substantial VRAM, scaling linearly with the number of unique cards. To address this, the training pipeline was engineered for high-throughput distributed execution.
+
+\subsection{Distributed Data Parallelism and Synchronization}
+The model optimization is parallelized across multiple accelerators using PyTorch's~\cite{paszke2019pytorch} \ac{DDP}\footnote{\url{https://docs.pytorch.org/docs/stable/notes/ddp.html}}. Unlike standard \texttt{DataParallel}\footnote{\url{https://docs.pytorch.org/docs/stable/generated/torch.nn.DataParallel.html}}, which suffers from \ac{GIL} contention and uneven memory distribution~\cite{pytorch_ddp}, \ac{DDP} spawns independent processes for each device. To maintain mathematical consistency of the batch statistics across distributed workers, standard Batch Normalization layers were replaced with Synchronized Batch Normalization (\texttt{SyncBatchNorm}\footnote{\url{https://docs.pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html}}). This ensures that the variance and mean are computed globally, preventing individual GPUs with small effective batch sizes from destabilizing the embedding space.
