@@ -19,18 +19,41 @@ For example, a card from the \ii{Zendikar} set is stored as:
 This format allows for immediate visual identification of the card's edition and variant without requiring a lookup table, while the \ac{UUID} suffix guarantees collision-free storage even for edge cases (e.g., duplicate names across sets).
 
 \subsection{Handling Complex Layouts}
-
 The script also implements logic to handle complex card layouts, such as \acp{DFC} (e.g., transform and modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures the network learns to independently classify either face of the physical card without conflating the features of both sides.
 
-\section{Domain Shift}
-
-When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon widely documented as \ii{domain shift}~\cite{quinonero2009dataset}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
+\section{Domain Shift}\label{s:domain_shift}
+When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon documented as \ii{domain shift}~\cite{quinonero2009dataset}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
 
 In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
 
 \section{Synthetic Data Generation}
-To bridge the domain gap described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
+To bridge the domain shift described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
+\subsection{Removing Sharp Edges}
+Digital templates are often stored as rectangular images with transparent edges encoded via an alpha channel. When deployed in the real world, where physical cards exhibit soft edges, depth of field, and natural shadows, the absence of these digital artifacts creates the \hyperref[s:domain_shift]{domain shift}. To prevent this, the augmentation pipeline explicitly extracts the alpha channel $\bm{\alpha}$ and performs linear interpolation between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the simulated noisy canvas $\mathbf{X}_{\text{cv}}$:
+\begin{equation}
+    \mathbf{X}_{\text{composite}} = \mathbf{X}_{\text{card}} \odot \bm{\alpha} + \mathbf{X}_{\text{cv}} \odot \left(\mathbf{1} - \bm{\alpha}\right)
+\end{equation}
+where $\odot$ denotes the component-wise\footnote{also known as Hadamard} product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured playing mat, forcing the network to focus on the internal visual features, as demonstrated in \reflst{lst:alpha_blend}.
+\begin{lstlisting}[language=Python, caption={Alpha compositing for synthetic background generation.}, label={lst:alpha_blend}]
+new_w, new_h = int(w * scale), int(h * scale)
+resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+x_offset, y_offset = (target_size - new_w) // 2, (target_size - new_h) // 2
+
+# Extract RGB and normalized Alpha channels
+bgr = resized_card[:, :, :3]
+alpha = resized_card[:, :, 3] / 255.0
+alpha_3d = np.expand_dims(alpha, axis=2)
+
+# Extract Region of Interest (ROI) from the simulated background
+roi = canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w]
+
+# Perform linear interpolation (Alpha Blending)
+canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = \
+    (bgr * alpha_3d) + (roi * (1.0 - alpha_3d))
+\end{lstlisting}
+
+\subsection{Augmentation Pipeline}
 During every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three primary categories:
 \begin{itemize}
     \item Geometric Transformations: Random perspective warping and rotation are applied to induce model invariance to camera pose and alignment errors.
