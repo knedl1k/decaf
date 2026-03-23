@@ -133,4 +133,13 @@ During the training phase, the 512-dimensional embeddings are passed to the \tex
 % napriklad `s` a `m` v samotnem modelu
 The calculated cosine similarities are limited to the interval $[-1.0 + 10^{-7}, \, 1.0 - 10^{-7}]$ to ensure numerical stability during backpropagation and to prevent undefined behavior of the $\arccos$ function.
 
-It is important to note that this module is used exclusively during training. After deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The pipeline then performs recognition by calculating the raw cosine similarity between the $L^2$-normalized 512-dimensional vectors produced by the \hyperref[sub:embedhead]{Embedding Head}.
+It is important to note that this module is used exclusively during training. After deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The pipeline then performs recognition by calculating the raw cosine similarity between the $L_2$-normalized 512-dimensional vectors produced by the \hyperref[sub:embedhead]{Embedding Head}.
+
+\subsection{Dimensional Collapse}
+During early training iterations, it was observed that the network would occasionally degenerate, producing an output vector approaching zero for all input images. In this state, the network effectively learns to ignore the input data, mapping all samples to a single point in the embedding space to trivially satisfy the intra-class distance minimization without learning meaningful inter-class separability.
+
+To prevent this catastrophic failure and stabilize the training dynamics, several structural and optimization constraints were integrated into the pipeline:
+\begin{enumerate}[(a)]
+    \item Differential Learning Rates: The ResNet-50 backbone is initialized with ImageNet pre-trained weights, while the embedding and ArcFace heads are randomly initialized. Using a uniform learning rate across the entire network risks destroying the pre-trained low-level feature detectors. Therefore, the backbone parameters are optimized with a learning rate an order of magnitude smaller ($\eta = 10^{-5}$) than the network heads ($\eta = 10^{-4}$).
+    \item Strict $L_2$ Normalization: By enforcing $L_2$ normalization on both the feature embeddings $\mathbf{x}_i$ and the class weights $\mathbf{W}_j$ prior to calculating the cosine similarity, the magnitudes of the vectors are factored out of the loss calculation. This mathematically prevents the network from minimizing the loss by shrinking the embedding magnitudes to zero.
+\end{enumerate}
