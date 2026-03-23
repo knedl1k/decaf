@@ -9,3 +9,14 @@ The model optimization is parallelized across multiple accelerators using PyTorc
 \subsection{Mixed Precision Training} % https://docs.pytorch.org/tutorials/recipes/recipes/amp_recipe.html
 To further optimize memory footprint and memory bandwidth, \ii{mixed precision} was integrated into the training loop. The forward pass and loss computation are executed in \texttt{bfloat16} (Brain Floating Point)~\cite{bfloat}, a format that preserves the dynamic range of 32-bit floats while halving the memory requirement. The weights and optimizer states remain in \texttt{float32} to prevent precision degradation during gradient updates. This approach effectively doubles the maximum allowable batch size, leading to smoother gradient estimates and faster convergence.
 
+\section{Inference and Embedding Retrieval}
+Once the network is trained, the ArcFace classification head is entirely discarded. The system transitions from a classification paradigm to a \ii{Nearest Neighbor Search} retrieval task. 
+
+Prior to deployment, a reference database is constructed by passing the clean digital templates of all known cards through the trained ResNet-50 backbone. This yields a dense matrix $\mathbf{D} \in \mathbb{R}^{N \times d}$, where $N$ is the total number of cataloged cards and $d = 512$ is the embedding dimension. Because the output of the embedding head is strictly $L_2$-normalized, the distance metric simplifies significantly. 
+
+During live sorting, the physical camera captures a query image, which is mapped to a single vector $\mathbf{q} \in \mathbb{R}^{1 \times d}$. The similarity between the queried card and the entire database is %computed via a single dense matrix multiplication:
+\begin{equation}
+    \mathbf{s} = \mathbf{q}\mathbf{D}^\intercal,
+\end{equation}
+where $\mathbf{s} \in \mathbb{R}^{1 \times N}$ contains the cosine similarity scores for all cards. The recognized card is then determined by $\arg\max(\mathbf{s})$. This vector-search approach allows the system to scale to hundreds of thousands of classes while maintaining inference times in the order of milliseconds, making it suitable for real-time robotic sorting.
+
