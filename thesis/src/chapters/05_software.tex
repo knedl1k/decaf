@@ -14,9 +14,19 @@ Once the network is trained, the ArcFace classification head is entirely discard
 
 Prior to deployment, a reference database is constructed by passing the clean digital templates of all known cards through the trained ResNet-50 backbone. This yields a dense matrix $\mathbf{D} \in \mathbb{R}^{N \times d}$, where $N$ is the total number of cataloged cards and $d = 512$ is the embedding dimension. Because the output of the embedding head is strictly $L_2$-normalized, the distance metric simplifies significantly. 
 
-During live sorting, the physical camera captures a query image, which is mapped to a single vector $\mathbf{q} \in \mathbb{R}^{1 \times d}$. The similarity between the queried card and the entire database is %computed via a single dense matrix multiplication:
+During live sorting, the physical camera captures a query image, which is mapped to a single vector $\mathbf{q} \in \mathbb{R}^{1 \times d}$. The similarity between the queried card and the entire database is
 \begin{equation}
     \mathbf{s} = \mathbf{q}\mathbf{D}^\intercal,
 \end{equation}
 where $\mathbf{s} \in \mathbb{R}^{1 \times N}$ contains the cosine similarity scores for all cards. The recognized card is then determined by $\arg\max(\mathbf{s})$. This vector-search approach allows the system to scale to hundreds of thousands of classes while maintaining inference times in the order of milliseconds, making it suitable for real-time robotic sorting.
 
+\section{Real-World Evaluation}
+While the \ac{FMR} provides a rigorous measure of the embedding space's structural integrity on the validation set, the ultimate objective of the robotic sorter is accurate identification of physical cards under real-world conditions. This is fundamentally a 1-to-$N$ retrieval problem.
+
+To evaluate the system's operational viability, the model is tested against a dataset of unconstrained physical photographs. The performance is quantified using Top-$k$ Accuracy. For a given query image, the system retrieves the $k$ database entries with the highest cosine similarity. If the ground-truth card identity exists within this subset, the prediction is considered correct. 
+
+In the context of automated sorting:
+\begin{itemize}
+    \item Top-1 Accuracy: Represents the zero-intervention success rate of the robotic mechanism.
+    \item Top-3 and Top-5 Accuracy: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that even when the network is uncertain (e.g., due to heavy occlusions or extreme glare), the correct card is clustered close to the query in the embedding space, validating the effectiveness of the metric learning approach against domain shift.
+\end{itemize}
