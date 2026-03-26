@@ -14,6 +14,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from model import MTGReconModel
 from data import MTGTrainDataset, MTGValidationDataset, get_train_transforms, visualize_augmentations
@@ -145,12 +146,21 @@ def main():
         + list(model.module.arcface.parameters())
     )
 
-    # TODO: https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
     optimizer = optim.AdamW(
         [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
     )
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
+    steps_per_epoch = len(train_loader)
+    total_steps = args.epochs * steps_per_epoch
+
+    warmup_epochs = 2
+    warmup_iters = warmup_epochs * steps_per_epoch
+
+    warmup_scheduler = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_iters)
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=(total_steps - warmup_iters), eta_min=1e-6)
+
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_iters])
 
     start_epoch = 0
     if is_master:
@@ -206,19 +216,21 @@ def main():
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+
             optimizer.step()
+            scheduler.step()
 
             running_loss += loss.item()
 
             if is_master and (i + 1) % args.log_interval == 0:
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
 
-        metric_tensors = torch.zeros(1, device=device)
+        # metric_tensors = torch.zeros(1, device=device)
 
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
             print_metrics(metrics, epoch + 1)
-            metric_tensors[0] = metrics["fmr_at_95_tmr"]
+            # metric_tensors[0] = metrics["fmr_at_95_tmr"]
             current_lr = optimizer.param_groups[1]["lr"]
             update_history(history, metrics, epoch + 1, running_loss / len(train_loader), current_lr)
             plot_training_curves(history, args.save_dir)
@@ -236,8 +248,8 @@ def main():
                 print(f"Model saved to {save_path}")
 
         # sync metrics across all GPUs for the scheduler
-        dist.broadcast(metric_tensors, src=0)
-        scheduler.step(metric_tensors.item())
+        # dist.broadcast(metric_tensors, src=0)
+        # scheduler.step(metric_tensors.item())
         dist.barrier()
 
     if is_master:
