@@ -7,9 +7,9 @@ The current market for automated sorting is dominated by high-cost, closed-sourc
 
 \subsection{Hardware-Based Sorters}
 \begin{itemize}
-    \item \bb{\ac{TCG} Machines:} The \ii{PhyzBatch-9000} by \ii{\ac{TCG} Machines} \cite{tcgmachines} represents the industrial standard. It addresses a specific computer vision challenge: holographic glare. By utilizing specialized LED arrays and diffusers, the machine controls lighting conditions to detect \enquote{foil} (holographic) cards, which are prone to over-exposure in standard camera setups.
-    \item \bb{CardBot:} \ii{CardBot} \cite{cardbot} differs in its handling mechanism. Unlike friction-based feeders, which can scratch the surface of cards, \ii{CardBot} uses a pneumatic suction system. This approach minimizes physical contact with the card surface, which is essential to prevent damage to the cards.
-    \item \bb{Magic Sorter:} \ii{Magic Sorter} \cite{magicsorter} offers a more compact alternative, focusing specifically on \ac{MTG} cards. It integrates a feeder mechanism with a custom software suite, demonstrating the tight coupling between hardware and proprietary databases common in commercial tools.
+    \item The \ii{PhyzBatch-9000} by \ii{\ac{TCG} Machines} \cite{tcgmachines} represents the industrial standard. It addresses a specific computer vision challenge: holographic glare. By utilizing specialized LED arrays and diffusers, the machine controls lighting conditions to detect \enquote{foil} cards, which are prone to over-exposure in standard camera setups.
+    \item \ii{CardBot} \cite{cardbot} differs in its handling mechanism. Unlike friction-based feeders, which can scratch the surface of cards, \ii{CardBot} uses a pneumatic suction system. This approach minimizes physical contact with the card surface, which is essential to prevent damage to the cards.
+    \item \ii{Magic Sorter} \cite{magicsorter} offers a more compact alternative, focusing specifically on \ac{MTG} cards. It integrates a feeder mechanism with a custom software suite, demonstrating the tight coupling between hardware and proprietary databases common in commercial tools.
 \end{itemize}
 
 \subsection{Software Ecosystems}
@@ -32,17 +32,17 @@ Lowhur \cite{lowhuryugioh} demonstrated a highly effective system for \ii{Yu-Gi-
 By utilizing Siamese Networks and triplet loss functions, the model learns an embedding space where images of the same card are clustered together. This allows the system to identifying cards by comparing their feature vectors against a database, a technique known as \ii{One-Shot Learning}.
 
 \subsection{Object Detection and Robotics Integration}
-Recent academic work has focused on the pipeline of locating objects (detection) and manipulating them (robotics).
+Recent academic work has focused on the pipeline of locating objects and manipulating them.
 
 \subsubsection{YOLO for Real-Time Detection}
 The \ac{YOLO} architecture is the standard for real-time localization.
 \begin{itemize}
-    \item \bb{Robotic Integration:} Yu \cite{pokerrobot} validated the integration of vision and pneumatics in a self-playing poker robot. The study successfully combined \ac{YOLO}v5 for card localization with a suction-cup robotic arm. This provides a direct precedent for the hardware-software integration proposed in this thesis, confirming that suction mechanisms are viable for thin card stock.
-    \item \bb{Pipeline Validation:} Freitter \cite{idcardverification} proposes a pipeline for ID card verification that mirrors the requirements of \ac{TCG} sorting: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}. This \enquote{two-stage} approach: first finding the object, then identifying it; is robust against background noise and variable lighting.
+    \item Robotic Integration: Yu \cite{pokerrobot} validated the integration of vision and pneumatics in a self-playing poker robot. The study successfully combined \ac{YOLO}v5 for card localization with a suction-cup robotic arm. This provides a direct precedent for the hardware-software integration proposed in this thesis, confirming that suction mechanisms are viable for thin card stock.
+    \item Pipeline Validation: Freitter \cite{idcardverification} proposes a pipeline for ID card verification that mirrors the requirements of \ac{TCG} sorting: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}. This \enquote{two-stage} approach: first finding the object, then identifying it; is robust against background noise and variable lighting.
 \end{itemize}
 
 \subsubsection{The Data Scarcity Problem}
-A major hurdle in training neural networks for TCGs is the lack of labeled training data for the millions of unique cards in circulation. Pua \cite{pokemonstanford} addressed this in a study on \ii{Pokémon} card detection. Instead of manually photographing thousands of cards, the authors developed a \bb{Synthetic Data Generation} pipeline. By projecting digital card scans onto varying backgrounds and applying simulated lighting, noise, and occlusions, they successfully trained a robust \ac{YOLO}v8 model. This methodology highlights that synthetic data is not only a time-saver but a necessity for achieving high robustness in \ac{TCG} recognition.
+One of the main challenges in training neural networks for \acp{TCG} is the lack of labeled training data for the millions of unique cards in circulation. Pua \cite{pokemonstanford} addressed this in a study on \ii{Pokémon} card detection. Instead of manually photographing thousands of cards, the authors developed a \ii{Synthetic Data Generation} pipeline. By projecting digital card scans onto varying backgrounds and applying simulated lighting, noise, and occlusions, they successfully trained a robust \ac{YOLO}v8 model. This methodology highlights that synthetic data is not only a time-saver but a necessity for achieving high robustness in \ac{TCG} recognition.
 
 \section{Summary}
-Current commercial solutions like \ii{CardBot} provide robust hardware but remain inaccessible due to cost and closed ecosystems. Conversely, academic research provides individual building blocks: \ac{YOLO} for detection \cite{pokerrobot}, synthetic data for training \cite{pokemonstanford}, and Siamese networks for identification \cite{lowhuryugioh}. But rarely integrates them into a complete, open-source device. This thesis aims to bridge this gap by combining these state-of-the-art algorithmic techniques with a low-cost, replicable hardware design.
+While current commercial solutions, such as \ii{CardBot}, offer robust hardware, they remain inaccessible due to high costs and closed ecosystems. In contrast, academic research provides the fundamental building blocks: \ac{YOLO} for detection \cite{pokerrobot}, synthetic data for training \cite{pokemonstanford}, and Siamese networks for identification \cite{lowhuryugioh}. However, it rarely integrates them into a complete open-source device, let alone into easily reproducible learning material for enthusiasts.
