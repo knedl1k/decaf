@@ -18,7 +18,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from model import MTGReconModel
 from data import MTGTrainDataset, MTGValidationDataset, get_train_transforms, visualize_augmentations
-from utils import evaluate_metrics, plot_training_curves, print_metrics
+from utils import evaluate_metrics, save_history, plot_training_curves, print_metrics
 
 
 def parse_args():
@@ -233,7 +233,8 @@ def main():
             # metric_tensors[0] = metrics["fmr_at_95_tmr"]
             current_lr = optimizer.param_groups[1]["lr"]
             update_history(history, metrics, epoch + 1, running_loss / len(train_loader), current_lr)
-            plot_training_curves(history, args.save_dir)
+            save_history(history, f"{args.save_dir}/history.npy")
+            # plot_training_curves(history, args.save_dir)
 
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")

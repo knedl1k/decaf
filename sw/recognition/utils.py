@@ -103,6 +103,14 @@ def print_metrics(metrics: Dict[str, float], epoch: int):
     print("-" * 42)
 
 
+def save_history(history: Dict[str, list], save_dir: str) -> None:
+    np.save(save_dir, history)
+
+
+def load_history(save_dir) -> Dict[str, list]:
+    return np.load(save_dir, allow_pickle=True).item()
+
+
 def plot_training_curves(history: Dict[str, list], save_dir: str) -> None:
     """
     Generates and saves a 2x2 grid of training metrics plots.
