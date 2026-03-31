@@ -1,12 +1,12 @@
 \chapter{Card Recognition Pipeline}\label{chap:rec}
 
 \section{Data Acquisition}
-One of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (often exceeding tens of thousands for games like \ac{MTG}), labeled datasets containing real-world photographs of these cards are virtually non-existent. Furthermore, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming.
+As was previously mentioned in \refsec{sec:scarcity}, one of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (often exceeding tens of thousands for games like \ac{MTG}), labeled datasets containing real-world photographs of these cards are virtually non-existent. Furthermore, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming.
 
 To address this limitation, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format, enabling the automated generation of training samples.
 
 \subsection{Scraping Pipeline and Indexing}
-A custom data acquisition script, \texttt{data\_scraper.py}, was developed to process the metadata and download high-resolution scans. A critical aspect of the pipeline is the \ii{file indexing strategy}, designed to balance machine uniqueness with human readability, a feature essential for manual inspection and debugging.
+A custom data collection script, \texttt{data\_scraper.py}, was developed to process metadata and download high-resolution scans. A simple file indexing strategy was also designed, aimed at achieving a balance between machine uniqueness and human readability, a feature essential for manual inspection and debugging.
 
 Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number, and name with a \ac{UUID}: 
 \begin{equation}
@@ -21,20 +21,36 @@ This format allows for immediate visual identification of the card's edition and
 \subsection{Handling Complex Layouts}
 The script also implements logic to handle complex card layouts, such as \acp{DFC} (e.g., transform and modal \acp{DFC}). These entries, identified by the \texttt{layout} property in the JSON metadata, contain multiple faces within a single object. The pipeline detects these instances and automatically splits them into separate template images, appending \texttt{\_front} or \texttt{\_back} suffixes to their identifiers. This ensures the network learns to independently classify either face of the physical card without conflating the features of both sides.
 
-\section{Domain Shift}\label{s:domain_shift}
+\section{Domain Shift}\label{sec:domain_shift}
 When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon documented as \ii{domain shift}~\cite{quinonero2009dataset}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
 
-In the context of the \ac{MTG} card recognition pipeline, the source domain comprises noiseless digital scans. These reference templates exhibit highly controlled characteristics: uniform illumination, precise rectangular alignment, absence of lens distortion, and unblemished surfaces. Conversely, the target domain consists of physical photographs captured via industrial sensors or consumer webcams. These captures introduce a high degree of variance, including severe lens distortion, uneven ambient lighting, harsh shadows, specular highlights from holographic foils, physical wear, and cluttered backgrounds (e.g., textured tables or playing mats). If the model is optimized purely on the source domain, its learned feature representations will overly index on artifact-free edges and uniform color palettes. Consequently, the network becomes brittle and struggles to generalize to the noisy, unstructured reality of the target domain.
+The reference images are characterized by uniform lighting, precise orthogonal alignment, the absence of lens distortion, and flawless surfaces. In contrast, the target domain consists of physical photographs taken using industrial sensors or consumer webcams. These images exhibit a high degree of variability, including significant lens distortion, uneven ambient lighting, sharp shadows, reflections from holographic foils, physical wear and tear, and cluttered backgrounds (e.g., textured tables or playmats). 
+\begin{figure}[htpb] % TODO: mention the exact card name.
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=0.73\textwidth]{./fig/photos/cleanCard.png}
+        \caption{Clean scan (source: Scryfall API~\cite{scryfall})}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{./fig/photos/realCard.png}
+        \caption{Real photo}
+    \end{subfigure}
+    \caption{Comparison between a clean scan template and a physical photograph.}
+    \label{fig:card_comparison}
+\end{figure}\\
+If a model is optimized purely on the source domain, its learned feature representations will be overly focused on artifact-free edges and uniform color palettes. As a result, the network becomes fragile and struggles to generalize to the reality of the target domain.
 
 \section{Synthetic Data Generation}
 To bridge the domain shift described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
 \subsection{Removing Sharp Edges}
-Digital templates are often stored as rectangular images with transparent edges encoded via an alpha channel. When deployed in the real world, where physical cards exhibit soft edges, depth of field, and natural shadows, the absence of these digital artifacts creates the \hyperref[s:domain_shift]{domain shift}. To prevent this, the augmentation pipeline explicitly extracts the alpha channel $\bm{\alpha}$ and performs linear interpolation between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the simulated noisy canvas $\mathbf{X}_{\text{cv}}$:
+Digital templates are often stored as rectangular images with transparent edges encoded via an alpha channel. The alpha channel $\bm{\alpha}$ is explicitly extracted and the linear interpolation is performed between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the simulated noisy canvas $\mathbf{X}_{\text{cv}}$:
 \begin{equation}
     \mathbf{X}_{\text{composite}} = \mathbf{X}_{\text{card}} \odot \bm{\alpha} + \mathbf{X}_{\text{cv}} \odot \left(\mathbf{1} - \bm{\alpha}\right)
-\end{equation}
-where $\odot$ denotes the component-wise\footnote{also known as Hadamard} product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured playing mat, forcing the network to focus on the internal visual features, as demonstrated in \reflst{lst:alpha_blend}.
+\end{equation}%\footnote{also known as Hadamard}
+where $\odot$ denotes the component-wise product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured playing mat, forcing the network to focus on the internal visual features, as demonstrated in \reflst{lst:alpha_blend}.
 \begin{lstlisting}[language=Python, caption={Alpha compositing for synthetic background generation.}, label={lst:alpha_blend}]
 new_w, new_h = int(w * scale), int(h * scale)
 resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
@@ -89,7 +105,7 @@ Geometrically, this dot product relates to the angle $\theta_{j,i}$ between the 
 \begin{equation}
    \mathbf{W}_j^\intercal \mathbf{x}_i = \|\mathbf{W}_j\| \|\mathbf{x}_i\| \cos \theta_{j,i}.
 \end{equation}
-In traditional Softmax loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. ArcFace addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \textit{solely} on the angle $\theta_{j,i}$
+In traditional Softmax loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. ArcFace addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \textit{solely} on the angle $\theta_{j,i}$:
 \begin{equation}
     \mathbf{W}_j^\intercal \mathbf{x}_i = \cos \theta_{j,i}.
 \end{equation}
@@ -103,7 +119,6 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with label $y_i$ is defined a
 \end{equation}
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded, and the recognition is performed solely by computing the cosine similarity between the query embedding $f(\mathbf{x})$ and the database of card embeddings.
 
-% \newpage
 \section{Model Architecture}
 The complete end-to-end inference pipeline, illustrated in Figure~\ref{fig:pipeline_flow}, consists of three high-level operational blocks: image preprocessing, feature extraction, and similarity matching. 
 \begin{figure}[H]
