@@ -49,8 +49,8 @@ To bridge the domain shift described above, the training pipeline incorporates a
 Digital templates are often stored as rectangular images with transparent edges encoded via an alpha channel. The alpha channel $\bm{\alpha}$ is explicitly extracted and the linear interpolation is performed between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the simulated noisy canvas $\mathbf{X}_{\text{cv}}$:
 \begin{equation}
     \mathbf{X}_{\text{composite}} = \mathbf{X}_{\text{card}} \odot \bm{\alpha} + \mathbf{X}_{\text{cv}} \odot \left(\mathbf{1} - \bm{\alpha}\right)
-\end{equation}%\footnote{also known as Hadamard}
-where $\odot$ denotes the component-wise product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured playing mat, forcing the network to focus on the internal visual features, as demonstrated in \reflst{lst:alpha_blend}.
+\end{equation}
+where $\odot$ denotes the component-wise\footnote{also known as Hadamard} product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured playing mat, forcing the network to focus on the internal visual features, as demonstrated in \reflst{lst:alpha_blend}.
 \begin{lstlisting}[language=Python, caption={Alpha compositing for synthetic background generation.}, label={lst:alpha_blend}]
 new_w, new_h = int(w * scale), int(h * scale)
 resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
@@ -70,22 +70,56 @@ canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = \
 \end{lstlisting}
 
 \subsection{Augmentation Pipeline}
-During every training iteration, a canonical digital scan is processed through a stochastic augmentation chain. The applied transformations focus on three primary categories:
+During every training iteration, every reference image is processed through a stochastic augmentation chain. To ensure the reproducibility of the trained models, the exact configuration of the implemented pipeline is detailed in Table~\ref{tab:augmentations}. The applied transformations are categorized by the physical phenomena they are designed to simulate:
 \begin{itemize}
-    \item Geometric Transformations: Random perspective warping and rotation are applied to induce model invariance to camera pose and alignment errors.
-    \item Photometric Distortions: Variations in brightness, contrast, and saturation, combined with Gaussian blur, are utilized to approximate diverse environmental lighting and optical imperfections.
-    \item Occlusions and Artifacts: Random erasure methods (e.g., \texttt{CoarseDropout}~\footnote{Documentation available at \url{https://albumentations.ai/docs/api-reference/albumentations/augmentations/dropout/coarse_dropout/\#CoarseDropout}}) are implemented to simulate physical damage, dust, or partial occlusion of the card surface.
+    \item Geometric Deformations: Real-world physical cards are rarely photographed perfectly orthogonal to the camera lens. Transformations such as affine scaling, translation, rotation, and perspective warping are applied to induce model invariance to camera pose, alignment errors, and variations in focal length.
+    \item Optical and Environmental Simulation: Playing cards are frequently protected by glossy plastic sleeves, which introduce severe specular highlights and glare. To model this, operations such as \texttt{RandomSunFlare} and \texttt{GlassBlur} are utilized alongside standard motion blur and shadow generation. Furthermore, variations in brightness, contrast, and hue approximate diverse environmental lighting conditions (e.g., warm incandescent room lighting versus cool daylight).
+    \item Sensor Noise and Occlusions: Consumer webcams and smartphone cameras frequently introduce compression artifacts and ISO noise under low-light conditions. These are modeled using \texttt{ImageCompression} and \texttt{ISONoise}. Finally, physical damage is simulated using \texttt{CoarseDropout} with random noise filling acting as a spatial regularizer that forces the network to learn distributed feature representations rather than relying on a single localized focal point.
 \end{itemize}
-By applying this stochastic pipeline, the model is trained on a continuously varying stream of unique samples.
 
+\begin{table}[ht!]
+    \centering
+    \caption{Exact configuration of the stochastic augmentation pipeline utilized during training. $p$ denotes the execution probability per sample.}
+    \label{tab:augmentations}
+    \small
+    \begin{tabular}{@{}lllc@{}}
+        \toprule
+        \textbf{Category} & \textbf{Transformation} & \textbf{Key Parameters} & \textbf{$p$} \\
+        \midrule
+        \multirow{2}{*}{Geometric} 
+        & Affine & scale $\in [0.95, 1.05]$, rotate $\in[-35^\circ, 35^\circ]$ & $0.8$ \\
+        & Perspective & scale $\in[0.05, 0.15]$ & $0.5$ \\
+        \midrule
+        \multirow{4}{*}{Optical} 
+        & RandomSunFlare & \texttt{src\_radius} $= 100$, circles $\in [1, 2]$ & $0.3$ \\
+        & RandomShadow & shadows $\in[1, 2]$, roi $=[0, 0, 1, 1]$ & $0.2$ \\
+        & MotionBlur & \texttt{blur\_limit} $= 5$ & $0.2$ \\
+        & GlassBlur & $\sigma = 0.7$, \texttt{max\_delta} $= 4$, iter $= 2$ & $0.2$ \\
+        \midrule
+        \multirow{4}{*}{Occlusion} 
+        & CoarseDropout & holes $\in [1, 3]$, size $\in [20\%, 45\%]$ & $0.6$ \\
+        & GaussianBlur & \texttt{blur\_limit} $\in [3, 5]$ & $0.3$ \\
+        & ImageCompression & quality $\in[60, 100]$ & $0.2$ \\
+        & ISONoise & default & $0.2$ \\
+        \midrule
+        \multirow{3}{*}{Color space} 
+        & BrightnessContrast & limit $= \pm 0.25$ & $0.7$ \\
+        & CLAHE & default & $0.3$ \\
+        & HueSaturationValue & hue $\pm 3$, sat $\pm 30$, val $\pm 20$ & $0.5$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+By applying this pipeline, the model is trained on a continuously varying stream of unique samples, bridging the domain shift mentioned in \refsec{sec:domain_shift} between digital templates and physical photographs.
+\newpage
 \section{Theoretical Framework}
 
 \subsection{Metric Learning Approach}
 Standard image classification models typically employ the Softmax loss function to predict a probability distribution over a fixed set of classes. While effective for closed-set problems (e.g., ImageNet classification), this approach is fundamentally unsuitable for \ac{TCG} identification due to specific domain constraints:
-\begin{enumerate}[(a)]
-    \item High Cardinality and Open-Set Nature: \ac{MTG} contains over 100,000 unique card faces. Training a standard classifier with a final fully connected layer of size $N \approx 10^5$ is computationally expensive. More importantly, the domain is inherently open-set; new expansions are released frequently, rendering a fixed-size classifcation layer obsolete without constant retraining.
-    \item Intra-Class Variance vs. Inter-Class Similarity: The model must be invariant to non-semantic variations such as foiling effects, card condition (wear and tear), or slight lightning changes. It must distinguish between visually similar but distinct cards (e.g., reprints with different set symbols or borders). Standard Softmax loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness, which is crucial for robust embedding retrieval.
-\end{enumerate}
+\begin{itemize}
+    \item High Cardinality and Open-Set Nature: \ac{MTG} contains over 100,000 unique card faces. Training a standard classifier with a final fully connected layer of size $N \approx 10^5$ is computationally expensive. More importantly, the domain is inherently open-set; new expansions are released frequently, rendering a fixed-size classifcation layer obsolete without constant retraining. % which is crucial for robust embedding retrieval
+    \item Intra-Class Variance vs. Inter-Class Similarity: The model must be invariant to non-semantic variations such as foiling effects, card condition, or slight lightning changes. It must distinguish between similar but distinct cards (e.g., reprints with different set symbols or borders). Standard Softmax loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness.
+\end{itemize}
 To address these challenges, a \ac{DML} approach was adopted. Instead of classifying images directly, the goal is to learn a mapping function $f(\mathbf{x})$ that embeds input images into a low-dimensional Euclidean space (typically constrained to a hypersphere). In this space, the distance between embeddings corresponds directly to semantic similarity, allowing for card identification via Nearest Neighbor Search rather than direct classification.
 
 \subsection{ArcFace: Additive Angular Margin Loss}\label{sec:arcface}
