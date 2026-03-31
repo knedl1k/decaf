@@ -41,7 +41,7 @@ The \ac{YOLO} architecture is the standard for real-time localization.
     \item Pipeline Validation: Freitter \cite{idcardverification} proposes a pipeline for ID card verification that mirrors the requirements of \ac{TCG} sorting: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}. This \enquote{two-stage} approach: first finding the object, then identifying it; is robust against background noise and variable lighting.
 \end{itemize}
 
-\subsubsection{The Data Scarcity Problem}
+\subsubsection{The Data Scarcity Problem}\label{sec:scarcity}
 One of the main challenges in training neural networks for \acp{TCG} is the lack of labeled training data for the millions of unique cards in circulation. Pua \cite{pokemonstanford} addressed this in a study on \ii{Pokémon} card detection. Instead of manually photographing thousands of cards, the authors developed a \ii{Synthetic Data Generation} pipeline. By projecting digital card scans onto varying backgrounds and applying simulated lighting, noise, and occlusions, they successfully trained a robust \ac{YOLO}v8 model. This methodology highlights that synthetic data is not only a time-saver but a necessity for achieving high robustness in \ac{TCG} recognition.
 
 \section{Summary}
