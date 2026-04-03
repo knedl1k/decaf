@@ -7,7 +7,7 @@
 \ifdefined\printversion
   \documentclass[a4paper,11pt,twoside,openright]{book}
 \else
-  \documentclass[a4paper,11pt,twoside,openany]{book}
+  \documentclass[a4paper,11pt,oneside,openany]{book}
 \fi
 
 % define how "clearpage" works with the print/screen version of the document
@@ -331,9 +331,9 @@
   \fancyfoot{}
 
   % page header
-  \fancyhead[LO]{\leftmark}
-  \fancyhead[RE]{\rightmark}
-  \fancyhead[LE,RO]{\thepage/\pageref{LastPage}}
+  \fancyhead[L]{\leftmark}
+  % \fancyhead[R]{\rightmark}
+  \fancyhead[R]{\thepage/\pageref{LastPage}}
 
   % page footer
   \fancyfoot[L]{CTU in Prague}
@@ -350,12 +350,13 @@
   \fancyfoot{}
 
   % page header
-  \fancyhead[LE,RO]{\thepage}
+  \fancyhead[R]{\thepage}
 }
 
 %% | -------------- Adjust style of chapter names ------------- |
 
 \renewcommand{\chaptermark}[1]{\markboth{\MakeUppercase{\thechapter.\ #1}}{}}
+% \renewcommand{\chaptermark}[1]{\markboth{\MakeUppercase{\thechapter.\ #1}}{\MakeUppercase{\thechapter.\ #1}}}
 
 %% | -------- European layout, no extra space after '.' ------- |
 
