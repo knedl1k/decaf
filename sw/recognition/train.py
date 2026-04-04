@@ -129,8 +129,8 @@ def main():
     val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-    with open("vals.txt", "w") as val_txt:
-        print(f"{val_dataset.label_map}", file=val_txt)
+    # with open("vals.txt", "w") as val_txt:
+    #     print(f"{val_dataset.label_map}", file=val_txt)
 
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
