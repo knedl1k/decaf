@@ -1,0 +1,183 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import os
+import re
+import cv2
+import torch
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+from typing import List, Tuple
+
+from model import MTGReconModel
+from data import get_inference_transforms, load_image
+from utils import load_model_weights, detect_and_crop_card
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Evaluate ArcFace model on real MTG photos")
+    parser.add_argument("--model", type=str, required=True, help="path to trained model checkpoint")
+    parser.add_argument("--database", type=str, required=True, help="path to the index database")
+    parser.add_argument("--real_dir", type=str, required=True, help="directory with real photos")
+    parser.add_argument("--ref_dir", type=str, required=True, help="directory with reference digital images")
+    parser.add_argument("--save_dir", type=str, default="./eval_results", help="directory to save results")
+    parser.add_argument("--img_size", type=int, default=512, help="input image size")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch size for inference")
+    return parser.parse_args()
+
+
+def parse_card_name(filename_stem: str) -> str:
+    """
+    Strips trailing numbers, parentheses, or specific suffixes from the filename
+    to extract the canonical ground-truth card name.
+    # Example: 'Black Lotus (1)' -> 'Black Lotus', 'Forest_03' -> 'Forest'
+    """
+    return re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", filename_stem).strip()
+
+
+def extract_features_from_real_photos(
+    image_paths: List[Path], model: torch.nn.Module, transform, img_size: int, device: torch.device
+) -> Tuple[torch.Tensor, List[str]]:
+    """
+    Performs on-the-fly homography extraction and inference.
+    """
+    model.eval()
+    vectors = []
+    valid_paths = []
+    total_images = len(image_paths)
+
+    print("Extracting features with on-the-fly cropping...")
+    with torch.no_grad():
+        for i, path in enumerate(image_paths):
+            warped_card, _ = detect_and_crop_card(str(path), output_size=img_size)
+
+            if warped_card is None:
+                print(f"Warning: Failed to crop {path.name}. Using raw image.")
+                img = load_image(path)
+                if len(img.shape) == 3 and img.shape[2] == 4:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            else:
+                img = cv2.cvtColor(warped_card, cv2.COLOR_BGR2RGB)
+
+            img_tensor = transform(image=img)["image"].unsqueeze(0).to(device)
+
+            emb = model(img_tensor)
+            emb = torch.nn.functional.normalize(emb, p=2, dim=1)
+
+            vectors.append(emb.cpu())
+            valid_paths.append(path)
+
+            if (i + 1) % 10 == 0 or (i + 1) == total_images:
+                print(f"Processed image {i + 1}/{total_images}.")
+
+    return torch.cat(vectors), valid_paths
+
+
+def generate_histogram(hit_sims: List[float], miss_sims: List[float], save_path: str):
+    """Plots the distribution of cosine similarities."""
+    plt.figure(figsize=(10, 6))
+    if hit_sims:
+        plt.hist(hit_sims, bins=np.linspace(0, 1, 40), alpha=0.6, color="green", label="Correct (Top-1)")
+    if miss_sims:
+        plt.hist(miss_sims, bins=np.linspace(0, 1, 40), alpha=0.6, color="red", label="Incorrect (Top-1)")
+    plt.title("Distribution of Top-1 Cosine Similarities")
+    plt.xlabel("Cosine Similarity")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.grid(axis="y", alpha=0.5)
+    plt.savefig(save_path)
+    plt.close()
+
+
+def compute_similarities_chunked(
+    queries: torch.Tensor, db_vectors: torch.Tensor, chunk_size: int = 500
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Computes top-k similarities avoiding OOM errors via chunked matrix multiplication.
+    """
+    top5_scores_list = []
+    top5_idxs_list = []
+
+    device = db_vectors.device
+
+    for i in range(0, queries.shape[0], chunk_size):
+        chunk = queries[i : i + chunk_size].to(device)
+        sim_chunk = torch.mm(chunk, db_vectors.t())
+        scores, idxs = torch.topk(sim_chunk, k=min(5, db_vectors.shape[0]), dim=1)
+
+        top5_scores_list.append(scores.cpu())
+        top5_idxs_list.append(idxs.cpu())
+
+    return torch.cat(top5_scores_list, dim=0), torch.cat(top5_idxs_list, dim=0)
+
+
+def main():
+    args = parse_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    os.makedirs(args.save_dir, exist_ok=True)
+
+    print("Loading database...")
+    db = torch.load(args.database, map_location=device, weights_only=False)
+    db_vectors = db["vectors"].to(device)
+    db_names = db["names"]
+
+    print("Loading model...")
+    model = MTGReconModel(num_classes=1).to(device)
+    model = load_model_weights(model, args.model, device)
+
+    all_files = [p for p in Path(args.real_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]]
+    all_files.sort()
+
+    if not all_files:
+        print(f"No images found in {args.real_dir}")
+        return
+
+    transform = get_inference_transforms(args.img_size)
+
+    # Feature extraction includes explicit alignment via detect_and_crop_card
+    queries_cpu, valid_paths = extract_features_from_real_photos(all_files, model, transform, args.img_size, device)
+
+    print("Calculating similarities...")
+    top5_scores, top5_idxs = compute_similarities_chunked(queries_cpu, db_vectors)
+
+    correct_1, correct_3, correct_5 = 0, 0, 0
+    hit_sims, miss_sims = [], []
+
+    for i, path in enumerate(valid_paths):
+        gt_name = parse_card_name(path.stem)
+        preds = [db_names[idx.item()] for idx in top5_idxs[i]]
+        scores = top5_scores[i].tolist()
+
+        if gt_name == preds[0]:
+            correct_1 += 1
+            hit_sims.append(scores[0])
+        else:
+            miss_sims.append(scores[0])
+
+        if gt_name in preds[:3]:
+            correct_3 += 1
+        if gt_name in preds[:5]:
+            correct_5 += 1
+
+    total = len(valid_paths)
+
+    report_path = os.path.join(args.save_dir, "evaluation_report.txt")
+    with open(report_path, "w") as f:
+        f.write(f"--- Real Photo Evaluation Report ---\n")
+        f.write(f"Total Images Evaluated: {total}\n\n")
+        f.write(f"Top-1 Accuracy: {correct_1 / total * 100:.2f}% ({correct_1}/{total})\n")
+        f.write(f"Top-3 Accuracy: {correct_3 / total * 100:.2f}% ({correct_3}/{total})\n")
+        f.write(f"Top-5 Accuracy: {correct_5 / total * 100:.2f}% ({correct_5}/{total})\n\n")
+
+    hist_path = os.path.join(args.save_dir, "confidence_histogram.png")
+    generate_histogram(hit_sims, miss_sims, hist_path)
+
+    print(f"\nEvaluation Finished. Top-1 Accuracy: {correct_1 / total * 100:.2f}%")
+    print(f"Results saved to {args.save_dir}/")
+
+
+if __name__ == "__main__":
+    main()

@@ -3,9 +3,69 @@
 
 import os
 import torch
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Optional
+
+
+def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
+    """
+    Detects a single card and extracts it via homography.
+    Returns both the cropped/warped image and an annotated debug image.
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Image not readable or missing: {image_path}")
+
+    debug_img = img.copy()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blur, 50, 150)
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    card_contour = None
+    for c in contours:
+        perimeter = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * perimeter, True)
+
+        if len(approx) == 4:
+            card_contour = approx
+            break
+
+    if card_contour is None:
+        cv2.drawContours(debug_img, contours[:5], -1, (0, 0, 255), 2)
+        print("Warning: No distinct quadrilateral detected. Review edge detection thresholds.")
+        return None, debug_img
+
+    cv2.drawContours(debug_img, [card_contour], -1, (0, 255, 0), 3)
+
+    pts = card_contour.reshape(4, 2)
+    rect = np.zeros((4, 2), dtype="float32")
+
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
+    for i, pt in enumerate(rect):
+        cv2.circle(debug_img, (int(pt[0]), int(pt[1])), 15, colors[i], -1)
+
+    dst = np.array(
+        [[0, 0], [output_size - 1, 0], [output_size - 1, output_size - 1], [0, output_size - 1]], dtype="float32"
+    )
+
+    matrix = cv2.getPerspectiveTransform(rect, dst)
+    warped_card = cv2.warpPerspective(img, matrix, (output_size, output_size))
+
+    return warped_card, debug_img
 
 
 def load_model_weights(model: torch.nn.Module, checkpoint_path: str, device: torch.device) -> torch.nn.Module:
