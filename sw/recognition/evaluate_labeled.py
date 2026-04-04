@@ -51,7 +51,7 @@ def extract_features_from_real_photos(
     print("Extracting features with on-the-fly cropping...")
     with torch.no_grad():
         for i, path in enumerate(image_paths):
-            warped_card, _ = detect_and_crop_card(str(path), output_size=img_size)
+            warped_card, debug_card = detect_and_crop_card(str(path), output_size=img_size)
 
             if warped_card is None:
                 print(f"Warning: Failed to crop {path.name}. Using raw image.")

@@ -23,10 +23,12 @@ MODEL_PATH="./check/arcface_mtg_final.pth"
 DB_PATH="./card_database.pth"
 DATASET_DIR="/mnt/personal/adamej14/dataset"
 LABELED_DIR="$HOME/labeled"
+DEBUG_DIR="check/eval_debug"
 
 srun python3 card_detector.py \
     --model "$MODEL_PATH" \
     --database "$DB_PATH" \
     --ref_dir "$DATASET_DIR" \
     --real_dir "$LABELED_DIR" \
-    --save_dir "check/eval_results"
+    --save_dir "check/eval_results" \
+    --debug_dir "$DEBUG_DIR"
