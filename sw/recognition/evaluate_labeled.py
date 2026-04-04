@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import List, Tuple
+import shutil
 
 from model import MTGReconModel
 from data import get_inference_transforms, load_image
@@ -129,6 +130,8 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
     if args.debug_dir:
         os.makedirs(args.debug_dir, exist_ok=True)
+        os.makedirs(os.path.join(args.debug_dir, "correct"), exist_ok=True)
+        os.makedirs(os.path.join(args.debug_dir, "incorrect"), exist_ok=True)
 
     print("Loading database...")
     db = torch.load(args.database, map_location=device, weights_only=False)
@@ -158,6 +161,7 @@ def main():
 
     correct_1, correct_3, correct_5 = 0, 0, 0
     hit_sims, miss_sims = [], []
+    correct_log, incorrect_log = [], []
 
     for i, path in enumerate(valid_paths):
         gt_name = parse_card_name(path.stem)
@@ -167,8 +171,20 @@ def main():
         if gt_name == preds[0]:
             correct_1 += 1
             hit_sims.append(scores[0])
+            correct_log.append(f"{path.name} -> {preds[0]} (Score: {scores[0]:.4f})")
+            if args.debug_dir:
+                src = os.path.join(args.debug_dir, path.name)
+                dst = os.path.join(args.debug_dir, "correct", path.name)
+                if os.path.exists(src):
+                    shutil.move(src, dst)
         else:
             miss_sims.append(scores[0])
+            incorrect_log.append(f"{path.name} -> Pred: {preds[0]} (Score: {scores[0]:.4f}) | GT: {gt_name}")
+            if args.debug_dir:
+                src = os.path.join(args.debug_dir, path.name)
+                dst = os.path.join(args.debug_dir, "incorrect", path.name)
+                if os.path.exists(src):
+                    shutil.move(src, dst)
 
         if gt_name in preds[:3]:
             correct_3 += 1
@@ -184,6 +200,12 @@ def main():
         f.write(f"Top-1 Accuracy: {correct_1 / total * 100:.2f}% ({correct_1}/{total})\n")
         f.write(f"Top-3 Accuracy: {correct_3 / total * 100:.2f}% ({correct_3}/{total})\n")
         f.write(f"Top-5 Accuracy: {correct_5 / total * 100:.2f}% ({correct_5}/{total})\n\n")
+
+    with open(os.path.join(args.save_dir, "correct_matches.txt"), "w") as f:
+        f.write("\n".join(correct_log))
+
+    with open(os.path.join(args.save_dir, "incorrect_matches.txt"), "w") as f:
+        f.write("\n".join(incorrect_log))
 
     hist_path = os.path.join(args.save_dir, "confidence_histogram.png")
     generate_histogram(hit_sims, miss_sims, hist_path)
