@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument("--save_dir", type=str, default="./eval_results", help="directory to save results")
     parser.add_argument("--img_size", type=int, default=512, help="input image size")
     parser.add_argument("--batch_size", type=int, default=32, help="batch size for inference")
+    parser.add_argument("--debug_dir", type=str, default=None, help="dir to save debug contour images")
     return parser.parse_args()
 
 
@@ -38,7 +39,12 @@ def parse_card_name(filename_stem: str) -> str:
 
 
 def extract_features_from_real_photos(
-    image_paths: List[Path], model: torch.nn.Module, transform, img_size: int, device: torch.device
+    image_paths: List[Path],
+    model: torch.nn.Module,
+    transform,
+    img_size: int,
+    device: torch.device,
+    debug_dir: str = None,
 ) -> Tuple[torch.Tensor, List[str]]:
     """
     Performs on-the-fly homography extraction and inference.
@@ -52,6 +58,9 @@ def extract_features_from_real_photos(
     with torch.no_grad():
         for i, path in enumerate(image_paths):
             warped_card, debug_card = detect_and_crop_card(str(path), output_size=img_size)
+
+            if debug_dir is not None and debug_card is not None:
+                cv2.imwrite(os.path.join(debug_dir, path.name), debug_card)
 
             if warped_card is None:
                 print(f"Warning: Failed to crop {path.name}. Using raw image.")
@@ -118,6 +127,8 @@ def main():
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(args.save_dir, exist_ok=True)
+    if args.debug_dir:
+        os.makedirs(args.debug_dir, exist_ok=True)
 
     print("Loading database...")
     db = torch.load(args.database, map_location=device, weights_only=False)
@@ -138,7 +149,9 @@ def main():
     transform = get_inference_transforms(args.img_size)
 
     # Feature extraction includes explicit alignment via detect_and_crop_card
-    queries_cpu, valid_paths = extract_features_from_real_photos(all_files, model, transform, args.img_size, device)
+    queries_cpu, valid_paths = extract_features_from_real_photos(
+        all_files, model, transform, args.img_size, device, args.debug_dir
+    )
 
     print("Calculating similarities...")
     top5_scores, top5_idxs = compute_similarities_chunked(queries_cpu, db_vectors)

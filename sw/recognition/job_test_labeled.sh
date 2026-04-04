@@ -25,7 +25,7 @@ DATASET_DIR="/mnt/personal/adamej14/dataset"
 LABELED_DIR="$HOME/labeled"
 DEBUG_DIR="check/eval_debug"
 
-srun python3 card_detector.py \
+srun python3 evaluate_labeled.py \
     --model "$MODEL_PATH" \
     --database "$DB_PATH" \
     --ref_dir "$DATASET_DIR" \
