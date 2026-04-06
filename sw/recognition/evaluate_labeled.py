@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import cv2
 import torch
 import argparse
@@ -14,7 +13,7 @@ import shutil
 
 from model import MTGReconModel
 from data import get_inference_transforms, load_image
-from utils import load_model_weights, detect_and_crop_card
+from utils import load_model_weights, detect_and_crop_card, parse_labeled_name
 
 
 def parse_args():
@@ -28,15 +27,6 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=32, help="batch size for inference")
     parser.add_argument("--debug_dir", type=str, default=None, help="dir to save debug contour images")
     return parser.parse_args()
-
-
-def parse_card_name(filename_stem: str) -> str:
-    """
-    Strips trailing numbers, parentheses, or specific suffixes from the filename
-    to extract the canonical ground-truth card name.
-    # Example: 'Black Lotus (1)' -> 'Black Lotus', 'Forest_03' -> 'Forest'
-    """
-    return re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", filename_stem).strip()
 
 
 def extract_features_from_real_photos(
@@ -106,7 +96,7 @@ def compute_similarities_chunked(
     queries: torch.Tensor, db_vectors: torch.Tensor, chunk_size: int = 500
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Computes top-k similarities avoiding OOM errors via chunked matrix multiplication.
+    Computes top-k similarities via chunked matrix multiplication.
     """
     top5_scores_list = []
     top5_idxs_list = []
@@ -164,16 +154,16 @@ def main():
     correct_log, incorrect_log = [], []
 
     for i, path in enumerate(valid_paths):
-        gt_name = parse_card_name(path.stem)
+        gt_name = parse_labeled_name(path.stem)
         preds = [db_names[idx.item()] for idx in top5_idxs[i]]
         scores = top5_scores[i].tolist()
 
+        src = os.path.join(args.debug_dir, path.name)
         if gt_name == preds[0]:
             correct_1 += 1
             hit_sims.append(scores[0])
             correct_log.append(f"{path.name} -> {preds[0]} (Score: {scores[0]:.4f})")
             if args.debug_dir:
-                src = os.path.join(args.debug_dir, path.name)
                 dst = os.path.join(args.debug_dir, "correct", path.name)
                 if os.path.exists(src):
                     shutil.move(src, dst)
@@ -181,7 +171,6 @@ def main():
             miss_sims.append(scores[0])
             incorrect_log.append(f"{path.name} -> Pred: {preds[0]} (Score: {scores[0]:.4f}) | GT: {gt_name}")
             if args.debug_dir:
-                src = os.path.join(args.debug_dir, path.name)
                 dst = os.path.join(args.debug_dir, "incorrect", path.name)
                 if os.path.exists(src):
                     shutil.move(src, dst)
@@ -193,7 +182,16 @@ def main():
 
     total = len(valid_paths)
 
-    report_path = os.path.join(args.save_dir, "evaluation_report.txt")
+    save_reports(args.save_dir, correct_1, correct_3, correct_5, total, correct_log, incorrect_log)
+    hist_path = os.path.join(args.save_dir, "confidence_histogram.png")
+    generate_histogram(hit_sims, miss_sims, hist_path)
+
+    print(f"\nEvaluation Finished. Top-1 Accuracy: {correct_1 / total * 100:.2f}%")
+    print(f"Results saved to {args.save_dir}/")
+
+
+def save_reports(save_dir: str, correct_1, correct_3, correct_5, total, correct_log, incorrect_log) -> None:
+    report_path = os.path.join(save_dir, "evaluation_report.txt")
     with open(report_path, "w") as f:
         f.write(f"--- Real Photo Evaluation Report ---\n")
         f.write(f"Total Images Evaluated: {total}\n\n")
@@ -201,17 +199,11 @@ def main():
         f.write(f"Top-3 Accuracy: {correct_3 / total * 100:.2f}% ({correct_3}/{total})\n")
         f.write(f"Top-5 Accuracy: {correct_5 / total * 100:.2f}% ({correct_5}/{total})\n\n")
 
-    with open(os.path.join(args.save_dir, "correct_matches.txt"), "w") as f:
+    with open(os.path.join(save_dir, "correct_matches.txt"), "w") as f:
         f.write("\n".join(correct_log))
 
-    with open(os.path.join(args.save_dir, "incorrect_matches.txt"), "w") as f:
+    with open(os.path.join(save_dir, "incorrect_matches.txt"), "w") as f:
         f.write("\n".join(incorrect_log))
-
-    hist_path = os.path.join(args.save_dir, "confidence_histogram.png")
-    generate_histogram(hit_sims, miss_sims, hist_path)
-
-    print(f"\nEvaluation Finished. Top-1 Accuracy: {correct_1 / total * 100:.2f}%")
-    print(f"Results saved to {args.save_dir}/")
 
 
 if __name__ == "__main__":

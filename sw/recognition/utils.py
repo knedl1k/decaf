@@ -2,11 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import torch
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, Any, Tuple, Optional
+
+
+def parse_labeled_name(filename_stem: str) -> str:
+    """
+    Strips trailing numbers, parentheses, or specific suffixes from the filename
+    to extract the canonical ground-truth card name.
+    # Example: 'Black Lotus (1)' -> 'Black Lotus', 'Forest_03' -> 'Forest'
+    """
+    return re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", filename_stem).strip()
 
 
 def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
