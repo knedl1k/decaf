@@ -5,7 +5,7 @@ import os
 import argparse
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 import torch
 import torch.nn as nn
@@ -72,6 +72,15 @@ def save_model(
     )
 
 
+def prep_train_val(all_image_paths: list) -> Tuple(list, list):
+    all_image_paths.sort()
+    rng = np.random.RandomState(42)
+    rng.shuffle(all_image_paths)
+
+    VAL_SIZE = 1000
+    return (all_image_paths[VAL_SIZE:], all_image_paths[:VAL_SIZE])
+
+
 def main():
     args = parse_args()
 
@@ -85,14 +94,7 @@ def main():
         print(f"Training started. World size: {dist.get_world_size()}")
         os.makedirs(args.save_dir, exist_ok=True)
 
-    all_image_paths = list(Path(args.input_dir).glob("*.png"))
-    all_image_paths.sort()
-    rng = np.random.RandomState(42)
-    rng.shuffle(all_image_paths)
-
-    VAL_SIZE = 1000
-    train_paths = all_image_paths[VAL_SIZE:]
-    val_paths = all_image_paths[:VAL_SIZE]
+    train_paths, val_paths = prep_train_val(list(Path(args.input_dir).glob("*.png")))
 
     # NN requires integer labels
     unique_names = sorted(list(set([p.stem for p in train_paths])))
