@@ -52,6 +52,8 @@ def extract_features_from_real_photos(
 
             if debug_dir is not None and debug_card is not None:
                 cv2.imwrite(os.path.join(debug_dir, path.name), debug_card)
+                if warped_card is not None:
+                    cv2.imwrite(os.path.join(debug_dir, "inputs", path.name), warped_card)
 
             if warped_card is None:
                 print(f"Warning: Failed to crop {path.name}. Using raw image.")
