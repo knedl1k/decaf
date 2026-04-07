@@ -22,7 +22,6 @@ def parse_labeled_name(filename_stem: str) -> str:
 def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
     """
     Detects a single card and extracts it via homography.
-    Returns both the cropped/warped image and an annotated debug image.
     """
     img = cv2.imread(image_path)
     if img is None:
@@ -31,38 +30,55 @@ def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optio
     debug_img = img.copy()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 50, 150)
+    h, w = gray.shape
+    img_area = h * w
 
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    edges = cv2.Canny(blur, 30, 100)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+    contours, _ = cv2.findContours(closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
     card_contour = None
     for c in contours:
+        area = cv2.contourArea(c)
+
+        if area < 0.10 * img_area or area > 0.95 * img_area:
+            continue
+
         perimeter = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * perimeter, True)
+
+        hull = cv2.convexHull(c)
+        hull_perimeter = cv2.arcLength(hull, True)
+        hull_approx = cv2.approxPolyDP(hull, 0.02 * hull_perimeter, True)
 
         if len(approx) == 4:
             card_contour = approx
             break
+        elif len(hull_approx) == 4:
+            card_contour = hull_approx
+            break
 
     if card_contour is None:
         cv2.drawContours(debug_img, contours[:5], -1, (0, 0, 255), 2)
-        print("Warning: No distinct quadrilateral detected. Review edge detection thresholds.")
+        print("Warning: No distinct quadrilateral detected.")
         return None, debug_img
 
     cv2.drawContours(debug_img, [card_contour], -1, (0, 255, 0), 3)
+    pts = card_contour.reshape(4, 2).astype("float32")
 
-    pts = card_contour.reshape(4, 2)
-    rect = np.zeros((4, 2), dtype="float32")
+    center = np.mean(pts, axis=0)
+    angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
+    pts_sorted = pts[np.argsort(angles)]
 
-    s = pts.sum(axis=1)
-    rect[0] = pts[np.argmin(s)]
-    rect[2] = pts[np.argmax(s)]
-
-    diff = np.diff(pts, axis=1)
-    rect[1] = pts[np.argmin(diff)]
-    rect[3] = pts[np.argmax(diff)]
+    s = pts_sorted.sum(axis=1)
+    tl_idx = np.argmin(s)
+    rect = np.roll(pts_sorted, -tl_idx, axis=0)
 
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
     for i, pt in enumerate(rect):
