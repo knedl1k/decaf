@@ -115,14 +115,18 @@ def prep_train_val(all_image_paths: list, val_size: int = 1000) -> Tuple[list, l
     return (all_image_paths[val_size:], all_image_paths[:val_size])
 
 
-def main():
-    args = parse_args()
-
-    local_rank = int(os.environ["LOCAL_RANK"])
+def setup_ddp() -> Tuple[int, torch.device, bool]:
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
     dist.init_process_group(backend="nccl", device_id=device)
     is_master = dist.get_rank() == 0
+    return local_rank, device, is_master
+
+
+def main():
+    args = parse_args()
+    local_rank, device, is_master = setup_ddp()
 
     if is_master:
         print(f"Training started. World size: {dist.get_world_size()}")
