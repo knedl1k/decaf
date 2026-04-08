@@ -124,16 +124,8 @@ def setup_ddp() -> Tuple[int, torch.device, bool]:
     return local_rank, device, is_master
 
 
-def main():
-    args = parse_args()
-    local_rank, device, is_master = setup_ddp()
-
-    if is_master:
-        print(f"Training started. World size: {dist.get_world_size()}")
-        os.makedirs(args.save_dir, exist_ok=True)
-
+def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader, DataLoader, DistributedSampler, int]:
     train_paths, val_paths = prep_train_val(list(Path(args.input_dir).glob("*.png")))
-
     # NN requires integer labels
     unique_names = sorted(list(set([p.stem for p in train_paths])))
     label_map = {name: i for i, name in enumerate(unique_names)}
@@ -168,6 +160,19 @@ def main():
 
     val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+    return train_loader, val_loader, sampler, num_classes
+
+
+def main():
+    args = parse_args()
+    local_rank, device, is_master = setup_ddp()
+
+    if is_master:
+        print(f"Training started. World size: {dist.get_world_size()}")
+        os.makedirs(args.save_dir, exist_ok=True)
+
+    train_loader, val_loader, sampler, num_classes = prepare_data(args, is_master)
 
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
