@@ -108,13 +108,11 @@ def load_checkpoint(
     return start_epoch, history
 
 
-def prep_train_val(all_image_paths: list) -> Tuple[list, list]:
+def prep_train_val(all_image_paths: list, val_size: int = 1000) -> Tuple[list, list]:
     all_image_paths.sort()
-    rng = np.random.RandomState(42)
+    rng = np.random.RandomState(40)
     rng.shuffle(all_image_paths)
-
-    VAL_SIZE = 1000
-    return (all_image_paths[VAL_SIZE:], all_image_paths[:VAL_SIZE])
+    return (all_image_paths[val_size:], all_image_paths[:val_size])
 
 
 def main():
@@ -167,9 +165,6 @@ def main():
     val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-    # with open("vals.txt", "w") as val_txt:
-    #     print(f"{val_dataset.label_map}", file=val_txt)
-
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
@@ -197,7 +192,6 @@ def main():
     warmup_scheduler = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_iters)
     cosine_scheduler = CosineAnnealingLR(optimizer, T_max=(total_steps - warmup_iters), eta_min=1e-6)
 
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_iters])
 
     start_epoch, history = load_checkpoint(args.resume, model, optimizer, scheduler, device, is_master)
@@ -230,12 +224,9 @@ def main():
             if is_master and (i + 1) % args.log_interval == 0:
                 print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
 
-        # metric_tensors = torch.zeros(1, device=device)
-
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
             print_metrics(metrics, epoch + 1)
-            # metric_tensors[0] = metrics["fmr_at_95_tmr"]
             current_lr = optimizer.param_groups[1]["lr"]
             update_history(history, metrics, epoch + 1, running_loss / len(train_loader), current_lr)
             save_history(history, f"{args.save_dir}/history.npy")
@@ -246,9 +237,6 @@ def main():
                 save_checkpoint(model.module, optimizer, scheduler, epoch + 1, history, save_path)
                 print(f"Model saved to {save_path}")
 
-        # sync metrics across all GPUs for the scheduler
-        # dist.broadcast(metric_tensors, src=0)
-        # scheduler.step(metric_tensors.item())
         dist.barrier()
 
     if is_master:
