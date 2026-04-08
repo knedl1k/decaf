@@ -67,6 +67,47 @@ def save_checkpoint(
     )
 
 
+def load_checkpoint(
+    resume_path: str,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    scheduler: Any,
+    device: torch.device,
+    is_master: bool,
+) -> Tuple[int, Dict[str, list]]:
+    history = {
+        "epoch": [],
+        "loss": [],
+        "lr": [],
+        "fmr": [],
+        "threshold": [],
+        "pos_sim": [],
+        "std_pos_sim": [],
+        "neg_sim": [],
+        "std_neg_sim": [],
+        "top1_acc": [],
+    }
+    start_epoch = 0
+    if resume_path and os.path.isfile(resume_path):
+        if is_master:
+            print(f"Loading checkpoint '{resume_path}'...")
+        checkpoint = torch.load(resume_path, map_location=device)
+
+        if "model_state_dict" in checkpoint:
+            model.module.load_state_dict(checkpoint["model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            start_epoch = checkpoint["epoch"]
+            if is_master and "history" in checkpoint:
+                history = checkpoint["history"]
+            if is_master:
+                print(f"Successfully resumed from epoch {start_epoch}")
+    elif resume_path and is_master:
+        print(f"Warning: Checkpoint '{resume_path}' not found. Starting from scratch.")
+
+    return start_epoch, history
+
+
 def prep_train_val(all_image_paths: list) -> Tuple(list, list):
     all_image_paths.sort()
     rng = np.random.RandomState(42)
@@ -159,40 +200,7 @@ def main():
     # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=2)
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_iters])
 
-    start_epoch = 0
-    if is_master:
-        print("Start of training...")
-        history = {
-            "epoch": [],
-            "loss": [],
-            "lr": [],
-            "fmr": [],
-            "threshold": [],
-            "pos_sim": [],
-            "std_pos_sim": [],
-            "neg_sim": [],
-            "std_neg_sim": [],
-            "top1_acc": [],
-        }
-    else:
-        history = {}
-
-    if args.resume and os.path.isfile(args.resume):
-        if is_master:
-            print(f"Loading checkpoint '{args.resume}'...")
-        checkpoint = torch.load(args.resume, map_location=device)
-
-        if "model_state_dict" in checkpoint:
-            model.module.load_state_dict(checkpoint["model_state_dict"])
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-            start_epoch = checkpoint["epoch"]
-            if is_master and "history" in checkpoint:
-                history = checkpoint["history"]
-            if is_master:
-                print(f"Successfully resumed from epoch {start_epoch}")
-    elif args.resume and is_master:
-        print(f"Warning: Checkpoint '{args.resume}' not found. Starting from scratch.")
+    start_epoch, history = load_checkpoint(args.resume, model, optimizer, scheduler, device, is_master)
 
     total_steps = len(train_loader)
 
