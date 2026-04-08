@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
     parser.add_argument("--img_size", type=int, default=512, help="input image size")
 
-    parser.add_argument("--log_interval", type=int, default=100, help="how many batches to wait before logging")
+    parser.add_argument("--log_interval", type=int, default=100, help="batches to wait before logging")
     parser.add_argument("--num_workers", type=int, default=4, help="number of data loading workers")
 
     return parser.parse_args()
@@ -52,20 +52,15 @@ def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: i
     history["top1_acc"].append(metrics["top1_acc"])
 
 
-def save_model(
-    mod_st: Dict[str, torch.Tensor],
-    opt_st: Dict[str, Any],
-    sch_st: Dict[str, Any],
-    epoch: int,
-    history: Dict[str, list],
-    save_path: str,
+def save_checkpoint(
+    model: nn.Module, optimizer: optim.Optimizer, scheduler: Any, epoch: int, history: Dict[str, list], save_path: str
 ):
     torch.save(
         {
             "epoch": epoch,
-            "model_state_dict": mod_st,
-            "optimizer_state_dict": opt_st,
-            "scheduler_state_dict": sch_st,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
             "history": history,
         },
         save_path,
@@ -240,14 +235,7 @@ def main():
 
             if (epoch + 1) % 5 == 0:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
-                save_model(
-                    model.module.state_dict(),
-                    optimizer.state_dict(),
-                    scheduler.state_dict(),
-                    epoch + 1,
-                    history,
-                    save_path,
-                )
+                save_checkpoint(model.module, optimizer, scheduler, epoch + 1, history, save_path)
                 print(f"Model saved to {save_path}")
 
         # sync metrics across all GPUs for the scheduler
