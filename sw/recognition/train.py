@@ -164,16 +164,9 @@ def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader,
     return train_loader, val_loader, sampler, num_classes
 
 
-def main():
-    args = parse_args()
-    local_rank, device, is_master = setup_ddp()
-
-    if is_master:
-        print(f"Training started. World size: {dist.get_world_size()}")
-        os.makedirs(args.save_dir, exist_ok=True)
-
-    train_loader, val_loader, sampler, num_classes = prepare_data(args, is_master)
-
+def init_training_regime(
+    num_classes: int, args: argparse.Namespace, local_rank: int, device: torch.device, steps_per_epoch: int
+) -> Tuple[nn.Module, nn.Module, optim.Optimizer, Any]:
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
@@ -192,16 +185,30 @@ def main():
         [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
     )
 
-    steps_per_epoch = len(train_loader)
     total_steps = args.epochs * steps_per_epoch
-
     warmup_epochs = 2
     warmup_iters = warmup_epochs * steps_per_epoch
 
     warmup_scheduler = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_iters)
     cosine_scheduler = CosineAnnealingLR(optimizer, T_max=(total_steps - warmup_iters), eta_min=1e-6)
-
     scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_iters])
+
+    return model, criterion, optimizer, scheduler
+
+
+def main():
+    args = parse_args()
+    local_rank, device, is_master = setup_ddp()
+
+    if is_master:
+        print(f"Training started. World size: {dist.get_world_size()}")
+        os.makedirs(args.save_dir, exist_ok=True)
+
+    train_loader, val_loader, sampler, num_classes = prepare_data(args, is_master)
+
+    model, criterion, optimizer, scheduler = init_training_regime(
+        num_classes, args, local_rank, device, len(train_loader)
+    )
 
     start_epoch, history = load_checkpoint(args.resume, model, optimizer, scheduler, device, is_master)
 
