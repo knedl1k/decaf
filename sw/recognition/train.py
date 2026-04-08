@@ -196,6 +196,43 @@ def init_training_regime(
     return model, criterion, optimizer, scheduler
 
 
+def train_one_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    criterion: nn.Module,
+    optimizer: optim.Optimizer,
+    scheduler: Any,
+    device: torch.device,
+    epoch: int,
+    args: argparse.Namespace,
+    is_master: bool,
+) -> float:
+    model.train()
+    running_loss = 0.0
+    total_steps = len(dataloader)
+
+    for i, (images, labels) in enumerate(dataloader):
+        images, labels = images.to(device), labels.to(device)
+
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            outputs = model(images, labels)
+            loss = criterion(outputs, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+
+        optimizer.step()
+        scheduler.step()
+
+        running_loss += loss.item()
+
+        if is_master and (i + 1) % args.log_interval == 0:
+            print(f"Epoch [{epoch}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
+
+    return running_loss / total_steps
+
+
 def main():
     args = parse_args()
     local_rank, device, is_master = setup_ddp()
@@ -212,33 +249,10 @@ def main():
 
     start_epoch, history = load_checkpoint(args.resume, model, optimizer, scheduler, device, is_master)
 
-    total_steps = len(train_loader)
-
-    for epoch in range(start_epoch, args.epochs):
+    for epoch in range(start_epoch + 1, args.epochs + 1):
         sampler.set_epoch(epoch)
-        model.train()
-        running_loss = 0.0
 
-        for i, (images, labels) in enumerate(train_loader):
-            images, labels = images.to(device), labels.to(device)
-
-            # forward pass
-            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                outputs = model(images, labels)
-                loss = criterion(outputs, labels)
-
-            # backward pass
-            optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-
-            optimizer.step()
-            scheduler.step()
-
-            running_loss += loss.item()
-
-            if is_master and (i + 1) % args.log_interval == 0:
-                print(f"Epoch [{epoch + 1}/{args.epochs}], Step [{i + 1}/{total_steps}], Loss: {loss.item():.4f}")
+        avg_loss = train_one_epoch(model, train_loader, criterion, optimizer, scheduler, device, epoch, args, is_master)
 
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
@@ -248,19 +262,15 @@ def main():
             save_history(history, f"{args.save_dir}/history.npy")
             # plot_training_curves(history, args.save_dir)
 
-            if (epoch + 1) % 5 == 0:
-                save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch + 1}.pth")
-                save_checkpoint(model.module, optimizer, scheduler, epoch + 1, history, save_path)
+            if (epoch + 1) % 5 == 0 or epoch == args.epochs:
+                save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch}.pth")
+                save_checkpoint(model.module, optimizer, scheduler, epoch, history, save_path)
                 print(f"Model saved to {save_path}")
 
         dist.barrier()
 
     if is_master:
-        save_path = os.path.join(args.save_dir, f"arcface_mtg_final.pth")
-        save_model(
-            model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict(), args.epochs, history, save_path
-        )
-        print(f"Training complete, model saved to '{save_path}''.")
+        print(f"Training complete.")
 
     dist.destroy_process_group()
 
