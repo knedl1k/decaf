@@ -108,7 +108,7 @@ def load_checkpoint(
     return start_epoch, history
 
 
-def prep_train_val(all_image_paths: list) -> Tuple(list, list):
+def prep_train_val(all_image_paths: list) -> Tuple[list, list]:
     all_image_paths.sort()
     rng = np.random.RandomState(42)
     rng.shuffle(all_image_paths)
