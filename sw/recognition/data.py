@@ -107,6 +107,33 @@ def apply_random_background(image: np.ndarray, target_size: int) -> np.ndarray:
     return canvas
 
 
+class RealValidationDataset(Dataset):
+    def __init__(self, image_paths: List[Path], transform: Callable, img_size: int):
+        from utils import detect_and_crop_card
+
+        self.transform = transform
+        self.valid_data = []
+
+        print(f"Pre-computing homography crops for {len(image_paths)} real images...")
+        for path in image_paths:
+            try:
+                warped, _ = detect_and_crop_card(str(path), output_size=img_size)
+                if warped is not None:
+                    rgb_img = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
+                    self.valid_data.append((rgb_img, path.stem))
+            except Exception as e:
+                print(f"Skipping {path.name} due to cropping error: {e}")
+
+    def __len__(self) -> int:
+        return len(self.valid_data)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
+        img, stem = self.valid_data[idx]
+        if self.transform:
+            tensor = self.transform(image=img)["image"].contiguous()
+        return tensor, stem
+
+
 class InferenceDataset(Dataset):
     def __init__(self, image_paths: List[Path], transform: Callable = None):
         self.image_paths = image_paths

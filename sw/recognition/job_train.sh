@@ -19,7 +19,8 @@ ml Albumentations/2.0.8-foss-2025b-CUDA-12.9.1
 ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
 ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
-IMG_DIR="/mnt/personal/adamej14/dataset"
+REF_DIR="/mnt/personal/adamej14/dataset"
+REAL_DIR="/home/adamej14/labeled"
 SAVE_DIR="./check"
 
 torchrun \
@@ -27,7 +28,8 @@ torchrun \
     --nnodes=1 \
     --nproc_per_node=4 \
     train.py \
-    --input_dir="$IMG_DIR" \
+    --ref_dir="$REF_DIR" \
+    --real_val_dir="$REAL_DIR" \
     --save_dir="$SAVE_DIR" \
     --lr=3e-4 \
     --epochs=60

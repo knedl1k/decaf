@@ -3,11 +3,61 @@
 
 import os
 import re
-import torch
 import cv2
 import numpy as np
+from pathlib import Path
+
+import torch
+import torch.nn.functional as F
+
 import matplotlib.pyplot as plt
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
+
+from data import load_image
+
+
+def evaluate_real_domain(
+    model: torch.nn.Module,
+    real_loader: torch.utils.data.DataLoader,
+    ref_loader: torch.utils.data.DataLoader,
+    device: torch.device,
+) -> float:
+    """
+    Computes Top-1 accuracy on real photos by dynamically re-extracting
+    both reference (gallery) and real (query) embeddings.
+    """
+
+    model.eval()
+
+    db_vectors, db_names = [], []
+
+    with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        for imgs, names in ref_loader:
+            imgs = imgs.to(device)
+            emb = torch.nn.functional.normalize(model(imgs), p=2, dim=1)
+            db_vectors.append(emb.cpu())
+            db_names.extend([parse_labeled_name(n) for n in names])
+
+    db_matrix = torch.cat(db_vectors)  # [DB_Size, 512]
+
+    correct_1, total = 0, 0
+
+    with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+        for imgs, names in real_loader:
+            imgs = imgs.to(device)
+            emb = torch.nn.functional.normalize(model(imgs), p=2, dim=1)
+
+            sims = torch.mm(emb.cpu(), db_matrix.t())
+            best_idxs = torch.argmax(sims, dim=1)
+
+            for i, gt_stem in enumerate(names):
+                gt_name = parse_labeled_name(gt_stem)
+                pred_name = db_names[best_idxs[i].item()]
+                if gt_name == pred_name:
+                    correct_1 += 1
+                total += 1
+
+    return (correct_1 / total * 100.0) if total > 0 else 0.0
 
 
 def parse_labeled_name(filename_stem: str) -> str:

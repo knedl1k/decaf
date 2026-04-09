@@ -17,14 +17,21 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from model import MTGReconModel
-from data import MTGTrainDataset, MTGValidationDataset, get_train_transforms, visualize_augmentations
-from utils import evaluate_metrics, save_history, plot_training_curves, print_metrics
+from data import (
+    MTGTrainDataset,
+    MTGValidationDataset,
+    get_train_transforms,
+    get_inference_transforms,
+    visualize_augmentations,
+)
+from utils import evaluate_metrics, save_history, plot_training_curves, print_metrics, evaluate_real_domain
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="distributed training for MTG card recognition")
 
-    parser.add_argument("--input_dir", type=str, required=True, help="path to directory with images")
+    parser.add_argument("--ref_dir", type=str, required=True, help="directory with clean reference images")
+    parser.add_argument("--real_val_dir", type=str, default=None, help="directory with real validation photos")
     parser.add_argument("--save_dir", type=str, default="./checkpoints", help="directory to save models")
     parser.add_argument("--resume", type=str, default=None, help="path to checkpoint to resume training from")
 
@@ -50,6 +57,7 @@ def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: i
     history["neg_sim"].append(metrics["avg_neg_sim"])
     history["std_neg_sim"].append(metrics["std_neg_sim"])
     history["top1_acc"].append(metrics["top1_acc"])
+    history["real_top1"].append(metrics["real_top1"])
 
 
 def save_checkpoint(
@@ -86,6 +94,7 @@ def load_checkpoint(
         "neg_sim": [],
         "std_neg_sim": [],
         "top1_acc": [],
+        "real_top1": [],
     }
     start_epoch = 0
     if resume_path and os.path.isfile(resume_path):
@@ -125,7 +134,7 @@ def setup_ddp() -> Tuple[int, torch.device, bool]:
 
 
 def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader, DataLoader, DistributedSampler, int]:
-    train_paths, val_paths = prep_train_val(list(Path(args.input_dir).glob("*.png")))
+    train_paths, val_paths = prep_train_val(list(Path(args.ref_dir).glob("*.png")))
     # NN requires integer labels
     unique_names = sorted(list(set([p.stem for p in train_paths])))
     label_map = {name: i for i, name in enumerate(unique_names)}
@@ -243,6 +252,21 @@ def main():
 
     train_loader, val_loader, sampler, num_classes = prepare_data(args, is_master)
 
+    real_loader, ref_loader = None, None
+    if args.real_val_dir:
+        from data import InferenceDataset, RealValidationDataset
+
+        transform = get_inference_transforms(args.img_size)
+        ref_files = list(Path(args.ref_dir).glob("*.png"))
+        ref_dataset = InferenceDataset(ref_files, transform=transform)
+        ref_loader = DataLoader(ref_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+        real_files = [
+            p for p in Path(args.real_val_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
+        ]
+        real_dataset = RealValidationDataset(real_files, transform=transform, img_size=args.img_size)
+        real_loader = DataLoader(real_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
     model, criterion, optimizer, scheduler = init_training_regime(
         num_classes, args, local_rank, device, len(train_loader)
     )
@@ -256,9 +280,15 @@ def main():
 
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
-            print_metrics(metrics, epoch + 1)
+            if real_loader and ref_loader:
+                metrics["real_top1"] = evaluate_real_domain(model.module, real_loader, ref_loader, device)
+                print(f"Real Photo Top-1 Accuracy: {metrics['real_top1']:.2f}%")
+            else:
+                metrics["real_top1"] = 0.0
+
+            print_metrics(metrics, epoch)
             current_lr = optimizer.param_groups[1]["lr"]
-            update_history(history, metrics, epoch + 1, running_loss / len(train_loader), current_lr)
+            update_history(history, metrics, epoch, avg_loss, current_lr)
             save_history(history, f"{args.save_dir}/history.npy")
             # plot_training_curves(history, args.save_dir)
 
