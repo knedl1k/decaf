@@ -292,7 +292,7 @@ def main():
             save_history(history, f"{args.save_dir}/history.npy")
             # plot_training_curves(history, args.save_dir)
 
-            if (epoch + 1) % 5 == 0 or epoch == args.epochs:
+            if epoch % 5 == 0 or epoch == args.epochs:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch}.pth")
                 save_checkpoint(model.module, optimizer, scheduler, epoch, history, save_path)
                 print(f"Model saved to {save_path}")
