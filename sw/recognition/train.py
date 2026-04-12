@@ -216,9 +216,7 @@ def prepare_realEval_data(args: argparse.Namespace) -> Tuple[Any, Any]:
     ref_dataset = InferenceDataset(ref_files, transform=transform)
     ref_loader = DataLoader(ref_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-    real_files = [
-        p for p in Path(args.real_val_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
-    ]
+    real_files = list(Path(args.ref_dir).glob("*.png"))  #! CHANGE ME
     real_dataset = RealValidationDataset(real_files, transform=transform, img_size=args.img_size)
     real_loader = DataLoader(real_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
