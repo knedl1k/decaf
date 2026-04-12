@@ -205,6 +205,24 @@ def init_training_regime(
     return model, criterion, optimizer, scheduler
 
 
+def prepare_realEval_data(args: argparse.Namespace) -> Tuple[Any, Any]:
+    if not args.real_val_dir:
+        return None, None
+
+    from data import InferenceDataset, RealValidationDataset
+
+    transform = get_inference_transforms(args.img_size)
+    ref_files = list(Path(args.ref_dir).glob("*.png"))
+    ref_dataset = InferenceDataset(ref_files, transform=transform)
+    ref_loader = DataLoader(ref_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+    real_files = list(Path(args.ref_dir).glob("*.png"))  #! CHANGE ME
+    real_dataset = RealValidationDataset(real_files, transform=transform, img_size=args.img_size)
+    real_loader = DataLoader(real_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+    return real_loader, ref_loader
+
+
 def train_one_epoch(
     model: nn.Module,
     dataloader: DataLoader,
@@ -252,20 +270,7 @@ def main():
 
     train_loader, val_loader, sampler, num_classes = prepare_data(args, is_master)
 
-    real_loader, ref_loader = None, None
-    if args.real_val_dir:
-        from data import InferenceDataset, RealValidationDataset
-
-        transform = get_inference_transforms(args.img_size)
-        ref_files = list(Path(args.ref_dir).glob("*.png"))
-        ref_dataset = InferenceDataset(ref_files, transform=transform)
-        ref_loader = DataLoader(ref_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-
-        real_files = [
-            p for p in Path(args.real_val_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
-        ]
-        real_dataset = RealValidationDataset(real_files, transform=transform, img_size=args.img_size)
-        real_loader = DataLoader(real_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+    real_loader, ref_loader = prepare_realEval_data(args)
 
     model, criterion, optimizer, scheduler = init_training_regime(
         num_classes, args, local_rank, device, len(train_loader)
@@ -280,11 +285,7 @@ def main():
 
         if is_master:
             metrics = evaluate_metrics(model.module, val_loader, device)
-            if real_loader and ref_loader:
-                metrics["real_top1"] = evaluate_real_domain(model.module, real_loader, ref_loader, device)
-                print(f"Real Photo Top-1 Accuracy: {metrics['real_top1']:.2f}%")
-            else:
-                metrics["real_top1"] = 0.0
+            metrics["real_top1"] = None
 
             print_metrics(metrics, epoch)
             current_lr = optimizer.param_groups[1]["lr"]
@@ -292,10 +293,13 @@ def main():
             save_history(history, f"{args.save_dir}/history.npy")
             # plot_training_curves(history, args.save_dir)
 
-            if (epoch + 1) % 5 == 0 or epoch == args.epochs:
+            if epoch % 5 == 0 or epoch == args.epochs:
                 save_path = os.path.join(args.save_dir, f"arcface_mtg_ep{epoch}.pth")
                 save_checkpoint(model.module, optimizer, scheduler, epoch, history, save_path)
                 print(f"Model saved to {save_path}")
+                if real_loader and ref_loader:
+                    metrics["real_top1"] = evaluate_real_domain(model.module, real_loader, ref_loader, device)
+                    print(f"Real Photo Top-1 Accuracy: {metrics['real_top1']:.2f}%")
 
         dist.barrier()
 

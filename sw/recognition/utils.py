@@ -36,7 +36,7 @@ def evaluate_real_domain(
             imgs = imgs.to(device)
             emb = torch.nn.functional.normalize(model(imgs), p=2, dim=1)
             db_vectors.append(emb.cpu())
-            db_names.extend([parse_labeled_name(n) for n in names])
+            db_names.extend([n.stem for n in names])
 
     db_matrix = torch.cat(db_vectors)  # [DB_Size, 512]
 
@@ -57,7 +57,7 @@ def evaluate_real_domain(
                     correct_1 += 1
                 total += 1
 
-    return (correct_1 / total * 100.0) if total > 0 else 0.0
+    return (100.0 * correct_1 / total) if total > 0 else 0.0
 
 
 def parse_labeled_name(filename_stem: str) -> str:
@@ -233,6 +233,7 @@ def evaluate_metrics(
 def print_metrics(metrics: Dict[str, float], epoch: int):
     print(f"--- VALIDATION RESULTS (Epoch {epoch}) ---")
     print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
+    print(f"Top-1 (Synth): {metrics['top1_acc'] * 100:.2f} %")
     print(f"Threshold:     {metrics['threshold']:.4f}")
     print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
     print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")

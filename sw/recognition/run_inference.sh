@@ -6,7 +6,7 @@ ml Albumentations/2.0.8-foss-2025b-CUDA-12.9.1
 ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
 ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
-MODEL_PATH="./check/arcface_mtg_final.pth"
+MODEL_PATH="./check/arcface_mtg_ep60.pth"
 DATABASE_PATH="card_database.pth"
 TEST_IMG="../001.png"
 
