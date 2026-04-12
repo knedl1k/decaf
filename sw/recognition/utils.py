@@ -36,7 +36,7 @@ def evaluate_real_domain(
             imgs = imgs.to(device)
             emb = torch.nn.functional.normalize(model(imgs), p=2, dim=1)
             db_vectors.append(emb.cpu())
-            db_names.extend([n.stem for n in names])
+            db_names.extend(names)
 
     db_matrix = torch.cat(db_vectors)  # [DB_Size, 512]
 
