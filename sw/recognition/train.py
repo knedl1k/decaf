@@ -14,7 +14,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from lr_scheduler import PolynomialLRWarmup
 
 from model import MTGReconModel
 from data import (
@@ -190,17 +190,17 @@ def init_training_regime(
         + list(model.module.arcface.parameters())
     )
 
-    optimizer = optim.AdamW(
-        [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}], weight_decay=1e-4
+    optimizer = optim.SGD(
+        [{"params": backbone_params, "lr": args.lr * 0.1}, {"params": head_params, "lr": args.lr}],
+        momentum=0.9,
+        weight_decay=5e-4,
     )
 
     total_steps = args.epochs * steps_per_epoch
     warmup_epochs = 2
     warmup_iters = warmup_epochs * steps_per_epoch
 
-    warmup_scheduler = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_iters)
-    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=(total_steps - warmup_iters), eta_min=1e-6)
-    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_iters])
+    scheduler = PolynomialLRWarmup(optimizer, warmup_iters=warmup_iters, total_iters=total_steps, power=2.0)
 
     return model, criterion, optimizer, scheduler
 

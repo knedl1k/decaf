@@ -31,5 +31,5 @@ torchrun \
     --ref_dir="$REF_DIR" \
     --real_val_dir="$REAL_DIR" \
     --save_dir="$SAVE_DIR" \
-    --lr=3e-4 \
+    --lr=0.1 \
     --epochs=60
