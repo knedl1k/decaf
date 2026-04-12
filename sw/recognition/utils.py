@@ -36,7 +36,7 @@ def evaluate_real_domain(
             imgs = imgs.to(device)
             emb = torch.nn.functional.normalize(model(imgs), p=2, dim=1)
             db_vectors.append(emb.cpu())
-            db_names.extend([parse_labeled_name(n) for n in names])
+            db_names.extend([n.stem for n in names])
 
     db_matrix = torch.cat(db_vectors)  # [DB_Size, 512]
 
@@ -57,7 +57,7 @@ def evaluate_real_domain(
                     correct_1 += 1
                 total += 1
 
-    return (correct_1 / total * 100.0) if total > 0 else 0.0
+    return (100.0 * correct_1 / total) if total > 0 else 0.0
 
 
 def parse_labeled_name(filename_stem: str) -> str:
