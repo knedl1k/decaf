@@ -113,13 +113,10 @@ class RealValidationDataset(Dataset):
 
         print(f"Pre-computing homography crops for {len(image_paths)} real images...")
         for path in image_paths:
-            try:
-                warped, _ = detect_and_crop_card(str(path), output_size=img_size)
-                if warped is not None:
-                    rgb_img = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
-                    self.valid_data.append((rgb_img, path.stem))
-            except Exception as e:
-                print(f"Skipping {path.name} due to cropping error: {e}")
+            warped, _ = detect_and_crop_card(str(path), output_size=img_size)
+            if warped is not None:
+                rgb_img = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
+                self.valid_data.append((rgb_img, path.stem))
 
     def __len__(self) -> int:
         return len(self.valid_data)
