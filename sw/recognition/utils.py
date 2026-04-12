@@ -57,6 +57,7 @@ def evaluate_real_domain(
                     correct_1 += 1
                 total += 1
 
+    print(f"DEBUG: abs. correct_1: {correct_1}.")
     return (100.0 * correct_1 / total) if total > 0 else 0.0
 
 
