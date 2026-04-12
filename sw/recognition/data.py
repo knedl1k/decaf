@@ -11,9 +11,6 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from typing import List, Dict, Tuple, Callable, Union
 
-# prevent OpenCV from spawning too many threads in DataLoader workers
-cv2.setNumThreads(0)
-
 
 def get_inference_transforms(img_size: int) -> A.Compose:
     """Transforms for validation gallery, database creation, and single-image inference."""
