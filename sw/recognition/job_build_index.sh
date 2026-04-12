@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1         # 1 main process
 #SBATCH --cpus-per-task=4           # 4 CPU cores for DataLoader
 #SBATCH --gres=gpu:1                # 1 GPU card
-#SBATCH --partition=gpufast
+#SBATCH --partition=h200fast
 #SBATCH --mem=32G                   # RAM
 #SBATCH --time=4:00:00              # time limit
 #SBATCH --output=logs/idx_%j.out
@@ -19,7 +19,7 @@ ml Albumentations/2.0.8-foss-2025b-CUDA-12.9.1
 ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
 ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
-MODEL_PATH="./check/arcface_mtg_final.pth"
+MODEL_PATH="./check/arcface_mtg_ep60.pth"
 IMG_DIR="/mnt/personal/adamej14/dataset"
 OUT_PATH="./card_database.pth"
 
