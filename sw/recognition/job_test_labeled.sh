@@ -25,6 +25,8 @@ DATASET_DIR="/mnt/personal/adamej14/dataset"
 LABELED_DIR="$HOME/labeled"
 DEBUG_DIR="check/eval_debug"
 
+rm -rf $DEBUG_DIR
+
 srun python3 evaluate_labeled.py \
     --model "$MODEL_PATH" \
     --database "$DB_PATH" \

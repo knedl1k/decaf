@@ -35,6 +35,7 @@ def extract_features_from_real_photos(
     transform,
     img_size: int,
     device: torch.device,
+    db_vectors: torch.Tensor,
     debug_dir: str = None,
 ) -> Tuple[torch.Tensor, List[str]]:
     """
@@ -45,15 +46,16 @@ def extract_features_from_real_photos(
     valid_paths = []
     total_images = len(image_paths)
 
-    print("Extracting features with on-the-fly cropping...")
     with torch.no_grad():
         for i, path in enumerate(image_paths):
-            warped_card, debug_card = detect_and_crop_card(str(path), output_size=img_size)
+            warped_card, debug_card = detect_and_crop_card(str(path), output_height=img_size)
 
+            inputs_dir = None
             if debug_dir is not None and debug_card is not None:
                 cv2.imwrite(os.path.join(debug_dir, path.name), debug_card)
                 if warped_card is not None:
-                    cv2.imwrite(os.path.join(debug_dir, "inputs", path.name), warped_card)
+                    inputs_dir = os.path.join(debug_dir, "inputs")
+                    os.makedirs(inputs_dir, exist_ok=True)
 
             if warped_card is None:
                 print(f"Warning: Failed to crop {path.name}. Using raw image.")
@@ -64,12 +66,24 @@ def extract_features_from_real_photos(
             else:
                 img = cv2.cvtColor(warped_card, cv2.COLOR_BGR2RGB)
 
-            img_tensor = transform(image=img)["image"].unsqueeze(0).to(device)
-
-            emb = model(img_tensor)
+            img_tensor_0 = transform(image=img)["image"].unsqueeze(0).to(device)
+            img_tensor_180 = torch.flip(img_tensor_0, dims=[2, 3])
+            batch = torch.cat([img_tensor_0, img_tensor_180], dim=0)
+            emb = model(batch)
             emb = torch.nn.functional.normalize(emb, p=2, dim=1)
+            sims = torch.mm(emb, db_vectors.t())
+            max_scores, _ = torch.max(sims, dim=1)
+            if max_scores[1] > max_scores[0]:
+                vectors.append(emb[1:2].cpu())
 
-            vectors.append(emb.cpu())
+                if inputs_dir is not None and warped_card is not None:
+                    rotated_debug = cv2.rotate(warped_card, cv2.ROTATE_180)
+                    cv2.imwrite(os.path.join(inputs_dir, path.name), rotated_debug)
+            else:
+                vectors.append(emb[0:1].cpu())
+                if inputs_dir is not None and warped_card is not None:
+                    cv2.imwrite(os.path.join(inputs_dir, path.name), warped_card)
+
             valid_paths.append(path)
 
             if (i + 1) % 10 == 0 or (i + 1) == total_images:
@@ -143,9 +157,8 @@ def main():
 
     transform = get_inference_transforms(args.img_size)
 
-    # Feature extraction includes explicit alignment via detect_and_crop_card
     queries_cpu, valid_paths = extract_features_from_real_photos(
-        all_files, model, transform, args.img_size, device, args.debug_dir
+        all_files, model, transform, args.img_size, device, db_vectors, args.debug_dir
     )
 
     print("Calculating similarities...")

@@ -70,10 +70,9 @@ def parse_labeled_name(filename_stem: str) -> str:
     return re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", filename_stem).strip()
 
 
-def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
-    """
-    Detects a single card and extracts it via homography.
-    """
+def detect_and_crop_card(image_path: str, output_height: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
+    output_width = int(output_height / 1.3968)
+
     img = cv2.imread(image_path)
     if img is None:
         raise FileNotFoundError(f"Image not readable or missing: {image_path}")
@@ -81,66 +80,51 @@ def detect_and_crop_card(image_path: str, output_size: int = 512) -> Tuple[Optio
     debug_img = img.copy()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    h, w = gray.shape
-    img_area = h * w
+    blur = cv2.bilateralFilter(gray, 11, 75, 75)
 
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blur, 40, 150)
 
-    edges = cv2.Canny(blur, 30, 100)
-
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
     closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
-    contours, _ = cv2.findContours(closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    card_contour = None
-    for c in contours:
-        area = cv2.contourArea(c)
-
-        if area < 0.10 * img_area or area > 0.95 * img_area:
-            continue
-
-        perimeter = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * perimeter, True)
-
-        hull = cv2.convexHull(c)
-        hull_perimeter = cv2.arcLength(hull, True)
-        hull_approx = cv2.approxPolyDP(hull, 0.02 * hull_perimeter, True)
-
-        if len(approx) == 4:
-            card_contour = approx
-            break
-        elif len(hull_approx) == 4:
-            card_contour = hull_approx
-            break
-
-    if card_contour is None:
-        cv2.drawContours(debug_img, contours[:5], -1, (0, 0, 255), 2)
-        print("Warning: No distinct quadrilateral detected.")
+    if not contours:
         return None, debug_img
 
-    cv2.drawContours(debug_img, [card_contour], -1, (0, 255, 0), 3)
-    pts = card_contour.reshape(4, 2).astype("float32")
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    largest_contour = contours[0]
 
-    center = np.mean(pts, axis=0)
-    angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
-    pts_sorted = pts[np.argsort(angles)]
+    rect = cv2.minAreaRect(largest_contour)
+    box = cv2.boxPoints(rect)
+    box = np.float32(box)
 
-    s = pts_sorted.sum(axis=1)
-    tl_idx = np.argmin(s)
-    rect = np.roll(pts_sorted, -tl_idx, axis=0)
+    cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 255, 0), 3)
 
-    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
-    for i, pt in enumerate(rect):
-        cv2.circle(debug_img, (int(pt[0]), int(pt[1])), 15, colors[i], -1)
+    xSorted = box[np.argsort(box[:, 0]), :]
+    leftMost = xSorted[:2, :]
+    rightMost = xSorted[2:, :]
 
-    dst = np.array(
-        [[0, 0], [output_size - 1, 0], [output_size - 1, output_size - 1], [0, output_size - 1]], dtype="float32"
+    leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
+    (tl, bl) = leftMost
+
+    rightMost = rightMost[np.argsort(rightMost[:, 1]), :]
+    (tr, br) = rightMost
+
+    width = np.linalg.norm(tr - tl)
+    height = np.linalg.norm(bl - tl)
+
+    if width > height:
+        src_pts = np.array([bl, tl, tr, br], dtype="float32")
+    else:
+        src_pts = np.array([tl, tr, br, bl], dtype="float32")
+
+    dst_pts = np.array(
+        [[0, 0], [output_width - 1, 0], [output_width - 1, output_height - 1], [0, output_height - 1]], dtype="float32"
     )
 
-    matrix = cv2.getPerspectiveTransform(rect, dst)
-    warped_card = cv2.warpPerspective(img, matrix, (output_size, output_size))
+    matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    warped_card = cv2.warpPerspective(img, matrix, (output_width, output_height))
 
     return warped_card, debug_img
 
