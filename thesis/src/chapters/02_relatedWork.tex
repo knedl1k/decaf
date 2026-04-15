@@ -2,12 +2,12 @@
 
 The automation of trading card sorting is a multi-disciplinary problem intersecting mechanical engineering, robotics, and computer vision. While the market for \acp{TCG} has existed for decades, automated solutions have only recently become viable due to advancements in deep learning and affordable rapid prototyping tools. This chapter reviews existing commercial systems and relevant academic literature, categorizing them into mechanical handling solutions and algorithmic recognition strategies.
 
-\section{Commercial Solutions}
+\section{Commercial Solutions}\label{sec:commercial_solutions}
 The current market for automated sorting is dominated by high-cost, closed-source proprietary systems. These machines are typically designed for high-volume businesses rather than individual collectors.
 
 \subsection{Hardware-Based Sorters}
 \begin{itemize}
-    \item The \ii{PhyzBatch-9000} by \ii{\ac{TCG} Machines} \cite{tcgmachines} represents the industrial standard. It addresses a specific computer vision challenge: holographic glare. By utilizing specialized LED arrays and diffusers, the machine controls lighting conditions to detect \enquote{foil} cards, which are prone to over-exposure in standard camera setups.
+    \item The \ii{PhyzBatch-9000} by \ii{\ac{TCG} Machines} \cite{tcgmachines} represents the industrial standard. It addresses a specific computer vision challenge: holographic glare. By utilizing specialized LED arrays and diffusers, the machine controls lighting conditions to detect \enquote{foil} cards\footnote{Foil cards are premium variants printed with a holographic or metallic layer, resulting in a highly reflective surface. They are generally rarer and hold a higher market value than standard non-foil cards.}, which are prone to over-exposure in standard camera setups.
     \item \ii{CardBot} \cite{cardbot} differs in its handling mechanism. Unlike friction-based feeders, which can scratch the surface of cards, \ii{CardBot} uses a pneumatic suction system. This approach minimizes physical contact with the card surface, which is essential to prevent damage to the cards.
     \item \ii{Magic Sorter} \cite{magicsorter} offers a more compact alternative, focusing specifically on \ac{MTG} cards. It integrates a feeder mechanism with a custom software suite, demonstrating the tight coupling between hardware and proprietary databases common in commercial tools.
 \end{itemize}
@@ -18,31 +18,51 @@ Apart from hardware, pure software solutions attempt to streamline the catalogin
 \section{Algorithmic Approaches to Recognition}
 The core challenge in automating \ac{TCG} sorting is the reliable identification of card artwork among tens of thousands of similar classes. Research in this domain generally falls into two categories: \ac{OCR} and \ac{VSL}.
 
-% \subsection{OCR and Text-Based Identification}
-% A traditional approach involves reading the card's title and set code. A case study by \ii{Oodles Technologies} for \ii{Erie \ac{TCG}} \cite{erietcg} explored this using \ac{NER} and \ac{OCR}. 
+\subsection{OCR and Text-Based Identification}\label{subsec:ocr_limitations}
+A baseline for card identification involves isolating the text region of a card, extracting it using \ac{OCR} and matching the result against a database using fuzzy string matching.
 
-% While theoretically sound, this approach struggles in practice due to the \enquote{artistic} nature of \acp{TCG}. Text is often stylized, obscured by artwork elements, or printed on holographic backgrounds that confuse standard \ac{OCR} engines. Consequently, text extraction is often computationally expensive and brittle compared to visual matching.
+While conceptually straightforward, this approach encounters severe limitations in practice. Foundational evaluations of \ac{STR}\footnote{\ac{STR} refers to the computational task of detecting and reading text embedded within unconstrained, natural images (e.g., street signs or photographs of physical objects), as opposed to processing clean, structured document scans.} models, such as the comprehensive study by Baek et al. \cite{baek2019wrong}, have empirically demonstrated that state-of-the-art \ac{OCR} systems suffer critical accuracy degradation when confronted with artistic fonts, complex backgrounds or low-resolution inputs (see \reffig{fig:card_comparison} for example).
+
+These exact failure modes are highly prevalent in the \ac{TCG} domain; publishers release premium sets with highly stylized, non-standard typography. A notable example is the card \ii{Counterspell}: while its standard printings use a highly legible font, its \ii{Amonkhet Invocations} variant features a hieroglyphic-inspired typography that breaks traditional \ac{OCR} assumptions, as shown in \reffig{fig:counterspell_typography}.
+\begin{figure}[htbp]
+    \centering
+    \subfloat[\ii{Modern Horizons 2} edition.] {
+        \includegraphics[width=0.35\textwidth]{./fig/photos/mh2-267-counterspell.jpg}
+    }
+    \subfloat[\ii{Amonkhet Invocations} edition.] {
+        \includegraphics[width=0.35\textwidth]{./fig/photos/mp2-10-counterspell.jpg}
+    }
+    \caption{Visual comparison of typography for the \ac{MTG} card \ii{Counterspell}. The hieroglyphic-inspired font of the variant (b) illustrates the limitations of applying standard \ac{OCR} engines to \ac{TCG} identification compared to the image (a). Images sourced via the Scryfall API~\cite{scryfall}.}
+    \label{fig:counterspell_typography}
+\end{figure}
+
+However, the most significant motivation to avoid \ac{OCR} is the requirement for spatial resolution and scale invariance. A robust recognition pipeline must be capable of identifying cards not only within the controlled, close-up environment of a sorting machine but also from farther viewpoints. Emerging use cases include analyzing tournament gameplay streams from top-down cameras or supporting hybrid physical-digital play formats via desk-mounted webcams. In these scenarios, the text on the card is typically illegible due to distance, poor lighting, motion blur and/or video compression artifacts. 
+
+In contrast, a card's artwork occupies a significantly larger portion of the surface area and functions as a distinct visual fingerprint. Recognizing the card holistically through visual feature matching allows the system to identify the object from a distance, even when the text is entirely reduced to sub-pixel noise. This makes visual similarity a far more versatile and robust solution than \ac{OCR}.
 
 \subsection{Visual Similarity and Metric Learning}
 Modern approaches favor deep learning techniques that treat the card as a holistic visual fingerprint rather than a text document.
 
 \subsubsection{Siamese Networks}
-Lowhur \cite{lowhuryugioh} demonstrated a highly effective system for \ii{Yu-Gi-Oh!} cards achieving 99\% accuracy. The methodology moves away from standard classification (which requires retraining for every new card set) to \ii{Metric Learning}. 
+Lowhur~\cite{lowhuryugioh} demonstrated a highly effective system for \ii{Yu-Gi-Oh!} cards achieving 99\% accuracy. The methodology moves away from standard classification (which requires retraining for every new card set) to \ii{Metric Learning}. 
 
-By utilizing Siamese Networks and triplet loss functions, the model learns an embedding space where images of the same card are clustered together. This allows the system to identifying cards by comparing their feature vectors against a database, a technique known as \ii{One-Shot Learning}.
+By utilizing Siamese Networks and triplet loss functions, the model optimizes a metric space where images of the same card are tightly clustered together. During inference, this allows the system to identify cards by extracting their feature vectors and finding the nearest match in a reference database. As a result, the identification problem shifts from standard classification to a task of \ii{embedding-based visual retrieval}, where identification relies solely on visual similarity within the learned embedding space.
 
 \subsection{Object Detection and Robotics Integration}
-Recent academic work has focused on the pipeline of locating objects and manipulating them.
+While object detection is a deeply studied and mature field within the computer vision community, its specific application to the localization and physical manipulation of thin paper objects remains a specialized domain. This section provides an overview of relevant academic literature, focusing specifically on the integration of established real-time detection architectures with robotic handling systems for card manipulation.
 
 \subsubsection{YOLO for Real-Time Detection}
+Within the domain of real-time object detection, the \ac{YOLO}~\cite{yolo} family of models has emerged as the \textit{de facto} standard. Unlike traditional two-stage detectors that rely on computationally expensive region proposal networks, \ac{YOLO} frames object detection as a single regression problem. The architecture divides the input image into an $S \times S$ spatial grid. For each grid cell, the network simultaneously predicts bounding box coordinates, an \enquote{objectness} confidence score and class probabilities. This unified, single-pass approach allows for extremely fast inference speeds, making it highly suitable for integration into real-time robotic control loops.
+
+Because it is an actively developed architecture, several iterations exist (e.g., \ac{YOLO}v5, \ac{YOLO}v8), each offering improved trade-offs between computational efficiency and localization accuracy. Due to its robustness, \ac{YOLO} has been successfully applied to physical card detection tasks, as documented in the following studies:
 The \ac{YOLO} architecture is the standard for real-time localization.
 \begin{itemize}
-    \item Robotic Integration: Yu \cite{pokerrobot} validated the integration of vision and pneumatics in a self-playing poker robot. The study successfully combined \ac{YOLO}v5 for card localization with a suction-cup robotic arm. This provides a direct precedent for the hardware-software integration proposed in this thesis, confirming that suction mechanisms are viable for thin card stock.
-    \item Pipeline Validation: Freitter \cite{idcardverification} proposes a pipeline for ID card verification that mirrors the requirements of \ac{TCG} sorting: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}. This \enquote{two-stage} approach: first finding the object, then identifying it; is robust against background noise and variable lighting.
+    \item Robotic Integration: Yu~\cite{pokerrobot} validated the integration of vision and pneumatics in a self-playing poker robot. The study successfully combined \ac{YOLO}v5 for card localization with a suction-cup robotic arm. This provides a direct precedent for the hardware-software integration proposed in this thesis, confirming that suction mechanisms are viable for thin card stock.
+    \item Pipeline Validation: Freitter~\cite{idcardverification} proposes a pipeline for ID card verification that mirrors the requirements of \ac{TCG} sorting: segmentation using \ac{YOLO}v8 followed by classification using \ac{ResNet}. This \enquote{two-stage} approach: first finding the object, then identifying it; is robust against background noise and variable lighting.
 \end{itemize}
 
 \subsubsection{The Data Scarcity Problem}\label{sec:scarcity}
 One of the main challenges in training neural networks for \acp{TCG} is the lack of labeled training data for the millions of unique cards in circulation. Pua \cite{pokemonstanford} addressed this in a study on \ii{Pokémon} card detection. Instead of manually photographing thousands of cards, the authors developed a \ii{Synthetic Data Generation} pipeline. By projecting digital card scans onto varying backgrounds and applying simulated lighting, noise, and occlusions, they successfully trained a robust \ac{YOLO}v8 model. This methodology highlights that synthetic data is not only a time-saver but a necessity for achieving high robustness in \ac{TCG} recognition.
 
 \section{Summary}
-While current commercial solutions, such as \ii{CardBot}, offer robust hardware, they remain inaccessible due to high costs and closed ecosystems. In contrast, academic research provides the fundamental building blocks: \ac{YOLO} for detection \cite{pokerrobot}, synthetic data for training \cite{pokemonstanford}, and Siamese networks for identification \cite{lowhuryugioh}. However, it rarely integrates them into a complete open-source device, let alone into easily reproducible learning material for enthusiasts.
+While current commercial solutions, such as \ii{CardBot}, offer robust hardware, they remain inaccessible due to high costs and closed ecosystems. In contrast, academic research provides the fundamental building blocks: \ac{YOLO} for detection~\cite{pokerrobot, yolo}, synthetic data for training~\cite{pokemonstanford} and \ac{DML} for robust, open-set identification~\cite{lowhuryugioh}. However, academic literature rarely integrates these distinct methodologies into a complete open-source device, let alone into easily reproducible learning material for enthusiasts.
