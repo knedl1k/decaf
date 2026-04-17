@@ -165,14 +165,14 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded. The recognition is then performed solely by computing the cosine similarity between the extracted query embedding $\mathbf{x}_q = f(\mathbf{I}_q)$ and the database of reference embeddings.
 
 \section{Model Architecture}
-The complete end-to-end inference pipeline, illustrated in Figure~\ref{fig:pipeline_flow}, consists of three high-level operational blocks: image preprocessing, feature extraction, and similarity matching. 
+To ensure the network focuses exclusively on card features rather than background clutter, the complete system implements a two-stage pipeline, as illustrated in Figure~\ref{fig:pipeline_flow}. Phase 0 (Localization) utilizes an OpenCV-based detection script to locate the bounding box of the physical card within the raw camera frame, extracting it as a tightly cropped query image ($\mathbf{I}_q$). This image is then passed into the core neural network for feature extraction (Phase 1) and subsequent similarity matching (Phase 2).
 \begin{figure}[H]
     \centering
-    \includegraphics[width = 1\textwidth]{fig/plots/pipeline_flow.png}
+    \resizebox{\textwidth}{!}{\input{./fig/tikz/architecture.tex}}
     \caption{The end-to-end inference pipeline used in this thesis.}
     \label{fig:pipeline_flow}
 \end{figure}
-However, the core neural network (\texttt{MTGReconModel}) utilized for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
+The core neural network (\texttt{MTGReconModel}) utilized for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
 
 \subsection{Backbone Network}
 The foundational feature extractor is a ResNet-50~\cite{He2015} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.

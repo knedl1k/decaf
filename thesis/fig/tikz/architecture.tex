@@ -1,0 +1,89 @@
+\documentclass[tikz, border=10pt]{standalone}
+\usepackage{amsmath, amssymb}
+\usetikzlibrary{positioning, shapes.geometric, arrows.meta, fit, backgrounds, calc}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=Stealth,
+    node distance=0.8cm and 0.8cm,
+    font=\sffamily\small,
+    data/.style={trapezium, trapezium left angle=75, trapezium right angle=105, draw=blue!60, fill=blue!10, minimum height=1.2cm, align=center, inner xsep=10pt},
+    process/.style={rectangle, rounded corners, draw=black!60, fill=gray!10, minimum height=1.2cm, minimum width=1.8cm, align=center},
+    model/.style={rectangle, rounded corners, draw=red!60, fill=red!10, minimum height=1.2cm, minimum width=1.8cm, align=center},
+    discarded/.style={rectangle, rounded corners, draw=gray!50, fill=gray!5, dashed, minimum height=1.2cm, minimum width=2.2cm, align=center, text=gray},
+    database/.style={cylinder, shape border rotate=90, aspect=0.25, draw=blue!60, fill=blue!10, minimum height=1.5cm, minimum width=2cm, align=center},
+    output/.style={trapezium, trapezium left angle=75, trapezium right angle=105, draw=green!60!black, fill=green!10, minimum height=1.2cm, align=center, inner xsep=10pt},
+    group/.style={rectangle, draw=blue!80, dashed, inner sep=14pt, rounded corners=5pt}
+]
+
+\node[data] (img) {
+    Query Image \\ $\mathbf{I}_q \in \mathcal{I}$ 
+    \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/croppedCard.png}
+};
+
+\node[process, right=1.2cm of img] (prep1) {Aspect-Preserving \\ Resize};
+\node[process, right=0.5cm of prep1] (prep2) {$512 \times 512$ px \\ padding};
+\node[process, right=0.5cm of prep2] (prep3) {Normalize};
+
+\node[process, right=1.5cm of prep3] (resnet) {ResNet50 \\ Backbone};
+\node[model, right=0.5cm of resnet] (embed) {Embedding \\ Head};
+
+\node[discarded, right=1.2cm of embed] (arcface) {ArcFace Head \\ (logits $\mathbf{W}^\intercal \mathbf{x}_q$)};
+% \draw[red, thick] (arcface.north west) -- (arcface.south east);
+% \draw[red, thick] (arcface.south west) -- (arcface.north east);
+\node[above=0.05cm of arcface, text=red!80, font=\scriptsize\bfseries] {discarded @ inference};
+
+\begin{scope}[on background layer]
+    \node[group, fit=(prep1)(prep2)(prep3), label={[anchor=south, font=\sffamily\bfseries]above:Preprocessing}] (prep_group) {};
+    \node[group, fit=(resnet)(embed)(arcface), label={[anchor=south, font=\sffamily\bfseries]above:MTGReconModel}] (model_group) {};
+\end{scope}
+
+\node[font=\sffamily\large\bfseries, above=0.5cm of prep_group] (phase1) {Phase 1: Feature Extraction};
+
+
+\node[process, above=2cm of prep1] (opencv) {OpenCV\\Card Extraction};
+\node[data, right=4.5cm of opencv] (raw_cam) {
+    Raw Camera Photo
+    \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/realCard.png}
+};
+\node[font=\sffamily\large\bfseries, above=0.4cm of opencv] (phase0) {Phase 0: Localization};
+
+\draw[->, thick, draw=black!70] (raw_cam) -- (opencv);
+\draw[->, thick, draw=black!70] (opencv.west) -| node[pos=0.25, above, font=\scriptsize] {Cropped} (img.north);
+
+
+\node[data, below=2.5cm of img] (raw_emb) {Raw Embedding \\ $\mathbf{v}_q \in \mathbb{R}^d$};
+\node[process, right=1cm of raw_emb] (l2) {$L_2$ Normalization \\ $\mathbf{x}_q = \frac{\mathbf{v}_q}{\|\mathbf{v}_q\|}$};
+\node[data, right=1cm of l2] (q_vec) {Query Vector \\ $\mathbf{x}_q = f(\mathbf{I}_q)$};
+\node[database, below=1cm of q_vec] (db) {Gallery Embeddings \\ $\mathbf{D} \in \mathbb{R}^{N \times d}$};
+\node[process, right=1.5cm of q_vec] (sim) {Cosine Similarity \\ $\mathbf{s} = \mathbf{x}_q \mathbf{D}^\intercal$};
+\node[process, right=0.5cm of sim] (topk) {Top-K Result \\ $\arg\max(\mathbf{s})$};
+\node[output, right=1.2cm of topk] (out) {
+    Recognized Card \\ $\hat{y}$
+    \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/cleanCard.png}
+};
+
+\begin{scope}[on background layer]
+    \node[group, fit=(sim)(topk), label={[anchor=south, font=\sffamily\bfseries]above:Matching Engine}] (match_group) {};
+\end{scope}
+
+\node[font=\sffamily\large\bfseries, above=0.8cm of l2] (phase2) {Phase 2: Similarity Matching};
+
+\draw[->, thick, draw=blue!70] (img) -- (prep_group);
+\draw[->, thick, draw=blue!70] (prep1) -- (prep2);
+\draw[->, thick, draw=blue!70] (prep2) -- (prep3);
+\draw[->, thick, draw=blue!70] (prep_group) -- (model_group);
+\draw[->, thick, draw=blue!70] (resnet) -- (embed);
+\draw[->, thick, dashed, draw=gray!60] (embed) -- node[above, font=\scriptsize] {$\mathbf{v}_q$} (arcface);
+
+\draw[->, thick, draw=blue!70] (raw_emb) -- (l2);
+\draw[->, thick, draw=blue!70] (l2) -- (q_vec);
+\draw[->, thick, draw=blue!70] (q_vec) -- (match_group);
+\draw[->, thick, draw=blue!70] (db) -| ([xshift=-10pt]sim.south);
+\draw[->, thick, draw=blue!70] (sim) -- (topk);
+\draw[->, thick, draw=blue!70] (match_group) -- (out);
+
+\draw[->, thick, draw=blue!70, dashed] (embed.south) |- ++(0,-2) -| (raw_emb.north) node[pos=0.25, above, font=\scriptsize] {Forward Pass Output};
+
+\end{tikzpicture}
+\end{document}
