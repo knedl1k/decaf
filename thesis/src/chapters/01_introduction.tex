@@ -10,10 +10,10 @@ Currently, individuals and businesses seeking to effectively index and sort card
 The primary motivation for this work is the lack of accessible and affordable tools for automating card indexing. Existing consumer machines often fail to meet specific requirements, are unavailable in certain geographical regions, or lack the robustness needed to handle valuable collectibles without damaging them. 
 
 \noindent
-From a technical perspective, the challenge is twofold:
-\begin{enumerate}[(a)]
-    \item \ii{Mechanical:} Designing a sorting mechanism that handles delicate paper objects reliably without jamming or causing surface damage.
-    \item \ii{Computational:} Developing a computer vision pipeline capable of fine-grained classification. Although traditional text-based identification using \ac{OCR} may seem intuitive, it is inherently unreliable in this field (as further detailed in \refsec{subsec:ocr_limitations}). \acp{TCG} are printed in many languages, which requires complex processes for multilingual text recognition, and small localized fonts are often illegible at standard camera distances or resolutions. In contrast, the graphics on the card occupy a significantly larger area and serve as the primary visual identifier. The system must therefore perform highly accurate feature extraction directly from the graphics, distinguish between cards that would otherwise have identical layouts, and remain robust against changing lighting conditions.
+From a technical perspective, the challenge is
+\begin{enumerate}
+    \item \ii{Mechanical}: Designing a sorting mechanism that handles delicate paper objects reliably without jamming or causing surface damage.
+    \item \ii{Computational}: Developing a computer vision pipeline capable of fine-grained classification. Although traditional text-based identification using \ac{OCR} may seem intuitive, it is inherently unreliable in this field (as further detailed in \refsec{subsec:ocr_limitations}). \acp{TCG} are printed in many languages, which requires complex processes for multilingual text recognition, and small localized fonts are often illegible at standard camera distances or resolutions. In contrast, the graphics on the card occupy a significantly larger area and serve as the primary visual identifier. The system must therefore perform highly accurate feature extraction directly from the graphics, distinguish between cards that would otherwise have identical layouts, and remain robust against changing lighting conditions.
 \end{enumerate}
 
 \section{Objectives}

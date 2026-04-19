@@ -12,7 +12,7 @@ To further optimize memory footprint and memory bandwidth, \ii{mixed precision} 
 \section{Inference and Embedding Retrieval}
 Once the network is trained, the ArcFace classification head is entirely discarded. The system transitions from a classification paradigm to a \ii{Nearest Neighbor Search} retrieval task. 
 
-Prior to deployment, a reference database is constructed by passing the clean digital templates of all known cards through the trained ResNet-50 backbone. This yields a dense matrix $\mathbf{D} \in \mathbb{R}^{N \times d}$, where $N$ is the total number of cataloged cards and $d = 512$ is the embedding dimension. Because the output of the embedding head is strictly $L_2$-normalized, the distance metric simplifies significantly. 
+Prior to deployment, a reference database is constructed by passing the clean digital templates of all known cards through the trained \ac{ResNet}-50 backbone. This yields a dense matrix $\mathbf{D} \in \mathbb{R}^{N \times d}$, where $N$ is the total number of cataloged cards and $d = 512$ is the embedding dimension. Because the output of the embedding head is strictly $L_2$-normalized, the distance metric simplifies significantly. 
 
 During live sorting, the physical camera captures a query image, which is mapped to a single vector $\mathbf{q} \in \mathbb{R}^{1 \times d}$. The similarity between the queried card and the entire database is
 \begin{equation}
