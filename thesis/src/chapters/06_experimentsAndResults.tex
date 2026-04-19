@@ -1,48 +1,38 @@
 \chapter{Experiments and Results}\label{chap:er}
 
 \section{Evaluation Metrics}
-Because the proposed recognition pipeline relies on Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the model's robustness. The system acts as an image retrieval mechanism, comparing a queried card against a known database using cosine similarity. 
+Because the proposed recognition pipeline relies on Open-Set Metric Learning rather than standard closed-set classification,, traditional metrics like simple accuracy are insufficient for evaluating the  model's robustness. The system acts as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
 
-To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain_2011}. Specifically, the performance is quantified using the \ac{FMR} at a fixed \ac{TMR} of 95\%.
+\subsection{Verification Performance (\acs{FMR} \& \acs{TMR})}
+To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain_2011}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95\%.
 
-Let the similarity between two embeddings be their cosine similarity. We define two distributions of pairs from the validation set
+Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the feature embeddings $\mathbf{x}_i$ and $\mathbf{x}_j$ extracted from two images. We define two distinct sets of evaluation pairs:
 \begin{itemize}
-    \item Genuine Pairs: The similarity scores between augmented query images and their corresponding clean digital templates.
-    \item Imposter Pairs: The similarity scores between query images and entirely different reference cards.
-\end{itemize}
-The \ac{TMR} defines the proportion of genuine pairs that are correctly matched above a given decision threshold $\tau$. On the other hand, the \ac{FMR} defines the proportion of imposter pairs that falsely yield a similarity score above that same threshold $\tau$.
-
-To compute the \ac{FMR} @ 95\% \ac{TMR}, the threshold $\tau$ is strictly empirically determined such that exactly 95\% of all positive pairs are accepted:
-\begin{equation}
-    P(\cos(\theta_{\text{genuine}}) > \tau) = 0.95
-\end{equation}
-Once $\tau$ is established, the \ac{FMR} is calculated as:
-\begin{equation}
-    \text{\ac{FMR}} = P(\cos(\theta_{\text{imposter}}) > \tau)
-\end{equation}
-This metric reflects the system's strictness. A highly robust model will maintain an \ac{FMR} approaching zero at this operating point, indicating that it can successfully recognize 95\% of targeted cards despite severe noise and domain shift, without falsely confusing visually similar, yet distinct, cards.
-
-\section{Evaluation Metrics: REWRITTEN BY JP}
-
-Because the proposed recognition pipeline relies on Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the model's robustness. The system acts as an image retrieval mechanism, comparing a queried card against a known database using cosine similarity. 
-
-To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain_2011}. Specifically, the performance is quantified using the \ac{FMR} at a fixed \ac{TMR} of 95\%.
-
-Let $s(x_i, x_j)$ denote the cosine similarity between the embeddings 
-$x_i, x_j$ of two images. We define two distinct sets of pairs from the validation set:
-\begin{itemize}
-    \item \textbf{Genuine Pairs} ($\mathcal{P}_{\text{gen}}$): Pairs consisting of an augmented query image and its corresponding clean digital template.
-    \item \textbf{Impostor Pairs} ($\mathcal{P}_{\text{imp}}$): Pairs consisting of a query image and an entirely different reference card.
+    \item \textbf{Genuine Pairs} ($\mathcal{P}_{\text{gen}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where both embeddings represent the exact same card. In synthetic validation, this pairs a stochastically augmented query with its clean digital template. In real-world testing, this pairs a physical camera photograph with its corresponding digital template.
+    \item \textbf{Impostor Pairs} ($\mathcal{P}_{\text{imp}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where the query image and the reference template belong to entirely different, distinct cards.
 \end{itemize}
 
 The \ac{TMR} defines the proportion of genuine pairs that are correctly matched with a similarity score equal to or above a given decision threshold $\tau$. Conversely, the \ac{FMR} defines the proportion of impostor pairs that falsely yield a similarity score equal to or above that same threshold $\tau$.
 
 To compute the \ac{FMR} @ 95\% \ac{TMR}, the operational threshold $\tau_{95}$ is empirically determined such that exactly 95\% of all genuine pairs are accepted:
-
-$$\text{\ac{TMR}}(\tau_{95}) = \frac{|\{ (x_i, x_j) \in \mathcal{P}_{\text{gen}} \mid s(x_i, x_j) \ge \tau_{95} \}|}{|\mathcal{P}_{\text{gen}}|} = 0.95$$
+\begin{equation}
+    \text{\ac{TMR}}(\tau_{95}) = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{gen}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{gen}}|} = 0.95
+\end{equation}
 
 Once $\tau_{95}$ is established, the \ac{FMR} is calculated as:
+\begin{equation}
+    \text{\ac{FMR}} = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{imp}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{imp}}|}
+\end{equation}
 
-$$\text{\ac{FMR}} = \frac{|\{ (x_i, x_j) \in \mathcal{P}_{\text{imp}} \mid s(x_i, x_j) \ge \tau_{95} \}|}{|\mathcal{P}_{\text{imp}}|}$$
+This metric reflects the system's strictness and reliability. A highly robust model will maintain an \ac{FMR} approaching zero at this operating point. This indicates that it can successfully recognize 95\% of targeted cards despite severe noise and \hyperref[sec:domain_shift]{domain shift}, without falsely confusing visually similar, yet distinct, cards.
 
-This metric reflects the system's strictness and reliability. A highly robust model will maintain an \ac{FMR} approaching zero at this operating point, indicating that it can successfully recognize 95\% of targeted cards despite severe noise and domain shift, without falsely confusing visually similar, yet distinct, cards.
+\subsection{Retrieval Performance (Top-\texorpdfstring{$k$}{k} Accuracy)}
+While the \ac{FMR} provides a rigorous measure of the embedding space's structural integrity, the ultimate objective of the robotic sorter is the accurate identification of physical cards against a massive database under real-world conditions. This is fundamentally a 1-to-$N$ retrieval problem.
+
+To evaluate the system's operational viability, the model is tested against a dataset of unconstrained physical photographs. The performance is quantified using Top-$k$ Accuracy. For a given query image, the system retrieves the $k$ database entries with the highest cosine similarity. If the ground-truth card identity exists within this subset, the prediction is considered correct. 
+
+In the context of automated sorting, these metrics hold specific operational meanings:
+\begin{itemize}
+    \item \textbf{Top-1 Accuracy}: Represents the zero-intervention success rate of the robotic mechanism (i.e., the robot successfully identifies and sorts the card without human assistance).
+    \item \textbf{Top-3 and Top-5 Accuracy}: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that even when the network is uncertain (due to heavy occlusions, extreme glare, and/or \hyperref[sec:domain_shift]{domain shift}) the correct card is still clustered closely to the query in the embedding space. In practice, this allows the software to present a short list of highly probable candidates for a human operator to quickly verify.
+\end{itemize}
