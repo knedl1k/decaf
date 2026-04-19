@@ -31,7 +31,7 @@ The script also implements logic to handle complex card layouts, such as \acp{DF
     \vspace{-1em}
     \begin{subfigure}[b]{\linewidth}
         \centering
-        \includegraphics[width=0.55\linewidth]{./fig/photos/cleanCard.png}
+        \includegraphics[width=0.55\linewidth]{./fig/photos/cleanCard.jpg}
         \caption{Clean scan (source: Scryfall API~\cite{scryfall}).}
     \end{subfigure}
     
@@ -39,7 +39,7 @@ The script also implements logic to handle complex card layouts, such as \acp{DF
     
     \begin{subfigure}[b]{\linewidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{./fig/photos/realCard.png}
+        \includegraphics[width=0.7\linewidth]{./fig/photos/realCard.jpg}
         \caption{Real photo.}
     \end{subfigure}
     \caption{Comparison between a clean scan template and a physical photograph.}
@@ -141,9 +141,21 @@ It is important to note that while synthetic augmentation produces a highly robu
 Standard image classification models typically employ Softmax classification with Cross-Entropy loss to predict a probability distribution over a fixed set of classes. While effective for closed-set problems (e.g., ImageNet classification), this approach is fundamentally unsuitable for \ac{TCG} identification due to
 \begin{itemize}
     \item \bb{High Cardinality and Open-Set Nature}: \ac{MTG} contains over 100,000 unique card faces. While training a final fully connected layer of size $N \approx 10^5$ is computationally possible, deploying it as a fixed-size classifier is highly impractical. The domain is inherently open-set; new expansions are released frequently, rendering a fixed-size classifcation layer obsolete without constant retraining.
-    \item \bb{Intra-Class Variance vs. Inter-Class Similarity}: The model must be invariant to non-semantic visual noise (e.g., varying lighting, card wear or foiling effects). Furthermore, the \ac{TCG} domain features extreme inter-class visual similarity, where reprinted cards often share identical artwork and differ only in tiny details like set symbols or edition text. While differentiating these tiny details can be delegated to a secondary verification pipeline, the primary model must still robustly group visually similar cards. Standard Softmax classification with Cross-Entropy loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness.
+    \item \bb{Intra-Class Variance vs. Inter-Class Similarity}: The model must be invariant to non-semantic visual noise (e.g., varying lighting, card wear or foiling effects). Furthermore, the \ac{TCG} domain features extreme inter-class visual similarity, where reprinted cards often share identical artwork and differ only in tiny details like set symbols or edition text (see \reffig{fig:tiny_details} for example). While differentiating these tiny details can be delegated to a secondary verification pipeline, the primary model must still robustly group visually similar cards. Standard Softmax classification with Cross-Entropy loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness.
 \end{itemize}
 To address these challenges, a \ac{DML} approach was adopted. Instead of classifying images directly, the goal is to learn a mapping function $f: \mathcal{I} \rightarrow \mathbb{R}^d$, where $\mathcal{I}$ represents the input space of all possible card images, and $\mathbb{R}^d$ is a low-dimensional Euclidean feature space (typically constrained to the surface of a hypersphere). In this space, the geometric distance between embeddings corresponds directly to semantic visual similarity, allowing for card identification via Nearest Neighbor Search rather than direct classification.
+
+\begin{figure}[htbp]
+    \centering
+    \subfloat[Standard version.] {
+        \includegraphics[width=0.2\textwidth]{./fig/photos/inv-66-probe.jpg}
+    }
+    \subfloat[Promo version.] {
+        \includegraphics[width=0.2\textwidth]{./fig/photos/plist-832-probe.jpg}
+    }
+    \caption{Showcase of visual similarity. The standard (a) and promotional (b) card differ only by a \ii{promo} symbol in the bottom-left corner. Images sourced via the Scryfall API~\cite{scryfall}.}
+    \label{fig:tiny_details}
+\end{figure}
 
 \subsection{ArcFace: Additive Angular Margin Loss}\label{sec:arcface}
 ArcFace (Additive Angular Margin Loss)~\cite{Deng_2022} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
