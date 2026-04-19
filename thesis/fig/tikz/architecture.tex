@@ -25,10 +25,10 @@
 \node[process, right=0.5cm of prep1] (prep2) {$512 \times 512$ px \\ padding};
 \node[process, right=0.5cm of prep2] (prep3) {Normalize};
 
-\node[process, right=1.5cm of prep3] (resnet) {ResNet50 \\ Backbone};
-\node[model, right=0.5cm of resnet] (embed) {Embedding \\ Head};
+\node[process, right=1.5cm of prep3] (resnet) {\ac{ResNet}-50 \\ \hyperref[sub:backbone]{Backbone}};
+\node[model, right=0.5cm of resnet] (embed) {\hyperref[sub:embedhead]{Embedding} \\ \hyperref[sub:embedhead]{Head}};
 
-\node[discarded, right=1.2cm of embed] (arcface) {ArcFace Head \\ (logits $\mathbf{W}^\intercal \mathbf{x}_q$)};
+\node[discarded, right=1.2cm of embed] (arcface) {\hyperref[sub:arcface]{\textcolor{gray}{ArcFace Head}} \\ (logits $\mathbf{W}^\intercal \mathbf{x}_q$)};
 % \draw[red, thick] (arcface.north west) -- (arcface.south east);
 % \draw[red, thick] (arcface.south west) -- (arcface.north east);
 \node[above=0.05cm of arcface, text=red!80, font=\scriptsize\bfseries] {discarded @ inference};
@@ -43,13 +43,13 @@
 
 \node[process, above=2cm of prep1] (opencv) {OpenCV\\Card Extraction};
 \node[data, right=4.5cm of opencv] (raw_cam) {
-    Raw Camera Photo
-    \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/realCard.png}
+    Raw Camera Photo \\
+    \vspace{4pt} \includegraphics[width=1.5cm]{./fig/photos/realCard.png}
 };
 \node[font=\sffamily\large\bfseries, above=0.4cm of opencv] (phase0) {Phase 0: Localization};
 
 \draw[->, thick, draw=black!70] (raw_cam) -- (opencv);
-\draw[->, thick, draw=black!70] (opencv.west) -| node[pos=0.25, above, font=\scriptsize] {Cropped} (img.north);
+\draw[->, thick, draw=black!70] (opencv.west) -| node[pos=0.25, above, font=\scriptsize] {cropped} (img.north);
 
 
 \node[data, below=2.5cm of img] (raw_emb) {Raw Embedding \\ $\mathbf{v}_q \in \mathbb{R}^d$};
@@ -59,7 +59,7 @@
 \node[process, right=1.5cm of q_vec] (sim) {Cosine Similarity \\ $\mathbf{s} = \mathbf{x}_q \mathbf{D}^\intercal$};
 \node[process, right=0.5cm of sim] (topk) {Top-K Result \\ $\arg\max(\mathbf{s})$};
 \node[output, right=1.2cm of topk] (out) {
-    Recognized Card \\ $\hat{y}$
+    Recognized Card $\hat{y}$
     \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/cleanCard.png}
 };
 
