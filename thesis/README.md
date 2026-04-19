@@ -20,13 +20,7 @@ To successfully compile this document, you will need the following software and 
   make
   ```
 
-  *or*
-
-  ```bash
-  make all
-  ```
-
-This command will generate the output file `main.pdf` inside a newly created `build/` directory. The `latexmk` tool will automatically run the necessary passes for bibliography compilation and cross-referencing.
+  This command will generate the output file `main.pdf` inside a newly created `build/` directory. The `latexmk` tool will automatically run the necessary passes for bibliography compilation and cross-referencing.
 
 * **To clean up auxiliary files:**
 
@@ -34,7 +28,7 @@ This command will generate the output file `main.pdf` inside a newly created `bu
   make clean
   ```
 
-This will securely remove the `build/` directory and clear out temporary files generated during compilation to keep your working tree clean.
+  This will securely remove the `build/` directory and clear out temporary files generated during compilation to keep your working tree clean.
 
 ## Original template
 
