@@ -84,8 +84,19 @@ The airflow routing and timing are controlled by a 3/2 normally closed (NC) sole
 The end-effector itself utilizes commercially available silicone suction cup with diameter of 15.5~mm. Silicone was selected for its high flexibility. The pneumatic components are connected using flexible 6/4 mm polyurethane tubing, routed alongside the electromechanical arm to prevent tangling during operation.
 
 \section{Electromechanical Actuation}\label{sec:electromech}
+The robotic manipulator must accurately navigate between three primary spatial waypoints within its kinematic workspace: the input card holder, the vision inspection stage and the designated output sorting tray. The spatial relationship and the required rotational trajectory between these nodes are illustrated in \Cref{fig:kinematic_waypoints}.
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.6\textwidth]{./fig/diagrams/kinematic_waypoints.pdf}
+    \caption{Top-down schematic of the robotic manipulator's kinematic workspace. The arm transitions sequentially between three primary waypoints: (1) the input hopper for card acquisition, (2) the inspection stage for camera capture and inference and (3) the output trays for sorted placement.}
+    \label{fig:kinematic_waypoints}
+\end{figure}
 
 \subsection{Main Axis Control}
+The primary horizontal movement of the arm is driven by a 12--24~V bipolar stepper motor. While stepper motors provide excellent open-loop positional accuracy, operating them in an open-loop configuration carries the risk of undetected step-loss due to mechanical resonance or unexpected physical collisions. To mitigate this, an AS5147 magnetic rotary encoder is integrated into the main axis. This sensor provides absolute angular positioning, allowing the system to verify the arm's true location and gracefully recover from potential misalignments.
+
+The motor is controlled by a TMC2209 stepper controller. It was chosen because it is a widely adopted standard in the open-source hardware and 3D printing communities. Its wide availability on the market and low price are key factors ensuring that the robotic platform remains easily reproducible for future users. Furthermore, as an established industry standard, the TMC2209 provides smooth microstepping right out of the box, which naturally helps minimize mechanical vibrations during arm movement without the need for complex low-level tuning.
 
 \subsection{Z-Axis Mechanism}
 
