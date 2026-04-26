@@ -56,13 +56,14 @@
 \usepackage{cleveref}
 \usepackage{multicol}
 \usepackage[export]{adjustbox}
-\usepackage{svg}
+% \usepackage{svg}
 \usepackage{standalone}
 \usepackage{microtype}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{booktabs}
 \usepackage{wrapfig}
+\usepackage{luacode}
 
 % print version has different margins to accommodate the spine of the book
 % do not move this around, or it stops working
@@ -368,3 +369,29 @@
                     \@afterindentfalse
                     \secdef\@chapter\@schapter}
 \makeatother
+
+%% | ----------- LuaLaTeX magic ----------- |
+
+\begin{luacode*}
+total_cost = 0
+
+function add_cost(val)
+    local num = tonumber(val)
+    if num then
+        total_cost = total_cost + num
+    end
+end
+
+function get_total_cost()
+    tex.print(string.format("%.2f", total_cost))
+end
+\end{luacode*}
+
+\newcommand{\resetcost}{\directlua{total_cost = 0}}
+
+\newcommand{\cost}[2][]{%
+    #1#2%
+    \directlua{add_cost([[#2]])}%
+}
+
+\newcommand{\totalcost}{\directlua{get_total_cost()}}

@@ -1,1 +1,75 @@
 \chapter{Hardware Design}\label{chap:hw}
+
+As mentioned in \refsec{sec:commercial_solutions}, existing solutions on the market are difficult to modify and are closed-source. The architecture described in this chapter therefore represents the first version of an open-source prototype. Its primary goal is to verify the feasibility of automated scanning of \ac{TCG} cards using commonly available hardware. Thanks to its intentionally simple mechanical design, the platform provides a foundation that is easy to reproduce and modify. Advanced features (such as controlled LED lighting panels, sorting mechanisms with multiple hoppers, or motorized high-capacity feeders) are left for future iterations.
+
+The system does not rely on proprietary industrial equipment but is primarily assembled from standard commercial components combined with custom 3D-printed parts.
+
+\section{System Architecture Overview}
+The system functions as a simple \ii{pick-and-place} mechanism that uses a pneumatic end-effector. The architecture is divided into three primary subsystems:
+\begin{enumerate}
+    \item Pneumatic Circuit: enables card handling.
+    \item Electromechanical actuation: moves the robotic arm.
+    \item Compute and Control: robot movement, card capture, recognition and classification.
+\end{enumerate}
+To minimize production costs, all structural joints, support frames, card holders, and the camera mount were manufactured using 3D printing.
+\section{Bill of Materials}\label{sec:bom}
+The components are categorized by their origin: commercially available off-the-shelf parts and custom 3D-printed components. The listed costs reflect the Czech market retail prices at the time of development. It should be explicitly noted that certain high-cost items were sourced from pre-existing inventory rather than purchased specifically for this project. Consequently, while the full retail price is listed for absolute transparency, the actual cost to reproduce this system can be reduced by substituting such components with budget-oriented alternatives.
+
+To prevent broken links from occurring over time, the technical specifications and official datasheets for all major components have been archived in the project repository under the \texttt{./hw/datasheets} directory.
+\begin{table}[ht!]
+    \centering
+    \resetcost
+    \caption{\ac{BOM} for the robotic platform developed in this thesis.}
+    \label{tab:bom}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}llcrc@{}}
+        \toprule
+        \textbf{Subsystem} & \textbf{Component} & \textbf{Origin} & \textbf{Cost [€]} & \textbf{Section Ref.} \\
+        \midrule
+        \multirow{8}{*}{\shortstack[l]{Pneumatic\\Handling}}
+        & Compressor (Sparmax TC-610H Plus)$^\dagger$ & commercial & \cost[$\approx$ ]{356.47} & \ref{sec:pneumatic_handling} \\
+        & Solenoid Valve 3/2 (NC, 24 V DC) & commercial & \cost{46.98} & \ref{subsec:airflow} \\
+        & Silicone Suction Cups (11 \& 15.5 mm) & commercial & \cost{8.33} & \ref{subsec:airflow} \\
+        & Polyurethane Tubing (6/4 mm, 8 m) & commercial & \cost{6.89} & \ref{subsec:airflow} \\
+        & Fittings G1/8" \& M5 ($6 \times$ \& $6 \times$) & commercial & \cost{4.43} & -- \\
+        & Vacuum Fittings & commercial & \cost{4.35} & -- \\
+        & M5 muffler & commercial & \cost{2.05} & \ref{subsec:venturi} \\
+        & Venturi Vacuum Generator & 3D printed & -- & \ref{subsec:venturi} \\
+        \midrule
+        \multirow{5}{*}{\shortstack[l]{Electro-\\mechanical}}
+        & Stepper Motor (12--24 V) & commercial & \todo{} & \ref{sec:electromech} \\
+        & Magnetic Encoder (AS5147-TS\_EK\_AB) & commercial & \cost{14.79} & \ref{sec:electromech} \\
+        & Micro Servo (MG90S) & commercial & \cost{7.19} & \ref{sec:electromech} \\
+        & Stepper Driver (TMC2209) & commercial & \cost{4.45} & \ref{sec:electromech} \\
+        & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{sec:electromech} \\
+        \midrule
+        \multirow{4}{*}{\shortstack[l]{Control \\ \& Vision}}
+        & SBC (RPi 3B, 1 GB RAM) & commercial & \cost{45.00} & \ref{sec:control_vision} \\
+        & RPi Camera v2.1 + 50 cm Flex Cable & commercial & \cost{29.87} & \ref{sec:control_vision} \\
+        & Microcontroller (Arduino Mega 2560)$^\dagger$ & commercial & \cost[$\approx$ ]{12.64} & \ref{sec:control_vision} \\
+        & 24 V DC Power Supply$^\dagger$ & commercial & \todo{} & \ref{sec:control_vision} \\
+        \midrule
+        \multirow{2}{*}{Structural}
+        & Card Hoppers \& Trays & 3D printed & -- & \todo{} \\
+        & Base Chassis \& Camera Mount & 3D printed & -- & \todo{} \\
+        \bottomrule
+        \multicolumn{2}{r}{\textbf{Approximate Total Material Cost:}} & \multicolumn{1}{l}{\textbf{$\approx$ \totalcost{} €}} \\
+        \bottomrule
+        \multicolumn{5}{l}{\footnotesize $^\dagger$ Component sourced from pre-existing laboratory inventory; listed cost represents current retail value.} \\
+    \end{tabular}%
+    }
+\end{table}
+
+\section{Pneumatic Handling System}\label{sec:pneumatic_handling}
+
+\subsection{Vacuum Generation}\label{subsec:venturi}
+
+\subsection{Actuation and End-Effector}\label{subsec:airflow}
+
+\section{Electromechanical Actuation}\label{sec:electromech}
+
+\subsection{Main Axis Control}
+
+\subsection{Z-Axis Mechanism}
+
+\section{Control and Vision Hardware}\label{sec:control_vision}
