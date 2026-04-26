@@ -2,8 +2,6 @@
 
 As mentioned in \Cref{sec:commercial_solutions}, existing solutions on the market are difficult to modify and are closed-source. The architecture described in this chapter therefore represents the first version of an open-source prototype. Its primary goal is to verify the feasibility of automated scanning of \ac{TCG} cards using commonly available hardware. Thanks to its intentionally simple mechanical design, the platform provides a foundation that is easy to reproduce and modify. Advanced features (such as controlled LED lighting panels, sorting mechanisms with multiple hoppers, or motorized high-capacity feeders) are left for future iterations.
 
-The system does not rely on proprietary industrial equipment but is primarily assembled from standard commercial components combined with custom 3D-printed parts.
-
 \section{System Architecture Overview}
 The system functions as a simple \ii{pick-and-place} mechanism that uses a pneumatic end-effector. The architecture is divided into three primary subsystems:
 \begin{enumerate}
@@ -11,12 +9,11 @@ The system functions as a simple \ii{pick-and-place} mechanism that uses a pneum
     \item Electromechanical actuation: moves the robotic arm.
     \item Compute and Control: robot movement, card capture, recognition and classification.
 \end{enumerate}
-To minimize production costs, all structural joints, support frames, card holders, and the camera mount were manufactured using 3D printing.
-\section{\acl{BOM}}\label{sec:bom}
-The components are categorized by their origin: commercially available off-the-shelf parts and custom 3D-printed components. The listed costs reflect the Czech market retail prices at the time of development. It should be explicitly noted that certain high-cost items were sourced from pre-existing inventory rather than purchased specifically for this project. Consequently, while the full retail price is listed for absolute transparency, the actual cost to reproduce this system can be reduced by substituting such components with budget-oriented alternatives.
 
-To prevent broken links from occurring over time, the technical specifications and official datasheets for all major components have been archived in the project repository under the \texttt{./hw/datasheets} directory.
-\begin{table}[ht!]
+\section{\acl{BOM}}\label{sec:bom}
+The components are categorized by origin: commercially available parts and custom parts printed on a 3D printer. The costs listed reflect retail prices on the Czech market at the time of development. It should be noted that some expensive items came from existing laboratory stock and were not purchased specifically for this project. The actual cost of reproducing this system can be reduced by replacing these components with more affordable alternatives.
+\vspace*{-0.5em}
+\begin{table}[htbp!]
     \centering
     \resetcost
     \caption{\acf{BOM} for the robotic platform developed in this thesis.}
@@ -28,30 +25,28 @@ To prevent broken links from occurring over time, the technical specifications a
         \midrule
         \multirow{8}{*}{\shortstack[l]{Pneumatic\\Handling}}
         & Compressor (Sparmax TC-610H Plus)$^\dagger$ & commercial & \cost[$\approx$ ]{356.47} & \ref{sec:pneumatic_handling} \\
-        & Solenoid Valve 3/2 (NC, 24~V DC) & commercial & \cost{46.98} & \ref{subsec:airflow} \\
-        & Silicone Suction Cups (11 \& 15.5~mm) & commercial & \cost{8.33} & \ref{subsec:airflow} \\
-        & Polyurethane Tubing (6/4~mm, 8~m) & commercial & \cost{6.89} & \ref{subsec:airflow} \\
+        & Solenoid Valve 3/2 (NC, 24\,V DC) & commercial & \cost{46.98} & \ref{subsec:airflow} \\
+        & Silicone Suction Cups (11 \& 15.5\,mm) & commercial & \cost{8.33} & \ref{subsec:airflow} \\
+        & Polyurethane Tubing (6/4\,mm, 8\,m) & commercial & \cost{6.89} & \ref{subsec:airflow} \\
         & Fittings G1/8" \& M5 ($6 \times$ \& $6 \times$) & commercial & \cost{4.43} & -- \\
         & Vacuum Fittings & commercial & \cost{4.35} & -- \\
         & M5 muffler & commercial & \cost{2.05} & \ref{subsec:venturi} \\
         & Venturi Vacuum Generator & 3D printed & -- & \ref{subsec:venturi}, \ref{app:venturi} \\
         \midrule
         \multirow{5}{*}{\shortstack[l]{Electro-\\mechanical}}
-        & Stepper Motor (12--24~V) & commercial & \todo{} & \ref{sec:electromech} \\
-        & Magnetic Encoder (AS5147-TS\_EK\_AB) & commercial & \cost{14.79} & \ref{sec:electromech} \\
-        & Micro Servo (MG90S) & commercial & \cost{7.19} & \ref{sec:electromech} \\
-        & Stepper Driver (TMC2209) & commercial & \cost{4.45} & \ref{sec:electromech} \\
-        & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{sec:electromech} \\
+        & Stepper Motor (12--24\,V) & commercial & \todo{} & \ref{subsec:main_axis} \\
+        & Magnetic Encoder (AS5147-TS\_EK\_AB) & commercial & \cost{14.79} & \ref{subsec:main_axis} \\
+        & Micro Servo (MG90S) & commercial & \cost{7.19} & \ref{subsec:z_axis} \\
+        & Stepper Driver (TMC2209) & commercial & \cost{4.45} & \ref{subsec:main_axis} \\
+        & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{subsec:z_axis}, \ref{app:z_axis} \\
         \midrule
         \multirow{4}{*}{\shortstack[l]{Control \\ \& Vision}}
-        & \acs{SBC} (RPi 3B, 1~GB RAM) & commercial & \cost{45.00} & \ref{sec:control_vision} \\
-        & RPi Camera v2.1 + 50~cm Flex Cable & commercial & \cost{29.87} & \ref{sec:control_vision} \\
-        & Microcontroller (Arduino Mega 2560)$^\dagger$ & commercial & \cost[$\approx$ ]{12.64} & \ref{sec:control_vision} \\
-        & 24~V DC Power Supply$^\dagger$ & commercial & \todo{} & \ref{sec:control_vision} \\
+        & \acs{SBC} (RPi 3B, 1\,GB RAM) & commercial & \cost{45.00} & \ref{sec:control_vision} \\
+        & RPi Camera v2.1 + 50\,cm Flex Cable & commercial & \cost{29.87} & \ref{subsec:rpi} \\
+        & Microcontroller (Arduino Mega 2560)$^\dagger$ & commercial & \cost[$\approx$ ]{12.64} & \ref{subsec:arduino} \\
+        & 24\,V DC Power Supply$^\dagger$ & commercial & \todo{} & \ref{sec:control_vision} \\
         \midrule
-        \multirow{2}{*}{Structural}
-        & Card Hoppers \& Trays & 3D printed & -- & \todo{} \\
-        & Base Chassis \& Camera Mount & 3D printed & -- & \todo{} \\
+        Structural & Card Holders, Trays, Base Chassis \& Camera Mount & 3D printed & -- & \ref{sec:structs}, \ref{app:structs} \\ 
         \bottomrule
         \multicolumn{2}{r}{\textbf{Approximate Total Material Cost:}} & \multicolumn{1}{l}{\textbf{$\approx$ \totalcost{} €}} \\
         \bottomrule
@@ -59,6 +54,8 @@ To prevent broken links from occurring over time, the technical specifications a
     \end{tabular}%
     }
 \end{table}
+
+To prevent broken links from occurring over time, the official datasheets for all major components have been archived in the project repository under the \texttt{./hw/datasheets} directory.
 
 \section{Pneumatic Handling System}\label{sec:pneumatic_handling}
 The physical manipulation of \ac{TCG} paper cards requires an end-effector capable of establishing a secure grip without inducing mechanical stress, bending and/or surface abrasion. As previously validated by Yu~\cite{pokerrobot} in the context of a robotic poker dealer (see \Cref{yolo-studies}), vacuum-based suction mechanisms provide a highly effective solution for the non-destructive handling of thin card stock. 
@@ -72,16 +69,16 @@ A custom Venturi ejector, visualized in \Cref{fig:venturi_render}, was designed 
 \begin{figure}[htbp]
     \centering
     % \includegraphics[width=0.6\textwidth]{./fig/cad/venturi_render.png}
-    \caption{CAD rendering of the custom 3D-printed Venturi vacuum generator. The internal converging-diverging geometry accelerates the airflow, creating a localized pressure drop at the suction port.}
+    \caption{Render of the custom 3D-printed Venturi vacuum generator.}
     \label{fig:venturi_render}
 \end{figure}
 
 To mitigate the acoustic noise generated by the high-velocity exhaust air, a standard M5 pneumatic muffler is integrated into the exhaust port of the generator.
 
 \subsection{Actuation and End-Effector}\label{subsec:airflow}
-The airflow routing and timing are controlled by a 3/2 normally closed (NC) solenoid valve operating at 24~V DC. The valve acts as the primary logical switch for the pneumatic circuit; when turned on, compressed air flows to the Venturi generator, creating a vacuum at the end-effector. When turned off, the system vents to the atmosphere, releasing the card. 
+The airflow routing and timing are controlled by a 3/2 normally closed (NC) solenoid valve operating at 24\,V DC. The valve acts as the primary logical switch for the pneumatic circuit; when turned on, compressed air flows to the Venturi generator, creating a vacuum at the end-effector. When turned off, the system vents to the atmosphere, releasing the card. 
 
-The end-effector itself utilizes commercially available silicone suction cup with diameter of 15.5~mm. Silicone was selected for its high flexibility. The pneumatic components are connected using flexible 6/4 mm polyurethane tubing, routed alongside the electromechanical arm to prevent tangling during operation.
+The end-effector itself utilizes commercially available silicone suction cup with diameter of 15.5\,mm. Silicone was selected for its high flexibility. The pneumatic components are connected using flexible 6/4 mm polyurethane tubing, routed alongside the electromechanical arm to prevent tangling during operation.
 
 \section{Electromechanical Actuation}\label{sec:electromech}
 The robotic manipulator must accurately navigate between three primary spatial waypoints within its kinematic workspace: the input card holder, the vision inspection stage and the designated output sorting tray. The spatial relationship and the required rotational trajectory between these nodes are illustrated in \Cref{fig:kinematic_waypoints}.
@@ -93,11 +90,61 @@ The robotic manipulator must accurately navigate between three primary spatial w
     \label{fig:kinematic_waypoints}
 \end{figure}
 
-\subsection{Main Axis Control}
-The primary horizontal movement of the arm is driven by a 12--24~V bipolar stepper motor. While stepper motors provide excellent open-loop positional accuracy, operating them in an open-loop configuration carries the risk of undetected step-loss due to mechanical resonance or unexpected physical collisions. To mitigate this, an AS5147 magnetic rotary encoder is integrated into the main axis. This sensor provides absolute angular positioning, allowing the system to verify the arm's true location and gracefully recover from potential misalignments.
+\subsection{Main Axis Control}\label{subsec:main_axis}
+The primary horizontal movement of the arm is driven by a 12--24\,V bipolar stepper motor. While stepper motors provide excellent open-loop positional accuracy, operating them in an open-loop configuration carries the risk of undetected step-loss due to mechanical resonance or unexpected physical collisions. To mitigate this, an AS5147 magnetic rotary encoder is integrated into the main axis. This sensor provides absolute angular positioning, allowing the system to verify the arm's true location and gracefully recover from potential misalignments.
 
 The motor is controlled by a TMC2209 stepper controller. It was chosen because it is a widely adopted standard in the open-source hardware and 3D printing communities. Its wide availability on the market and low price are key factors ensuring that the robotic platform remains easily reproducible for future users. Furthermore, as an established industry standard, the TMC2209 provides smooth microstepping right out of the box, which naturally helps minimize mechanical vibrations during arm movement without the need for complex low-level tuning.
 
-\subsection{Z-Axis Mechanism}
+\subsection{Z-Axis Mechanism}\label{subsec:z_axis}
+To pick up and place the cards, a secondary linear vertical axis (Z-axis) is mounted at the distal end of the main arm. Given that the payload consists solely of a single piece of card stock and lightweight silicone suction cups, deploying a traditional stepper motor and lead screw would introduce unnecessary inertial mass. 
+
+Instead, an MG90S micro servo is used to drive a custom 3D-printed linear mechanism that lowers and raises the pneumatic end-effector. The power-to-weight ratio of the micro servo minimizes the dynamic load on the main axis. This weight reduction translates to higher achievable accelerations during horizontal travel, which increases the overall sorting throughput. The detailed, dimensioned technical drawing for this mechanical assembly is provided in \Cref{app:z_axis}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\textwidth]{./fig/sketch/z_axis_v1.png}
+    \caption{Render of the 3D-printed Z-axis assembly, illustrating the integration of the MG90S micro servo and the custom linear mechanism on the arm.}
+    \label{fig:z_axis_cad}
+\end{figure}
 
 \section{Control and Vision Hardware}\label{sec:control_vision}
+The computational architecture uses a master-slave configuration, physically decoupling high-level asynchronous processing from deterministic, real-time hardware execution. The detailed software implementation and communication protocols are defined in \Cref{chap:sw}.\todo{opravit ref.}
+
+\subsection{Vision and High-Level Logic}\label{subsec:rpi}
+The high-level orchestration, including the computer vision pipeline, is hosted on a \ac{SBC}, specifically a Raspberry Pi 3B (1\,GB RAM). As the robotic arm transfers a card to the inspection stage, an image is captured using a Raspberry Pi Camera Module v2.1. 
+
+The cards brought in by the robotic arm are photographed by the RPi camera module. The camera is securely mounted on a 3D-printed bracket (see \Cref{fig:rpi_mount}). This fixed mechanical positioning ensures a consistent focal length and a similar viewing angle, thereby minimizing perspective distortion and actively mitigating the \ii{domain shift} between simulation and reality, as discussed in \Cref{sec:domain_shift}. The captured image is then processed entirely on the \ac{SBC}, as illustrated in \Cref{fig:pipeline_flow}. 
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.6\textwidth]{./fig/sketch/z_axis_v1.png}
+    \caption{Render of the 3D-printed RPi camera mount.}
+    \label{fig:rpi_mount}
+\end{figure}
+
+\subsection{Electromechanical Control}\label{subsec:arduino}
+While the Raspberry Pi offers significant computational capacity, its standard GNU/Linux operating system cannot guarantee the strict, microsecond-level real-time execution required for smooth stepper motor actuation. Therefore, low-level physical control is delegated to an Arduino Mega 2560 microcontroller operating as the slave device. 
+
+The Arduino is physically connected to the Raspberry Pi via a standard USB interface, over which it receives positional targets and system triggers using serial communication. The Arduino was selected for this initial prototype due to its native 5\,V logic level, as well as its widespread availability and proven reliability within the open-source hardware community. However, because the system's actual I/O pin count and memory footprint are minimal, future replications can substitute the Mega with smaller, more cost-effective 8-bit alternatives, such as the Arduino Uno or Nano, without any required changes to the underlying logic. The Mega version was chosen primarily because it was available in laboratory inventory.
+
+The Arduino receives high-level positional target commands from the Raspberry Pi via serial communication. It is exclusively responsible for generating the precise, uninterrupted step pulses for the TMC2209 driver, managing the Pulse Width Modulation (PWM) signals for the Z-axis servo, and instantaneously actuating the 24\,V solenoid valve relay to ensure drop-timing accuracy.
+
+\section{Structural Design and Assembly}\label{sec:structs}
+To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and sorting trays are manufactured from standard PLA filament. CAD renderings of these primary structural elements are presented in \Cref{fig:structural_renders}. To facilitate complete reproducibility, the technical drawings for all custom 3D-printed structural components are compiled in \Cref{app:structs}.
+
+\begin{figure}[htbp]
+    \centering
+    % \subfloat[Base Chassis]{\includegraphics[width=0.3\textwidth]{./fig/cad/chassis_render.png}} \hfill
+    % \subfloat[Card Hopper \& Tray]{\includegraphics[width=0.3\textwidth]{./fig/cad/hopper_render.png}} \hfill
+    % \subfloat[Camera Mount]{\includegraphics[width=0.3\textwidth]{./fig/cad/camera_mount_render.png}}
+    \caption{Renderings of the 3D-printed structural components.}
+    \label{fig:structural_renders}
+\end{figure}
+
+The mechanical assembly relies on modularity and serviceability. Components are secured with standard metric machine screws (M3 and M4) in conjunction with brass heat-set threaded inserts. Melting these inserts directly into the printed plastic provides significantly superior pull-out strength and vibration resistance compared to tapping threads directly into the polymer.
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.6\textwidth]{./fig/photos/assembly_process.jpg}
+    \label{fig:assembly_process}
+\end{figure}

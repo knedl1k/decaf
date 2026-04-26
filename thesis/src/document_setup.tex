@@ -129,8 +129,9 @@
 
 %% | ------------ siunitx for units of measurements ----------- |
 
-\usepackage{siunitx}
-\DeclareSIUnit \pixel {px}
+% \usepackage{siunitx}
+% \newcommand\inu[1]{\,\si{#1}}
+\newcommand{\unit}[1]{\,\text{#1}}
 
 %% | --------------- change formatting of lists --------------- |
 
