@@ -17,7 +17,7 @@
 ]
 
 \node[data] (img) {
-    Query Image \\ $\mathbf{I}_q \in \mathcal{I}$ 
+    Query Image $\mathbf{I}_q \in \mathcal{I}$ 
     \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/croppedCard.jpg}
 };
 
@@ -57,7 +57,7 @@
 \node[data, right=1cm of l2] (q_vec) {Query Vector \\ $\mathbf{x}_q = f(\mathbf{I}_q)$};
 \node[database, below=1cm of q_vec] (db) {Gallery Embeddings \\ $\mathbf{D} \in \mathbb{R}^{N \times d}$};
 \node[process, right=1.5cm of q_vec] (sim) {Cosine Similarity \\ $\mathbf{s} = \mathbf{x}_q \mathbf{D}^\intercal$};
-\node[process, right=0.5cm of sim] (topk) {Top-K Result \\ $\arg\max(\mathbf{s})$};
+\node[process, right=0.5cm of sim] (topk) {Top-$k$ Result \\ $\arg\max(\mathbf{s})$};
 \node[output, right=1.2cm of topk] (out) {
     Recognized Card $\hat{y}$
     \\ \vspace{2pt} \includegraphics[width=1.5cm]{./fig/photos/cleanCard.jpg}
@@ -83,7 +83,7 @@
 \draw[->, thick, draw=blue!70] (sim) -- (topk);
 \draw[->, thick, draw=blue!70] (match_group) -- (out);
 
-\draw[->, thick, draw=blue!70, dashed] (embed.south) |- ++(0,-2) -| (raw_emb.north) node[pos=0.25, above, font=\scriptsize] {Forward Pass Output};
+\draw[->, thick, draw=blue!70, dashed] (embed.south) |- ++(0,-1.5) -| (raw_emb.north) node[pos=0.25, above, font=\scriptsize] {Forward Pass Output};
 
 \end{tikzpicture}
 \end{document}
