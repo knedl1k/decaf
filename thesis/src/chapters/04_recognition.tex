@@ -55,7 +55,7 @@ If a model is optimized purely on the source domain, its learned feature represe
 \section{Synthetic Data Generation}\label{sec:synthetic_gen}
 To bridge the \hyperref[sec:domain_shift]{domain shift} described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
-\subsection{Removing Sharp Edges}
+\subsection{Removing Sharp Edges}\label{sub:sharp_edges}
 Digital templates are often stored as rectangular images with transparent edges encoded via an alpha channel. To prevent the neural network from overfitting to these artificial, artifact-free edges, the cards are placed onto a stochastically generated background canvas, denoted as $\mathbf{X}_{\text{cv}}$. 
 
 To construct this canvas, a base color is first sampled uniformly for each RGB channel, $c \sim \mathcal{U}(20, 230)$. To simulate sensor grain and the physical texture of a playing mat, additive Gaussian noise sampled from $\mathcal{N}(\mu=0, \sigma=4)$ is applied to every pixel and the resulting tensor is clipped to the valid 8-bit image range $[0, 255]$.
@@ -133,7 +133,170 @@ During every training iteration, every reference image is processed through a st
 
 By applying this pipeline, the model is trained on a continuously varying stream of unique samples, bridging the domain shift mentioned in \Cref{sec:domain_shift} between digital templates and physical photographs.
 
-It is important to note that while synthetic augmentation produces a highly robust baseline representation, completely eliminating the simulation-to-reality gap typically requires a final fine-tuning stage on a curated dataset of real-world images. However, manually acquiring such a dataset at the massive scale required for \ac{TCG} classification falls beyond the scope of this thesis. Real-world fine-tuning remains a primary avenue for future work; one that can be directly facilitated by deploying our proposed robot to automate the capture and pseudo-labeling of real-world photographic data.
+To visually demonstrate the severity of the applied transformations, \Cref{fig:aug_individual} isolates and illustrates the effect of specific individual augmentations on a digital template.
+
+\newpage
+\begin{figure}[htpb!]
+    \centering
+
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/00_original.jpg}
+        \caption{Clean Template}
+        \vspace{1.5em}
+    \end{subfigure}
+
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/01_affine.jpg}
+        \caption{Affine Transform.}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/02_perspective.jpg}
+        \caption{Perspective}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/03_sunflare.jpg}
+        \caption{Sun Flare}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/04_shadow.jpg}
+        \caption{Shadow}
+    \end{subfigure}
+    
+    \vspace{1em}
+    
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/05_motionblur.jpg}
+        \caption{Motion Blur}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/06_glassblur.jpg}
+        \caption{Glass Blur}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/07_dropout.jpg}
+        \caption{Coarse Dropout}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/08_compression.jpg}
+        \caption{Compression}
+    \end{subfigure}
+    
+    \vspace{1em}
+    
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/09_isonoise.jpg}
+        \caption{ISO Noise}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/10_brightness.jpg}
+        \caption{Brightness}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/11_clahe.jpg}
+        \caption{CLAHE}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/12_hue.jpg}
+        \caption{Hue \& Satur.}
+    \end{subfigure}
+    
+    \caption{Visual isolation of individual stochastic augmentations applied to a clean template. Clean template sourced from Scryfall~\cite{scryfall}.}
+    \label{fig:aug_individual}
+\end{figure}
+
+However, during actual training, these transformations are applied sequentially in a stochastic chain, creating highly degraded and complex inputs. \Cref{fig:aug_batch} presents a random batch of fully augmented queries extracted directly from the \texttt{DataLoader} during the training process.
+
+\newpage
+
+\begin{figure}[htpb]
+    \centering
+    
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_00.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_01.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_02.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_03.jpg}
+        \caption{}
+    \end{subfigure}
+    
+    \vspace{0.5em}
+    
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_04.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_05.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_06.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_07.jpg}
+        \caption{}
+    \end{subfigure}
+    
+    \vspace{0.5em}
+    
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_08.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_09.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_10.jpg}
+        \caption{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/batch_preview/batch_11.jpg}
+        \caption{}
+    \end{subfigure}
+    \caption{A random batch of 12 fully augmented training samples extracted directly from the \texttt{DataLoader}. The clean digital templates are blended onto stochastic noisy backgrounds (see \Cref{sub:sharp_edges}) and subjected to the complete augmentation chain, resulting in extreme variations in lighting, alignment and occlusion.}
+    \label{fig:aug_batch}
+\end{figure}
+
+As showcased in the augmented training samples (\Cref{fig:aug_batch}), extreme combinations of affine rotations, scaling and spatial dropouts often result in inputs where significant portions of the card are occluded or cropped entirely out of the frame. While the final inference pipeline (shown in \Cref{fig:pipeline_flow}) strives to feed the network perfectly localized cards, exposing the model to severely cropped samples during training is highly desirable. It acts as a strict spatial regularizer, forcing the \ac{CNN} to learn distributed, highly redundant feature representations across the entire artwork rather than overfitting to a single localized cue, such as the card's title. And it inherently trains the network to remain robust against occasional bounding box failures caused by the upstream localization script.
+
+It should be noted that while synthetic augmentation produces a robust baseline representation, completely eliminating the \hyperref[sec:domain_shift]{\ii{Domain Shift}} typically requires a final fine-tuning stage on a curated dataset of real-world images. However, manually acquiring such a dataset at the massive scale required for \ac{TCG} classification falls beyond the scope of this thesis. Real-world fine-tuning remains a primary avenue for future work; which could be facilitated by deploying our solution to automate the capture and pseudo-labeling of real-world photographic data.
 
 \section{Theoretical Framework}
 
