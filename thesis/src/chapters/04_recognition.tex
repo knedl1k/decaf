@@ -181,8 +181,11 @@ In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\
 \end{equation}
 This projects the learned features onto a hypersphere, where minimizing the loss equates to minimizing the geodesic distance (angle) between the sample $\mathbf{x}_i$ and its corresponding ground-truth class center $\mathbf{W}_{y_i}$.
 
-To enforce a margin between classes, ArcFace adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Additionally, since the cosine range $[-1, 1]$ is insufficient for the Softmax activation function to produce a sharp probability distribution (leading to slow convergence), the logits are scaled by a fixed factor $s$.
 \input{./fig/tikz/arcface.tex}
+To enforce a margin between classes, ArcFace adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Furthermore, because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which can halt gradient propagation and prevent the network from converging. 
+\label{sub:geometric_s}
+To resolve this, the logits are scaled by a fixed hyperparameter $s$ (set to $s=64.0$ in our architecture). This value defines the radius of the embedding hypersphere and extends the logit range to $[-s, s]$. Thanks to the value of $s$, the Softmax function is able to generate steep probability distributions required for effective optimization.
+
 The final ArcFace loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$ is defined as:
 \begin{equation}
     L_{\text{ArcFace}} = -\log \frac{e^{s \cdot \cos(\theta_{y_i, i} + m)}}{e^{s \cdot \cos(\theta_{y_i, i} + m)} + \sum_{j \neq y_i} e^{s \cdot \cos(\theta_{j, i})}}
@@ -218,9 +221,8 @@ The software implementation of this module adapts the official PyTorch implement
 \begin{enumerate}
     \item \ii{Cosine Similarity:} The raw logits are calculated as the dot product between the $L_2$-normalized embeddings and the normalized weight matrix, yielding a similarity matrix where each element is $\cos(\theta_{j, i})$.
     \item \ii{Margin Application:} Utilizing PyTorch's in-place operations within a detached gradient context (\texttt{torch.no\_grad()}), the specific similarities corresponding to the ground-truth classes ($\cos(\theta_{y_i, i})$) are isolated. These target logits are transformed back into the angular domain via the inverse cosine function ($\theta = \arccos(\cos\theta)$), shifted by the additive margin penalty ($\theta + m$), and projected back into the cosine domain as $\cos(\theta_{y_i, i} + m)$.
-    \item \ii{Feature Scaling:} The updated similarity matrix is multiplied by the hyperparameter $s$ before being passed to the Cross-Entropy loss function.
+    \item \ii{Feature Scaling:} The updated similarity matrix is multiplied by the hyperparameter $s$ (see \Cref{sub:geometric_s}) before being passed to the Cross-Entropy loss function.
 \end{enumerate}
-Because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As mathematically demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which prevents gradient propagation and prevents the network from converging. Multiplying the modified logits by $s$ (set to $s=64.0$ in our implementation) defines the radius of the embedding hypersphere. This expands the logit range to $[-s, s]$, ensuring the Softmax function can generate the steep, confident probability distributions required for effective Cross-Entropy optimization.
 
 As visualized in \Cref{fig:pipeline_flow}, it is important to note that this module is utilized exclusively during training. Upon deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The system then performs recognition by routing the raw 512-dimensional vectors produced by the Embedding Head directly into the Similarity Matching engine (Phase 2).
 
