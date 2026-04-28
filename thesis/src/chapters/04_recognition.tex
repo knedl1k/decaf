@@ -183,6 +183,7 @@ This projects the learned features onto a hypersphere, where minimizing the loss
 
 \input{./fig/tikz/arcface.tex}
 To enforce a margin between classes, ArcFace adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Furthermore, because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which can halt gradient propagation and prevent the network from converging. 
+
 \label{sub:geometric_s}
 To resolve this, the logits are scaled by a fixed hyperparameter $s$ (set to $s=64.0$ in our architecture). This value defines the radius of the embedding hypersphere and extends the logit range to $[-s, s]$. Thanks to the value of $s$, the Softmax function is able to generate steep probability distributions required for effective optimization.
 
