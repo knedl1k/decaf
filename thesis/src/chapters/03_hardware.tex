@@ -55,6 +55,8 @@ The components are categorized by origin: commercially available parts and custo
     }
 \end{table}
 
+\todo{add valve connector, mosfet \& resistors to the BOM.}
+
 To prevent broken links from occurring over time, the official datasheets for all major components have been archived in the project repository under the \texttt{./hw/datasheets} directory.
 
 \section{Pneumatic Handling System}\label{sec:pneumatic_handling}
@@ -68,7 +70,7 @@ The airflow routing and timing are controlled by a 3/2 normally closed (NC) sole
 \begin{wrapfigure}{r}{0.4\textwidth}
     \centering
     \includegraphics[width=0.4\textwidth]{./fig/schematics/valve-crop.pdf}
-    \caption{.}
+    \caption{Schematic of the MOSFET switching circuit used to control the 24\,V solenoid valve via the 5\,V logic of the Arduino.}
     \label{fig:scheme_valve}
 \end{wrapfigure}
 The circuit utilizes an IRLZ44N, a logic-level N-channel MOSFET, which can be fully saturated by the 5\,V signal from the Arduino's digital pin (\texttt{D33}). A 220\,$\Omega$ series resistor (\texttt{R1}) limits the inrush current to the MOSFET's gate capacitor, protecting the microcontroller pin. A 10\,k$\Omega$ pull-down resistor (\texttt{R2}) guarantees that the gate is held securely at ground potential during the system boot sequence, preventing spurious actuation of the valve while the Arduino pins are in a floating state. 
@@ -101,9 +103,28 @@ The robotic manipulator must accurately navigate between three primary spatial w
 \end{figure}
 
 \subsection{Main Axis Control}\label{subsec:main_axis}
-The primary horizontal movement of the arm is driven by a 12--24\,V bipolar stepper motor. While stepper motors provide excellent open-loop positional accuracy, operating them in an open-loop configuration carries the risk of undetected step-loss due to mechanical resonance or unexpected physical collisions. To mitigate this, an AS5147 magnetic rotary encoder is integrated into the main axis. This sensor provides absolute angular positioning, allowing the system to verify the arm's true location and gracefully recover from potential misalignments.
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \centering
+    \vspace{-1em}
+    \includegraphics[width=0.4\textwidth]{./fig/schematics/encoder-crop.pdf}
+    \caption{Wiring schematic for the AS5147 magnetic rotary encoder.}
+    \label{fig:encoder_circuit}
+\end{wrapfigure}
+The primary horizontal movement of the arm is driven by a 12--24\,V bipolar stepper motor. While stepper motors provide excellent open-loop positional accuracy, operating them in an open-loop configuration carries the risk of undetected step-loss due to mechanical resonance or unexpected physical collisions. To mitigate this vulnerability, an AS5147 magnetic rotary encoder is coupled to the main axis, as detailed in \Cref{fig:encoder_circuit}.
 
-The motor is controlled by a TMC2209 stepper controller. It was chosen because it is a widely adopted standard in the open-source hardware and 3D printing communities. Its wide availability on the market and low price are key factors ensuring that the robotic platform remains easily reproducible for future users. Furthermore, as an established industry standard, the TMC2209 provides smooth microstepping right out of the box, which naturally helps minimize mechanical vibrations during arm movement without the need for complex low-level tuning.
+The motor is controlled via a TMC2209 stepper driver. Rather than relying on specialized industrial motor controllers, it was selected due to its status as a ubiquitous standard within the open-source hardware and 3D printing communities. Its widespread market availability and low cost are critical factors in ensuring that the robotic platform remains easily reproducible for future users. Furthermore, as an established industry standard, the TMC2209 provides smooth microstepping out-of-the-box, which naturally helps minimize mechanical vibrations during the arm's transit without requiring complex low-level tuning.
+
+The logical integration between the microcontroller and the stepper driver is illustrated in \Cref{fig:tmc2209_circuit}.
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+    \centering
+    \includegraphics[width=0.5\textwidth]{./fig/schematics/driver-crop.pdf}
+    \caption{Wiring schematic for the TMC2209 stepper motor driver.}
+    \label{fig:tmc2209_circuit}
+\end{wrapfigure}
+To maximize software reliability and minimize the complexity of the control loop, the driver is deployed in a hardware-configured standalone mode. As shown in the schematic, the digital interface with the Arduino Mega utilizes a standard three-wire control protocol (\texttt{STEP}, \texttt{DIR}, and \texttt{\char`~EN}). The \texttt{DIR} (Direction) and \texttt{STEP} pins define the rotational vector and the precise movement increments, respectively. The \texttt{\char`~EN} (Enable) pin allows the microcontroller to actively de-energize the motor coils (\texttt{OA1/2}, \texttt{OB1/2}).
+
+By intentionally leaving the \texttt{UART} and configuration pins unconnected, the system avoids the overhead of serial configuration protocols. Instead, it relies inherently on the driver's default behavior, effectively abstracting the complex motor phase calculations away from the microcontroller. Finally, to ensure strict galvanic isolation of the logic signals, the driver separates its power domains: the high-current motor phases are supplied by the 24\,V circuit (\texttt{VS}), while the internal logic is safely referenced to the Arduino's 5\,V rail (\texttt{VCC\_IO}).
 
 \subsection{Z-Axis Mechanism}\label{subsec:z_axis}
 To pick up and place the cards, a secondary linear vertical axis (Z-axis) is mounted at the distal end of the main arm. Given that the payload consists solely of a single piece of card stock and lightweight silicone suction cups, deploying a traditional stepper motor and lead screw would introduce unnecessary inertial mass. 
