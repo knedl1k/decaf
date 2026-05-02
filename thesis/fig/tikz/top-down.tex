@@ -1,0 +1,80 @@
+%!TEX root = ../../main.tex
+\documentclass[tikz]{standalone}
+\usetikzlibrary{calc, positioning, arrows.meta, shapes.misc, decorations.markings}
+
+\begin{document}
+\definecolor{PrimaryDark}{HTML}{2C3E50}
+\definecolor{PrimaryLight}{HTML}{ECF0F1}
+\definecolor{PlatformBg}{HTML}{FDFDFD}
+\definecolor{GridColor}{HTML}{E2E2E2}
+\definecolor{LogicBlue}{HTML}{2980B9}
+\definecolor{PowerRed}{HTML}{C0392B}
+\definecolor{KinematicOrange}{HTML}{D35400}
+\definecolor{MechGray}{HTML}{7F8C8D}
+
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    platform/.style={draw=PrimaryDark!30, line width=1pt, fill=PlatformBg, rounded corners=1mm},
+    component/.style={draw=PrimaryDark, line width=1.2pt, fill=white, rounded corners=1.5mm, align=center, text=PrimaryDark},
+    motor/.style={draw=PrimaryDark, line width=1.5pt, fill=PrimaryLight, minimum size=2.4cm, rounded corners=3mm},
+    target/.style={draw=MechGray, line width=1pt, dashed, fill=white, minimum width=3cm, minimum height=1.8cm, align=center, text=PrimaryDark},
+    data_line/.style={draw=LogicBlue, line width=1.2pt, ->},
+    power_line/.style={draw=PowerRed, line width=1.2pt, ->, densely dotted},
+    kinematic_arc/.style={draw=KinematicOrange, line width=1.5pt, <->, dashed}
+]
+
+    \draw[platform] (-7.5, -4.5) rectangle (6.5, 6.5);
+    % \begin{scope}
+    %     \clip[rounded corners=4mm] (-7.5, -4.5) rectangle (6.5, 6.5);
+    %     \draw[GridColor, step=1cm, very thin] (-7.5, -4.5) grid (6.5, 6.5);
+    % \end{scope}
+    \node[anchor=north west, font=\Large\bfseries, text=PrimaryDark!80] at (-7.5, 6.5) {Top-Down View};
+
+    \coordinate (Origin) at (0, 1.5);
+
+    \node[motor] (Stepper) at (Origin) {};
+    \draw[PrimaryDark, thick] (Origin) circle (0.7cm);
+    \fill[PrimaryDark] (Origin) circle (0.2cm);
+    \node[font=\small\bfseries, text=PrimaryDark, xshift=-2cm, yshift=-0.18cm, text width=1.5cm] at (Stepper) {Stepper Motor};
+
+    \node[component, minimum width=2.8cm, minimum height=3.2cm] (Pi) at (-5, -0.5) {\textbf{Raspberry Pi}\\[1ex]\footnotesize High-level\\[-0.5ex]\footnotesize Control};
+
+    \node[component, minimum width=2.8cm, minimum height=2.5cm] (Arduino) at (-5, 4.5) {\textbf{Arduino}\\[1ex]\footnotesize Real-time\\[-0.5ex]\footnotesize Kinematics};
+
+    \node[component, minimum width=3.5cm, minimum height=1.8cm] (Breadboard) at (0, 4.5) {\textbf{Breadboard}};
+
+    \coordinate (PosB) at ($(Origin) + (-90:5)$);
+    \node[target] (BoxB) at (PosB) {\textbf{Position B}\\[1ex]\footnotesize Camera Zone};
+
+    \coordinate (PosA) at ($(Origin) + (15:4.5)$);
+    \node[target, rotate=15] (BoxA) at (PosA) {\textbf{Position A}\\[1ex]\footnotesize Unlabeled};
+
+    \coordinate (PosC) at ($(Origin) + (-35:4.5)$);
+    \node[target, rotate=-35] (BoxC) at (PosC) {\textbf{Position C}\\[1ex]\footnotesize Labeled};
+
+    \draw[line width=18pt, MechGray!80!black, line cap=round] (Origin) -- (PosB);
+    \draw[line width=14pt, MechGray!30, line cap=round] (Origin) -- (PosB); 
+    \fill[PrimaryDark] (PosB) circle (0.3cm);
+    \fill[white] (PosB) circle (0.1cm);
+
+    \draw[kinematic_arc] ($(Origin) + (-90:4.2)$) arc (-90:16:5);
+    % \node[text=KinematicOrange, font=\bfseries, fill=PlatformBg, inner sep=2pt] at (3.2, -1.5) {Kinematic Sweep};
+
+    \draw[data_line, <->] (Pi.north) -- node[left, font=\scriptsize\bfseries, text width=1cm, xshift=0.2cm] {USB Serial} (Arduino.south);
+
+    \draw[data_line] (Arduino.east) -- ++(1,0) |- node[xshift=-0.1cm, yshift=0.2cm, font=\scriptsize\bfseries] {Logic} (Breadboard.west);
+
+    \draw[power_line] (Breadboard.south) -- node[right, font=\scriptsize\bfseries] {Motor Phases} (Stepper.north);
+
+    \draw[data_line] (Pi.south) |- node[pos=0.75, above, font=\scriptsize\bfseries] {Pi Camera cable} (BoxB.west);
+
+    \node[draw=PrimaryDark!50, fill=white, rounded corners=1mm, anchor=north east, text width=3.4cm] at (6.5, 6.5) {
+        \textbf{Signal Legend:}\\[1ex]
+        \tikz[baseline=-0.5ex]{\draw[data_line] (0,0) -- (1,0);} Data / Logic\\[1ex]
+        \tikz[baseline=-0.5ex]{\draw[power_line] (0,0) -- (1,0);} Power\\[1ex]
+        \tikz[baseline=-0.5ex]{\draw[kinematic_arc] (0,0) -- (1,0);} Kinematics
+    };
+
+\end{tikzpicture}
+\end{document}

@@ -10,10 +10,16 @@ The system functions as a simple \ii{pick-and-place} mechanism that uses a pneum
     \item Compute and Control: robot movement, card capture, recognition and classification.
 \end{enumerate}
 
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{\input{./fig/tikz/top-down.tex}}
+    \caption{Top-down system architecture diagram. The schematic illustrates both the logical control hierarchy (communication between the Raspberry Pi, Arduino, and motor driver) and the physical kinematic workspace of the manipulator traversing between the input (A), inspection (B), and output (C) stages.}
+    \label{fig:system_overview}
+\end{figure}
+
 \section{\acl{BOM}}\label{sec:bom}
 The components are categorized by origin: commercially available parts and custom parts printed on a 3D printer. The costs listed reflect retail prices on the Czech market at the time of development. It should be noted that some expensive items came from existing laboratory stock and were not purchased specifically for this project. The actual cost of reproducing this system can be reduced by replacing these components with more affordable alternatives.
-\vspace*{-0.5em}
-\begin{table}[htbp!]
+\begin{table}[H]
     \centering
     \resetcost
     \caption{\acf{BOM} for the robotic platform developed in this thesis.}
@@ -23,28 +29,30 @@ The components are categorized by origin: commercially available parts and custo
         \toprule
         \textbf{Subsystem} & \textbf{Component} & \textbf{Origin} & \textbf{Cost [€]} & \textbf{Section Ref.} \\
         \midrule
-        \multirow{8}{*}{\shortstack[l]{Pneumatic\\Handling}}
+        \multirow{9}{*}{\shortstack[l]{Pneumatic\\Handling}}
         & Compressor (Sparmax TC-610H Plus)$^\dagger$ & commercial & \cost[$\approx$ ]{356.47} & \ref{sec:pneumatic_handling} \\
         & Solenoid Valve 3/2 (NC, 24\,V DC) & commercial & \cost{46.98} & \ref{subsec:airflow} \\
         & Silicone Suction Cups (11 \& 15.5\,mm) & commercial & \cost{8.33} & \ref{subsec:airflow} \\
         & Polyurethane Tubing (6/4\,mm, 8\,m) & commercial & \cost{6.89} & \ref{subsec:airflow} \\
+        & DIN Valve Connector (Hirschmann GML 209 NJ) & commercial & \cost{6.13} & \ref{subsec:airflow} \\
         & Fittings G1/8" \& M5 ($6 \times$ \& $6 \times$) & commercial & \cost{4.43} & -- \\
-        & Vacuum Fittings & commercial & \cost{4.35} & -- \\
+        & Vacuum Fittings (15\,cm, Si) & commercial & \cost{4.35} & -- \\
         & M5 muffler & commercial & \cost{2.05} & \ref{subsec:venturi} \\
         & Venturi Vacuum Generator & 3D printed & -- & \ref{subsec:venturi}, \ref{app:venturi} \\
         \midrule
         \multirow{5}{*}{\shortstack[l]{Electro-\\mechanical}}
-        & Stepper Motor (12--24\,V) & commercial & \todo{} & \ref{subsec:main_axis} \\
+        & Stepper Motor (NEMA 17) & commercial & \cost{10.59} & \ref{subsec:main_axis} \\
         & Magnetic Encoder (AS5147-TS\_EK\_AB) & commercial & \cost{14.79} & \ref{subsec:main_axis} \\
         & Micro Servo (MG90S) & commercial & \cost{7.19} & \ref{subsec:z_axis} \\
         & Stepper Driver (TMC2209) & commercial & \cost{4.45} & \ref{subsec:main_axis} \\
         & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{subsec:z_axis}, \ref{app:z_axis} \\
         \midrule
-        \multirow{4}{*}{\shortstack[l]{Control \\ \& Vision}}
+        \multirow{5}{*}{\shortstack[l]{Control \\ \& Vision}}
         & \acs{SBC} (RPi 3B, 1\,GB RAM) & commercial & \cost{45.00} & \ref{sec:control_vision} \\
         & RPi Camera v2.1 + 50\,cm Flex Cable & commercial & \cost{29.87} & \ref{subsec:rpi} \\
         & Microcontroller (Arduino Mega 2560)$^\dagger$ & commercial & \cost[$\approx$ ]{12.64} & \ref{subsec:arduino} \\
         & 24\,V DC Power Supply$^\dagger$ & commercial & \todo{} & \ref{sec:control_vision} \\
+        & N-channel MOSFET (IRLZ44N) \& Resistors & commercial & \todo{} & \ref{subsec:airflow} \\
         \midrule
         Structural & Card Holders, Trays, Base Chassis \& Camera Mount & 3D printed & -- & \ref{sec:structs}, \ref{app:structs} \\ 
         \bottomrule
@@ -54,16 +62,13 @@ The components are categorized by origin: commercially available parts and custo
     \end{tabular}%
     }
 \end{table}
-
-\todo{add valve connector, mosfet \& resistors to the BOM.}
-
 To prevent broken links from occurring over time, the official datasheets for all major components have been archived in the project repository under the \texttt{./hw/datasheets} directory.
 
 \section{Pneumatic Handling System}\label{sec:pneumatic_handling}
 The physical manipulation of \ac{TCG} paper cards requires an end-effector capable of establishing a secure grip without inducing mechanical stress, bending and/or surface abrasion. As previously validated by Yu~\cite{pokerrobot} in the context of a robotic poker dealer (see \Cref{yolo-studies}), vacuum-based suction mechanisms provide a highly effective solution for the non-destructive handling of thin card stock. 
 
 Building upon this premise, our system utilizes a pneumatic circuit powered by a Sparmax TC-610H Plus compressor. Thanks to its integrated air tank, all pressure pulsations are eliminated; ensuring a perfectly stable vacuum state during the robotic transfer process.
-
+\newpage
 \subsection{Actuation and End-Effector}\label{subsec:airflow}
 The airflow routing and timing are controlled by a 3/2 normally closed (NC) solenoid valve operating at 24\,V DC. The valve acts as the primary logical switch for the pneumatic circuit; when turned on, compressed air flows to the \hyperref[subsec:venturi]{Venturi generator}, creating a vacuum at the end-effector. When turned off, the system vents to the atmosphere, releasing the card. 
 
@@ -146,7 +151,7 @@ The computational architecture uses a master-slave configuration, physically dec
 \subsection{Vision and High-Level Logic}\label{subsec:rpi}
 The high-level orchestration, including the computer vision pipeline, is hosted on a \ac{SBC}, specifically a Raspberry Pi 3B (1\,GB RAM). As the robotic arm transfers a card to the inspection stage, an image is captured using a Raspberry Pi Camera Module v2.1. 
 
-The cards brought in by the robotic arm are photographed by the RPi camera module. The camera is securely mounted on a 3D-printed bracket (see \Cref{fig:rpi_mount}). This fixed mechanical positioning ensures a consistent focal length and a similar viewing angle, thereby minimizing perspective distortion and actively mitigating the \ii{domain shift} between simulation and reality, as discussed in \Cref{sec:domain_shift}. The captured image is then processed entirely on the \ac{SBC}, as illustrated in \Cref{fig:pipeline_flow}. 
+The camera is securely mounted on a 3D-printed bracket (see \Cref{fig:rpi_mount}). This fixed mechanical positioning ensures a consistent focal length and a similar viewing angle, thereby minimizing perspective distortion and actively mitigating the \ii{domain shift} between simulation and reality, as discussed in \Cref{sec:domain_shift}. The captured image is then processed entirely on the \ac{SBC}, as illustrated in \Cref{fig:pipeline_flow}. 
 
 \begin{figure}[htbp]
     \centering
@@ -160,7 +165,7 @@ While the Raspberry Pi offers significant computational capacity, its standard G
 
 The Arduino is physically connected to the Raspberry Pi via a standard USB interface, over which it receives positional targets and system triggers using serial communication. The Arduino was selected for this initial prototype due to its native 5\,V logic level, as well as its widespread availability and proven reliability within the open-source hardware community. However, because the system's actual I/O pin count and memory footprint are minimal, future replications can substitute the Mega with smaller, more cost-effective 8-bit alternatives, such as the Arduino Uno or Nano, without any required changes to the underlying logic. The Mega version was chosen primarily because it was available in laboratory inventory.
 
-The Arduino receives high-level positional target commands from the Raspberry Pi via serial communication. It is exclusively responsible for generating the precise, uninterrupted step pulses for the TMC2209 driver, managing the Pulse Width Modulation (PWM) signals for the Z-axis servo, and instantaneously actuating the 24\,V solenoid valve relay to ensure drop-timing accuracy.
+Operating independently of the \acp{SBC} processing load, the Arduino is exclusively responsible for generating the precise, uninterrupted step pulses for the TMC2209 driver, managing the Pulse Width Modulation (PWM) signals for the Z-axis servo, and instantaneously actuating the 24\,V solenoid valve via the dedicated MOSFET circuit to ensure drop-timing accuracy.
 
 \section{Structural Design and Assembly}\label{sec:structs}
 To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and sorting trays are manufactured from standard PLA filament. CAD renderings of these primary structural elements are presented in \Cref{fig:structural_renders}. To facilitate complete reproducibility, the technical drawings for all custom 3D-printed structural components are compiled in \Cref{app:structs}.
