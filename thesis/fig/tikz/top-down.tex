@@ -24,7 +24,7 @@
     kinematic_arc/.style={draw=KinematicOrange, line width=1.5pt, <->, dashed}
 ]
 
-    \draw[platform] (-7.5, -4.5) rectangle (6.5, 6.5);
+    \draw[platform] (-7.5, -2.8) rectangle (6.5, 6.5);
     % \begin{scope}
     %     \clip[rounded corners=4mm] (-7.5, -4.5) rectangle (6.5, 6.5);
     %     \draw[GridColor, step=1cm, very thin] (-7.5, -4.5) grid (6.5, 6.5);
@@ -58,16 +58,16 @@
     \fill[PrimaryDark] (PosB) circle (0.3cm);
     \fill[white] (PosB) circle (0.1cm);
 
-    \draw[kinematic_arc] ($(Origin) + (-90:4.2)$) arc (-90:16:5);
+    \draw[kinematic_arc] ($(Origin) + (-90:5)$) arc (-90:16:4.8);
     % \node[text=KinematicOrange, font=\bfseries, fill=PlatformBg, inner sep=2pt] at (3.2, -1.5) {Kinematic Sweep};
 
     \draw[data_line, <->] (Pi.north) -- node[left, font=\scriptsize\bfseries, text width=1cm, xshift=0.2cm] {USB Serial} (Arduino.south);
 
-    \draw[data_line] (Arduino.east) -- ++(1,0) |- node[xshift=-0.1cm, yshift=0.2cm, font=\scriptsize\bfseries] {Logic} (Breadboard.west);
+    \draw[data_line] (Arduino.east) -- ++(1,0) |- node[xshift=-0.1cm, yshift=0.2cm, font=\scriptsize\bfseries] {} (Breadboard.west);
 
     \draw[power_line] (Breadboard.south) -- node[right, font=\scriptsize\bfseries] {Motor Phases} (Stepper.north);
 
-    \draw[data_line] (Pi.south) |- node[pos=0.75, above, font=\scriptsize\bfseries] {Pi Camera cable} (BoxB.west);
+    \draw[data_line] (Pi.south) |- node[pos=0.75, above, font=\scriptsize\bfseries] {} (BoxB.west);
 
     \node[draw=PrimaryDark!50, fill=white, rounded corners=1mm, anchor=north east, text width=3.4cm] at (6.5, 6.5) {
         \textbf{Signal Legend:}\\[1ex]
