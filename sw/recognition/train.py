@@ -288,10 +288,7 @@ def main():
             metrics = evaluate_metrics(model.module, val_loader, device)
             metrics["real_top1"] = None
 
-            print_metrics(metrics, epoch)
             current_lr = optimizer.param_groups[1]["lr"]
-            update_history(history, metrics, epoch, avg_loss, current_lr)
-            save_history(history, f"{args.save_dir}/history.npy")
             # plot_training_curves(history, args.save_dir)
 
             if epoch % 5 == 0 or epoch == args.epochs:
@@ -300,8 +297,10 @@ def main():
                 print(f"Model saved to {save_path}")
                 if real_loader and ref_loader:
                     metrics["real_top1"] = evaluate_real_domain(model.module, real_loader, ref_loader, device)
-                    print(f"Real Photo Top-1 Accuracy: {metrics['real_top1']:.2f}%")
 
+            print_metrics(metrics, epoch)
+            update_history(history, metrics, epoch, avg_loss, current_lr)
+            save_history(history, f"{args.save_dir}/history.npy")
         dist.barrier()
 
     if is_master:

@@ -219,6 +219,7 @@ def print_metrics(metrics: Dict[str, float], epoch: int):
     print(f"--- VALIDATION RESULTS (Epoch {epoch}) ---")
     print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
     print(f"Top-1 (Synth): {metrics['top1_acc'] * 100:.2f} %")
+    print(f"Top-1 (Real):  {metrics['real_top1']:.2f}%") if metrics["real_top1"] is not None else ""
     print(f"Threshold:     {metrics['threshold']:.4f}")
     print(f"Avg Pos Sim:   {metrics['avg_pos_sim']:.4f}")
     print(f"Avg Neg Sim:   {metrics['avg_neg_sim']:.4f}")
