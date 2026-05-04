@@ -51,7 +51,7 @@ def create_database(args):
     print(f"Starting inference on {len(dataset)} cards...")
 
     with torch.no_grad():
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
+        with torch.autocast(device_type=device.type, dtype=torch.float16):
             for i, (imgs, batch_names) in enumerate(dataloader):
                 imgs = imgs.to(device)
 
