@@ -174,8 +174,8 @@ def evaluate_metrics(
                 emb_g = model(img_gallery)
                 emb_g = torch.nn.functional.normalize(emb_g, p=2, dim=1)
 
-            emb_q = model(img_query)
-            emb_q = torch.nn.functional.normalize(emb_q, p=2, dim=1)
+                emb_q = model(img_query)
+                emb_q = torch.nn.functional.normalize(emb_q, p=2, dim=1)
 
             gallery_vecs.append(emb_g.cpu())
             query_vecs.append(emb_q.cpu())
