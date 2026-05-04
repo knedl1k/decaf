@@ -240,46 +240,46 @@
 {\enditemize}
 {\item}
 
-\defbibenvironment{bibliography}
-  {\list{}{%
-    \setlength{\leftmargin}{0pt}%
-    \setlength{\itemindent}{0pt}%
-    \setlength{\itemsep}{\bibitemsep}%
-    \setlength{\parsep}{\bibparsep}%
-  }}
-  {\endlist}
-  {\item\relax}
+% \defbibenvironment{bibliography}
+%   {\list{}{%
+%     \setlength{\leftmargin}{0pt}%
+%     \setlength{\itemindent}{0pt}%
+%     \setlength{\itemsep}{\bibitemsep}%
+%     \setlength{\parsep}{\bibparsep}%
+%   }}
+%   {\endlist}
+%   {\item\relax}
 
-\renewbibmacro*{begentry}{%
-  \ifkeyword{crucial}{%
-    \begin{tcolorbox}[%
-      opacityfill=0.05, colback={cvutblue}, colframe={cvutblue}, 
-      nobeforeafter, width=\linewidth,
-      boxrule=0.5mm, boxsep=1mm, left=4mm, right=4mm, top=2mm, bottom=2mm%
-    ]%
-  }{%
-    \begin{tcolorbox}[%
-      colback=white, colframe=white, 
-      nobeforeafter, width=\linewidth,
-      boxrule=0mm, boxsep=0mm, left=5.5mm, right=5.5mm, top=0mm, bottom=0mm%
-    ]%
-  }%
-  % citation's number
-  \begin{minipage}[t]{0.07\linewidth}%
-    \raggedright%
-    \printtext[labelnumberwidth]{%
-      \printfield{labelprefix}%
-      \printfield{labelnumber}}%
-  \end{minipage}%
-  % citation's text
-  \begin{minipage}[t]{0.93\linewidth}%
-}
+% \renewbibmacro*{begentry}{%
+%   \ifkeyword{crucial}{%
+%     \begin{tcolorbox}[%
+%       opacityfill=0.05, colback={cvutblue}, colframe={cvutblue}, 
+%       nobeforeafter, width=\linewidth,
+%       boxrule=0.5mm, boxsep=1mm, left=4mm, right=4mm, top=2mm, bottom=2mm%
+%     ]%
+%   }{%
+%     \begin{tcolorbox}[%
+%       colback=white, colframe=white, 
+%       nobeforeafter, width=\linewidth,
+%       boxrule=0mm, boxsep=0mm, left=5.5mm, right=5.5mm, top=0mm, bottom=0mm%
+%     ]%
+%   }%
+%   % citation's number
+%   \begin{minipage}[t]{0.07\linewidth}%
+%     \raggedright%
+%     \printtext[labelnumberwidth]{%
+%       \printfield{labelprefix}%
+%       \printfield{labelnumber}}%
+%   \end{minipage}%
+%   % citation's text
+%   \begin{minipage}[t]{0.93\linewidth}%
+% }
 
-\renewbibmacro*{finentry}{%
-  \finentrypunct
-  \end{minipage}%
-  \end{tcolorbox}%
-}
+% \renewbibmacro*{finentry}{%
+%   \finentrypunct
+%   \end{minipage}%
+%   \end{tcolorbox}%
+% }
 
 %% | ---------------------- custom macros --------------------- |
 
