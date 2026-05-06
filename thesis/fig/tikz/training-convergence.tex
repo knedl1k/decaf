@@ -1,0 +1,86 @@
+%!TEX root = ../../main.tex
+\documentclass[tikz]{standalone}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{fillbetween}
+
+\pgfplotsset{compat=1.18}
+\begin{document}
+\definecolor{matloss}{RGB}{44, 62, 80}
+\definecolor{matlr}{RGB}{127, 140, 141}
+\definecolor{matfmr}{RGB}{192, 57, 43}
+\definecolor{matpos}{RGB}{39, 174, 96}
+\definecolor{matneg}{RGB}{211, 84, 0}
+\definecolor{matthresh}{RGB}{41, 128, 185}
+\definecolor{matacc}{RGB}{142, 68, 173}
+\definecolor{axisgray}{RGB}{110, 110, 110}
+
+\pgfplotsset{
+    training axis/.style={
+        width=\textwidth,
+        height=7.5cm,
+        axis x line*=bottom,
+        axis line style={draw=axisgray, thick},
+        tick style={draw=axisgray, thick},
+        ymajorgrids=true,
+        grid style={dashed, gray!35},
+        xlabel={Epoch},
+        label style={font=\small},
+        tick label style={font=\small},
+        title style={font=\normalsize, yshift=1ex},
+        legend style={
+            draw=none, 
+            fill=none, 
+            font=\footnotesize,
+            cells={anchor=west}
+        }
+    }
+}
+
+    \begin{tikzpicture}
+        \begin{axis}[
+            training axis,
+            axis y line*=left,
+            title={\textbf{Training Loss \& Learning Rate}},
+            ylabel={Loss},
+            ymin=0, 
+            legend style={at={(0.98,1)}, anchor=north east}
+        ]
+        \addplot[color=matloss, thick] table [col sep=comma, x=epoch, y=loss] {./fig/tikz/data/training_history.csv};
+        \addlegendentry{Loss}
+        \end{axis}
+        
+        \begin{axis}[
+            training axis,
+            axis y line*=right,
+            axis x line=none, 
+            ymode=log,
+            ylabel={Learning Rate},
+            ylabel near ticks,
+            legend style={at={(0.98,0.95)}, anchor=north east} 
+        ]
+        \addplot[color=matlr, thick, dashed] table [col sep=comma, x=epoch, y=lr] {./fig/tikz/data/training_history.csv};
+        \addlegendentry{Learning Rate}
+        \end{axis}
+    \end{tikzpicture}
+    
+    \vspace{1cm}
+
+    \begin{tikzpicture}
+        \begin{axis}[
+            training axis,
+            axis y line*=left,
+            title={\textbf{Top-1 Validation Accuracy}},
+            ylabel={Accuracy (\%)},
+            ymin=0, ymax=105,
+            legend style={at={(0.98,0.1)}, anchor=south east}
+        ]
+        \addplot[color=matacc, thick] table [col sep=comma, x=epoch, y=top1_acc] {./fig/tikz/data/training_history.csv};
+        \addlegendentry{Synthetic data}
+        
+        \addplot[color=matfmr, thick, dashed] table [col sep=comma, x=epoch, y=real_top1] {./fig/tikz/data/training_history.csv};
+        \addlegendentry{Real data}
+        \end{axis}
+    \end{tikzpicture}
+
+\end{document}

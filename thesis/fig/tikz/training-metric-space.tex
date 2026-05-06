@@ -1,0 +1,85 @@
+%!TEX root = ../../main.tex
+\documentclass[tikz]{standalone}
+
+\usepackage{pgfplots}
+
+\pgfplotsset{compat=1.18}
+
+\begin{document}
+\usepgfplotslibrary{fillbetween}
+
+\definecolor{matloss}{RGB}{44, 62, 80}
+\definecolor{matlr}{RGB}{127, 140, 141}
+\definecolor{matfmr}{RGB}{192, 57, 43}
+\definecolor{matpos}{RGB}{39, 174, 96}
+\definecolor{matneg}{RGB}{211, 84, 0}
+\definecolor{matthresh}{RGB}{41, 128, 185}
+\definecolor{matacc}{RGB}{142, 68, 173}
+\definecolor{axisgray}{RGB}{110, 110, 110}
+
+\pgfplotsset{
+    training axis/.style={
+        width=\textwidth,
+        height=7.5cm,
+        axis x line*=bottom,
+        axis line style={draw=axisgray, thick},
+        tick style={draw=axisgray, thick},
+        ymajorgrids=true,
+        grid style={dashed, gray!25},
+        xlabel={Epoch},
+        label style={font=\small},
+        tick label style={font=\small},
+        title style={font=\normalsize, yshift=1ex},
+        legend style={
+            draw=none, 
+            fill=none, 
+            font=\footnotesize,
+            cells={anchor=west}
+        }
+    }
+}
+
+\begin{tikzpicture}
+    \begin{axis}[
+        training axis,
+        axis y line*=left,
+        title={\textbf{Cosine Similarities \& Threshold}},
+        ylabel={Similarity (-1 to 1)},
+        ymin=-0.2, ymax=1.0,
+        legend style={at={(0.98,0.5)}, anchor=east} 
+    ]
+    
+    \addplot[name path=pos_upper, draw=none] table [col sep=comma, x=epoch, y=pos_upper] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=pos_lower, draw=none] table [col sep=comma, x=epoch, y=pos_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[matpos, fill opacity=0.15] fill between[of=pos_upper and pos_lower];
+    \addplot[color=matpos, thick] table [col sep=comma, x=epoch, y=pos_sim] {./fig/tikz/data/training_history.csv};
+    \addlegendentry{Avg Pos Sim}
+    
+    \addplot[name path=neg_upper, draw=none] table [col sep=comma, x=epoch, y=neg_upper] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=neg_lower, draw=none] table [col sep=comma, x=epoch, y=neg_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[matneg, fill opacity=0.15] fill between[of=neg_upper and neg_lower];
+    \addplot[color=matneg, thick, dashed] table [col sep=comma, x=epoch, y=neg_sim] {./fig/tikz/data/training_history.csv};
+    \addlegendentry{Avg Neg Sim}
+
+    \addplot[color=matthresh, thick, dashdotted] table [col sep=comma, x=epoch, y=threshold] {./fig/tikz/data/training_history.csv};
+    \addlegendentry{Threshold (95\% TMR)}
+    \end{axis}
+\end{tikzpicture}
+
+\vspace{1cm}
+
+\begin{tikzpicture}
+    \begin{axis}[
+        training axis,
+        axis y line*=left,
+        ymode=log,
+        title={\textbf{Validation FMR @ 95\% TMR}},
+        ylabel={FMR (\%)},
+        legend style={at={(0.98,0.98)}, anchor=north east}
+    ]
+    \addplot[color=matfmr, thick] table [col sep=comma, x=epoch, y=fmr] {./fig/tikz/data/training_history.csv};
+    \end{axis}
+\end{tikzpicture}
+
+\end{document}
+
