@@ -1,0 +1,62 @@
+%!TEX root = ../../main.tex
+\documentclass[tikz]{standalone}
+
+\usepackage{pgfplots}
+
+\pgfplotsset{compat=1.18}
+
+\begin{document}
+\definecolor{ctublue}{RGB}{0, 101, 189}
+\definecolor{ctulight}{RGB}{128, 179, 222}
+\definecolor{thesisred}{RGB}{196, 30, 58}
+\definecolor{axisgray}{RGB}{110, 110, 110}
+    \begin{tikzpicture}
+        \begin{axis}[
+            axis on top,
+            width=0.9\textwidth,
+            height=7.5cm,
+            ylabel={Accuracy (\%)},
+            ymin=0, ymax=105,
+            axis x line*=bottom,
+            axis y line*=left,
+            axis line style={draw=axisgray, thick},
+            tick style={draw=axisgray, thick},
+            ymajorgrids=true,
+            grid style={dashed, gray!35},
+            ybar=0pt,
+            bar width=1.4cm,
+            enlarge x limits=0.25,
+            symbolic x coords={Top-1, Top-3, Top-5},
+            xtick=data,
+            nodes near coords={\pgfmathprintnumber{\pgfplotspointmeta}\%},
+            every node near coord/.append style={font=\small\bfseries, text=axisgray, yshift=3pt},
+            legend style={
+                at={(0.5,-0.15)}, 
+                anchor=north, 
+                legend columns=-1,
+                draw=none, 
+                fill=none, 
+                font=\small,
+                /tikz/every even column/.append style={column sep=0.5cm}
+            },
+        ]
+        
+        \addplot[
+            draw opacity=0,
+            fill=ctulight,
+            thick,
+            area legend
+        ] table [col sep=comma, x=k, y=name_match] {./fig/tikz/data/bar_data.csv};
+        \addlegendentry{Name Match}
+
+        \addplot[
+            draw opacity=0,
+            fill=ctublue,
+            thick,
+            area legend
+        ] table [col sep=comma, x=k, y=exact_match] {./fig/tikz/data/bar_data.csv};
+        \addlegendentry{Exact Match}
+
+        \end{axis}
+    \end{tikzpicture}
+\end{document}
