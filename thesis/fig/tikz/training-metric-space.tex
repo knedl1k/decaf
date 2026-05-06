@@ -25,7 +25,7 @@
         axis line style={draw=axisgray, thick},
         tick style={draw=axisgray, thick},
         ymajorgrids=true,
-        grid style={dashed, gray!25},
+        grid style={dashed, gray!35},
         xlabel={Epoch},
         label style={font=\small},
         tick label style={font=\small},
@@ -45,6 +45,7 @@
         axis y line*=left,
         title={\textbf{Cosine Similarities \& Threshold}},
         ylabel={Similarity (-1 to 1)},
+        xmin=1, xmax=60,
         ymin=-0.2, ymax=1.0,
         legend style={at={(0.98,0.5)}, anchor=east} 
     ]
@@ -73,6 +74,7 @@
         training axis,
         axis y line*=left,
         ymode=log,
+        xmin=1, xmax=60,
         title={\textbf{Validation FMR @ 95\% TMR}},
         ylabel={FMR (\%)},
         legend style={at={(0.98,0.98)}, anchor=north east}
