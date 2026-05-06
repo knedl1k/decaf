@@ -28,35 +28,31 @@ def get_train_transforms(img_size: int) -> A.Compose:
     """Augmentation pipeline for training and query validation."""
     return A.Compose(
         [
-            # geometric deformations
             A.Affine(
                 scale=(0.95, 1.05),
                 translate_percent=(-0.05, 0.05),
-                rotate=(-35, 35),
+                rotate=(-15, 15),
                 border_mode=cv2.BORDER_REPLICATE,
                 p=0.8,
             ),
-            A.Perspective(scale=(0.05, 0.15), p=0.5),
-            # lighting & sleeve glare simulation
-            A.RandomSunFlare(src_radius=100, num_flare_circles_range=(1, 2), p=0.3),
-            A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.2),
-            A.MotionBlur(blur_limit=5, p=0.2),
-            A.GlassBlur(sigma=0.7, max_delta=4, iterations=2, p=0.2),
-            # mera artifacts
+            A.Perspective(scale=(0.02, 0.08), p=0.5),
             A.CoarseDropout(
                 num_holes_range=(1, 3),
-                hole_height_range=(0.2, 0.45),
-                hole_width_range=(0.2, 0.45),
+                hole_height_range=(0.2, 0.35),
+                hole_width_range=(0.2, 0.35),
                 fill="random",
-                p=0.6,
+                p=0.5,
             ),
+            A.RandomSunFlare(src_radius=250, num_flare_circles_range=(2, 3), p=0.7),
+            A.RandomShadow(num_shadows_limit=(1, 2), shadow_roi=(0, 0, 1, 1), p=0.4),
+            A.GlassBlur(sigma=0.7, max_delta=4, iterations=2, p=0.2),
+            A.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.15, p=0.8),
+            A.RGBShift(r_shift_limit=40, g_shift_limit=40, b_shift_limit=40, p=0.5),
+            A.ToGray(p=0.2),
+            A.MotionBlur(blur_limit=5, p=0.2),
             A.GaussianBlur(blur_limit=(3, 5), p=0.3),
-            A.ImageCompression(quality_range=(60, 100), p=0.2),
+            A.ImageCompression(quality_range=(50, 90), p=0.3),
             A.ISONoise(p=0.2),
-            # colors
-            A.RandomBrightnessContrast(brightness_limit=0.25, contrast_limit=0.25, p=0.7),
-            A.CLAHE(p=0.3),
-            A.HueSaturationValue(hue_shift_limit=3, sat_shift_limit=30, val_shift_limit=20, p=0.5),
             A.Normalize(),
             ToTensorV2(),
         ]
@@ -106,14 +102,14 @@ def apply_random_background(image: np.ndarray, target_size: int) -> np.ndarray:
 
 class RealValidationDataset(Dataset):
     def __init__(self, image_paths: List[Path], transform: Callable, img_size: int):
-        from utils import detect_and_crop_card
+        from utils import smart_crop_card
 
         self.transform = transform
         self.valid_data = []
 
         print(f"Pre-computing homography crops for {len(image_paths)} real images...")
         for path in image_paths:
-            warped, _ = detect_and_crop_card(str(path), output_size=img_size)
+            warped, _ = detect_and_crop_card(str(path), output_height=img_size)
             if warped is not None:
                 rgb_img = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
                 self.valid_data.append((rgb_img, path.stem))
