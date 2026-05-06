@@ -44,6 +44,7 @@
             title={\textbf{Training Loss \& Learning Rate}},
             ylabel={Loss},
             ymin=0, 
+            xmin=1, xmax=60,
             legend style={at={(0.98,1)}, anchor=north east}
         ]
         \addplot[color=matloss, thick] table [col sep=comma, x=epoch, y=loss] {./fig/tikz/data/training_history.csv};
@@ -55,6 +56,7 @@
             axis y line*=right,
             axis x line=none, 
             ymode=log,
+            xmin=1, xmax=60,
             ylabel={Learning Rate},
             ylabel near ticks,
             legend style={at={(0.98,0.95)}, anchor=north east} 
@@ -73,6 +75,7 @@
             title={\textbf{Top-1 Validation Accuracy}},
             ylabel={Accuracy (\%)},
             ymin=0, ymax=105,
+            xmin=1, xmax=60,
             legend style={at={(0.98,0.1)}, anchor=south east}
         ]
         \addplot[color=matacc, thick] table [col sep=comma, x=epoch, y=top1_acc] {./fig/tikz/data/training_history.csv};

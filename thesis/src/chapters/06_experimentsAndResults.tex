@@ -1,20 +1,27 @@
 \chapter{Experiments and Results}\label{chap:er}
 
+\section{Definition of Correct Identification}\label{sec:identity_definition}
+A known challenge in evaluating \ac{TCG} recognition systems is the handling of reprints. As previously illustrated in \Cref{fig:tiny_details}, a single mechanically unique card is frequently reprinted across multiple editions. These reprints often utilize the same primary artwork, differing only in localized details such as a set symbol, a holographic stamp, or copyright text.
+
+Because the proposed architecture (\Cref{sec:model_architecture}) processes the entire card as a holistic visual fingerprint, the network inherently prioritizes macro-level features (e.g., silhouettes and/or color palettes) over micro-level typographical differences.
+
+Thus, this thesis defines a \ii{True Positive (Correct Match)} primarily at the \ii{Name-Level}. If the system retrieves an embedding that matches the canonical name of the queried card, the prediction is considered correct, regardless of the specific edition. While exact-edition matching is evaluated to demonstrate the system's operational limits, achieving robust edition verification is better suited for a secondary pipeline, which is designated as future work.
+
 \section{Evaluation Metrics}
-Because the proposed recognition pipeline relies on Open-Set Metric Learning rather than standard closed-set classification,, traditional metrics like simple accuracy are insufficient for evaluating the  model's robustness. The system acts as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
+Because the recognition pipeline utilizes Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the structural robustness of the model. The system operates as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
 
 \subsection{Verification Performance (\acs{FMR} \& \acs{TMR})}
-To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain_2011}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95\%.
+To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain2011biometrics}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95~\%.
 
-Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the feature embeddings $\mathbf{x}_i$ and $\mathbf{x}_j$ extracted from two images. We define two distinct sets of evaluation pairs:
+Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the feature embeddings $\mathbf{x}_i$ and $\mathbf{x}_j$ extracted from two images. We define two sets of evaluation pairs:
 \begin{itemize}
-    \item \textbf{Genuine Pairs} ($\mathcal{P}_{\text{gen}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where both embeddings represent the exact same card. In synthetic validation, this pairs a stochastically augmented query with its clean digital template. In real-world testing, this pairs a physical camera photograph with its corresponding digital template.
-    \item \textbf{Impostor Pairs} ($\mathcal{P}_{\text{imp}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where the query image and the reference template belong to entirely different, distinct cards.
+    \item \bb{Genuine Pairs} ($\mathcal{P}_{\text{gen}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where both embeddings represent the same card. In synthetic validation, this pairs an augmented query with its clean digital template. In real-world testing, this pairs a physical camera photograph with its corresponding clean digital template.
+    \item \bb{Impostor Pairs} ($\mathcal{P}_{\text{imp}}$): A tuple $(\mathbf{x}_i, \mathbf{x}_j)$ where the query image and the reference template belong to distinct cards.
 \end{itemize}
 
-The \ac{TMR} defines the proportion of genuine pairs that are correctly matched with a similarity score equal to or above a given decision threshold $\tau$. Conversely, the \ac{FMR} defines the proportion of impostor pairs that falsely yield a similarity score equal to or above that same threshold $\tau$.
+The \ac{TMR} defines the proportion of genuine pairs correctly matched with a similarity score equal to or above a given decision threshold $\tau$. Conversely, the \ac{FMR} defines the proportion of impostor pairs that falsely yield a similarity score equal to or above $\tau$.
 
-To compute the \ac{FMR} @ 95\% \ac{TMR}, the operational threshold $\tau_{95}$ is empirically determined such that exactly 95\% of all genuine pairs are accepted:
+To compute the \ac{FMR} @ 95~\% \ac{TMR}, the operational threshold $\tau_{95}$ is empirically determined such that 95~\% of all genuine pairs are accepted:
 \begin{equation}
     \text{\ac{TMR}}(\tau_{95}) = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{gen}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{gen}}|} = 0.95
 \end{equation}
@@ -24,15 +31,80 @@ Once $\tau_{95}$ is established, the \ac{FMR} is calculated as:
     \text{\ac{FMR}} = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{imp}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{imp}}|}
 \end{equation}
 
-This metric reflects the system's strictness and reliability. A highly robust model will maintain an \ac{FMR} approaching zero at this operating point. This indicates that it can successfully recognize 95\% of targeted cards despite severe noise and \hyperref[sec:domain_shift]{domain shift}, without falsely confusing visually similar, yet distinct, cards.
+This metric reflects the system's precision. An \ac{FMR} approaching zero at this operating point indicates that the model can successfully recognize 95~\% of targeted cards despite noise and already discussed domain shift (\Cref{sec:domain_shift}), without confusing them with visually similar cards.
 
 \subsection{Retrieval Performance (Top-\texorpdfstring{$k$}{k} Accuracy)}
-While the \ac{FMR} provides a rigorous measure of the embedding space's structural integrity, the ultimate objective of the robotic sorter is the accurate identification of physical cards against a massive database under real-world conditions. This is fundamentally a 1-to-$N$ retrieval problem.
+While the \ac{FMR} provides a measure of the embedding space's structural integrity, the objective of the robotic sorter is the identification of physical cards under real-world conditions. This is a 1-to-$N$ retrieval problem.
 
-To evaluate the system's operational viability, the model is tested against a dataset of unconstrained physical photographs. The performance is quantified using Top-$k$ Accuracy. For a given query image, the system retrieves the $k$ database entries with the highest cosine similarity. If the ground-truth card identity exists within this subset, the prediction is considered correct. 
+To evaluate operational viability, performance is quantified using Top-$k$ Accuracy. For a given query, the system retrieves the $k$ database entries with the highest cosine similarity. If the ground-truth identity exists within this subset, the prediction is correct. 
 
-In the context of automated sorting, these metrics hold specific operational meanings:
 \begin{itemize}
-    \item \textbf{Top-1 Accuracy}: Represents the zero-intervention success rate of the robotic mechanism (i.e., the robot successfully identifies and sorts the card without human assistance).
-    \item \textbf{Top-3 and Top-5 Accuracy}: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that even when the network is uncertain (due to heavy occlusions, extreme glare, and/or \hyperref[sec:domain_shift]{domain shift}) the correct card is still clustered closely to the query in the embedding space. In practice, this allows the software to present a short list of highly probable candidates for a human operator to quickly verify.
+    \item \textbf{Top-1 Accuracy}: Represents the zero-intervention success rate of the identification mechanism.
+    \item \textbf{Top-3 and Top-5 Accuracy}: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that when the network is uncertain (e.g., due to lighting conditions), the correct card remains clustered near the query in the embedding space.
 \end{itemize}
+
+\section{Experimental Setup}
+To validate the model, performance was measured across two evaluation sets:
+\begin{enumerate}
+    \item \textbf{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training data. These images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean gallery templates. This set tracks the integrity of the embedding space during training.
+    \item \textbf{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained physical photographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves, and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
+\end{enumerate}
+The model was trained for 60 epochs using a Polynomial Warmup learning rate schedule. The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. \todo{already discussed in chap. 4}
+
+\section{Results}
+\subsection{Training Convergence and Generalization}\label{subsec:exp_convergence}
+The first phase of the evaluation focuses on the training dynamics and the model's ability to generalize from synthetic augmentations to physical photographs. 
+
+\begin{figure}[H]
+    \centering
+    \input{./fig/tikz/training-convergence.tex}
+    \caption{Top: Progression of the objective loss coupled with the polynomial learning rate schedule. Bottom: Top-1 retrieval accuracy measured at the end of each epoch, demonstrating the correlation between synthetic and real-world performance.}
+    \label{fig:training_convergence}
+\end{figure}
+
+As illustrated in \Cref{fig:training_convergence} (Top), the loss function exhibits a smooth decay, confirming stable optimization. \Cref{fig:training_convergence} (Bottom) plots the retrieval accuracy during training. The Top-1 accuracy on physical photographs correlates with the accuracy on the augmented synthetic validation set. This validates the methodology proposed in \Cref{sec:synthetic_gen}; subjecting digital templates to geometric and color space deformations provides sufficient regularization to mitigate domain shift.
+
+\subsection{Embedding Space Integrity (\acs{FMR} \& Margins)}\label{subsec:exp_metric_learning}
+\Cref{fig:training_metric_space} visualizes how the ArcFace objective function manipulates the feature vectors on the 512-dimensional hypersphere over the course of training.
+
+\begin{figure}[H]
+    \centering
+    \input{./fig/tikz/training-metric-space.tex}
+    \caption{Top: The progression of positive (genuine) and negative (impostor) cosine similarities. The shaded regions denote the standard deviation. Bottom: The corresponding logarithmic decay of the \ac{FMR}.}
+    \label{fig:training_metric_space}
+\end{figure}
+
+The \ii{Cosine Similarities} plot (\Cref{fig:training_metric_space}, Top) illustrates the average geometric distance between pairs of images. In the initial epochs, the network struggles to separate the classes; the positive and negative similarities overlap, and the standard deviation bands are wide. As training progresses, the additive angular margin (introduced in \Cref{sec:arcface}) forces a distinct structural behavior:
+\begin{enumerate}
+    \item \textbf{Inter-Class Separability:} The average similarity for impostor pairs is pushed toward $0.0$ (orthogonal vectors), ensuring different cards are separated.
+    \item \textbf{Intra-Class Compactness:} The average similarity for genuine pairs rises. The standard deviation band for positive pairs narrows over time, indicating that the network learns to map distorted queries of the same card into a compact cluster.
+\end{enumerate}
+
+This expanding margin causes the logarithmic decay observed in the \ac{FMR} plot (\Cref{fig:training_metric_space}, Bottom). By establishing a decision threshold $\tau$ (represented by the dashed line), the network minimizes the probability of misclassifying an impostor pair.
+
+\subsection{Real-World Retrieval Performance}\label{subsec:exp_real_world}
+To evaluate operational viability, the trained model extracted feature vectors from the Real-World Evaluation Set. These queries were compared against a pre-computed index database containing reference embeddings. The retrieval results are summarized in \Cref{fig:acc_barchart}. 
+
+\begin{figure}[H]
+    \centering
+    \input{./fig/tikz/barplot-match-real.tex}
+    \caption{Top-$k$ retrieval accuracy on unconstrained physical photographs.}
+    \label{fig:acc_barchart}
+\end{figure}
+
+The system achieves a Top-1 Name Match accuracy of 97.8~\%. This confirms that feature representations learned from synthetic data can generalize to physical assets. Furthermore, the Top-5 accuracy indicates that when the network encounters ambiguity, it ranks the correct identity within the top candidates. 
+
+The data supports the premise proposed in \Cref{sec:identity_definition}: while Name Matching is accurate, Exact Edition matching drops to 83.7~\%. This highlights the limitations of using a global visual feature extractor for fine-grained typography.
+
+\subsubsection{Confidence Distribution}
+To analyze the system's decision-making process, \Cref{fig:sim_histogram} visualizes the distribution of the Top-1 cosine similarity scores.
+
+\begin{figure}[H]
+    \centering
+    \input{./fig/tikz/distribution-cosSim.tex}
+    \caption{Frequency distribution of Top-1 cosine similarities for the Name Matching task.}
+    \label{fig:sim_histogram}
+\end{figure}
+
+The histogram indicates a distinct operational separation. Correctly identified cards yield similarity scores primarily between $0.60$ and $0.85$. In contrast, incorrect matches cluster around the $0.40$--$0.50$ range. In an automated environment, this distribution implies that a confidence threshold (e.g., $\tau = 0.55$) can be established. Predictions falling below this threshold can be routed for manual review, reducing the rate of silent failures during sorting.
+
