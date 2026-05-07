@@ -46,10 +46,15 @@ To evaluate operational viability, performance is quantified using Top-$k$ Accur
 \section{Experimental Setup}
 To validate the model, performance was measured across two evaluation sets:
 \begin{enumerate}
-    \item \textbf{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training data. These images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean gallery templates. This set tracks the integrity of the embedding space during training.
-    \item \textbf{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained physical photographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves, and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
+    \item \textbf{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training data. These images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean digital templates. This set tracks the integrity of the embedding space during training.
+    \item \textbf{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained physical photographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
 \end{enumerate}
-The model was trained for 60 epochs using a Polynomial Warmup learning rate schedule. The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. \todo{already discussed in chap. 4}
+
+The network was trained for 60 epochs across 4 GPUs utilizing the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
+
+The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. Optimization was performed using \ac{SGD} with a momentum of $0.9$ and a weight decay of $5 \times 10^{-4}$. The base learning rate parameter was defined as $\eta_{\text{base}} = 0.1$. 
+
+To prevent catastrophic forgetting of the low-level visual features pre-trained on ImageNet, differential learning rates were applied: the \ac{ResNet}-50 backbone was optimized at a learning rate an order of magnitude smaller ($\eta = 0.1 \eta_{\text{base}}$) than the randomly initialized embedding and ArcFace heads ($\eta = \eta_{\text{base}}$). Furthermore, following the optimization strategy from the official ArcFace implementation~\cite{Deng_2022}, a Polynomial Warmup learning rate scheduler was employed. The learning rate was linearly scaled up over the first two epochs to stabilize initial gradient updates, followed by a polynomial decay ($p=2.0$) over the remaining training steps.
 
 \section{Results}
 \subsection{Training Convergence and Generalization}\label{subsec:exp_convergence}
@@ -62,7 +67,7 @@ The first phase of the evaluation focuses on the training dynamics and the model
     \label{fig:training_convergence}
 \end{figure}
 
-As illustrated in \Cref{fig:training_convergence} (Top), the loss function exhibits a smooth decay, confirming stable optimization. \Cref{fig:training_convergence} (Bottom) plots the retrieval accuracy during training. The Top-1 accuracy on physical photographs correlates with the accuracy on the augmented synthetic validation set. This validates the methodology proposed in \Cref{sec:synthetic_gen}; subjecting digital templates to geometric and color space deformations provides sufficient regularization to mitigate domain shift.
+As illustrated in \Cref{fig:training_convergence} (Top), the loss function exhibits a smooth decay, confirming that the differential learning rates and warmup schedule provide stable optimization. \Cref{fig:training_convergence} (Bottom) plots the retrieval accuracy during training. The Top-1 accuracy on physical photographs correlates closely with the accuracy on the augmented synthetic validation set.
 
 \subsection{Embedding Space Integrity (\acs{FMR} \& Margins)}\label{subsec:exp_metric_learning}
 \Cref{fig:training_metric_space} visualizes how the ArcFace objective function manipulates the feature vectors on the 512-dimensional hypersphere over the course of training.
