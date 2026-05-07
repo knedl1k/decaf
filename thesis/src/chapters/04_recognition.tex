@@ -1,11 +1,11 @@
 \chapter{Card Recognition Pipeline}\label{chap:rec}
 
 \section{Data Acquisition}
-As was previously mentioned in \Cref{sec:scarcity}, one of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (as of 2026, \ac{MTG} alone features approximately 30,000 mechanically unique cards by name, a number that expands to over 100,000 distinct target classes when accounting for reprints, alternate artworks, and special foil treatments in the English language alone~\cite{scryfall}), labeled datasets containing real-world photographs of these cards are virtually non-existent. 
+As was previously mentioned in \Cref{sec:scarcity}, one of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (as of 2026, \ac{MTG} alone features approximately 30,000 mechanically unique cards by name, a number that expands to over 100,000 distinct target classes when accounting for reprints, alternate artworks, and special foil treatments in the English language alone~\cite{scryfall_api}), labeled datasets containing real-world photographs of these cards are virtually non-existent. 
 
 Furthermore, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming. This constraint serves as a secondary motivation for the hardware proposed in this thesis: once constructed, the robotic sorting mechanism can function as an automated data acquisition pipeline. By utilizing models trained on synthetic data to bootstrap the initial sorting, the robot can mechanically feed, photograph, and confidently pseudo-label physical cards, thereby autonomously generating a large-scale, real-world dataset to fine-tune future iterations of the recognition model.
 
-To address the lack of real-world photographs, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall}\footnote{Scryfall is a specialized search engine and comprehensive database for \ac{MTG}. Users can query cards using advanced syntax to filter by name, color, set edition, gameplay mechanics and format legality. Due to its maintained catalog, it serves as an essential tool for both players and third-party developers.}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format.
+To address the lack of real-world photographs, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall_api}\footnote{Scryfall is a specialized search engine and comprehensive database for \ac{MTG}. Users can query cards using advanced syntax to filter by name, color, set edition, gameplay mechanics and format legality. Due to its maintained catalog, it serves as an essential tool for both players and third-party developers.}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format.
 
 However, relying exclusively on digital templates introduces a secondary challenge, so called \ii{Domain Shift}\footnote{See \Cref{sec:domain_shift}.}: the model must be trained to generalize from pristine digital scans to physical photographs captured under variable real-world conditions. Physical environments inherently introduce uneven lighting, lens distortion, glare and/or lower camera resolutions. To bridge this visual gap, the digital templates are processed through a \ii{synthetic data generation} pipeline (defined in \Cref{sec:synthetic_gen}), enabling the automated creation of training samples that computationally simulate these real-world environmental artifacts.
 
@@ -32,7 +32,7 @@ The script also implements logic to handle complex card layouts, such as \acp{DF
     \begin{subfigure}[b]{\linewidth}
         \centering
         \includegraphics[width=0.55\linewidth]{./fig/photos/cleanCard.jpg}
-        \caption{Clean scan (source: Scryfall API~\cite{scryfall}).}
+        \caption{Clean scan (source: Scryfall API~\cite{scryfall_api}).}
     \end{subfigure}
     
     \vspace{1em}
@@ -91,7 +91,7 @@ canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = \
 \end{lstlisting}
 
 \subsection{Augmentation Pipeline}
-During every training iteration, every reference image is processed through a stochastic augmentation chain. To ensure the reproducibility of the trained models, the exact configuration of the implemented pipeline is detailed in Table~\ref{tab:augmentations}. The applied transformations are categorized by the physical phenomena they are designed to simulate:
+During every training iteration, every reference image is processed through a stochastic augmentation chain. To ensure the reproducibility of the trained models, the exact configuration of the implemented pipeline is detailed in \Cref{tab:augmentations}. The applied transformations are categorized by the physical phenomena they are designed to simulate:
 \begin{itemize}
     \item \bb{Geometric Deformations}: Real-world physical cards are rarely photographed perfectly orthogonal to the camera lens. Transformations such as affine scaling, translation, rotation, and perspective warping are applied to induce model invariance to camera pose, alignment errors, and variations in focal length.
     \item \bb{Optical and Environmental Simulation}: Playing cards are frequently protected by glossy plastic sleeves, which introduce severe specular highlights and glare. To model this, operations such as \texttt{RandomSunFlare} and \texttt{GlassBlur} are utilized alongside standard motion blur and shadow generation. Furthermore, variations in brightness, contrast, and hue approximate diverse environmental lighting conditions (e.g., warm incandescent room lighting versus cool daylight).
@@ -118,7 +118,7 @@ During every training iteration, every reference image is processed through a st
         & GlassBlur & $\sigma = 0.7$, \texttt{max\_delta} $= 4$, iter $= 2$ & $0.2$ \\
         \midrule
         \multirow{4}{*}{Occlusion} 
-        & CoarseDropout & holes $\in [1, 3]$, size $\in [20\%, 45\%]$ & $0.6$ \\
+        & CoarseDropout & holes $\in [1, 3]$, size $\in [20\,\%, 45\,\%]$ & $0.6$ \\
         & GaussianBlur & \texttt{blur\_limit} $\in [3, 5]$ & $0.3$ \\
         & ImageCompression & quality $\in[60, 100]$ & $0.2$ \\
         & ISONoise & default & $0.2$ \\
@@ -213,7 +213,7 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
         \caption{Hue \& Satur.}
     \end{subfigure}
     
-    \caption{Visual isolation of individual stochastic augmentations applied to a clean template. Clean template sourced from Scryfall~\cite{scryfall}.}
+    \caption{Visual isolation of individual stochastic augmentations applied to a clean template. Clean template sourced from Scryfall~\cite{scryfall_api}.}
     \label{fig:aug_individual}
 \end{figure}
 
@@ -316,12 +316,12 @@ To address these challenges, a \ac{DML} approach was adopted. Instead of classif
     \subfloat[Promo version.] {
         \includegraphics[width=0.2\textwidth]{./fig/photos/plist-832-probe.jpg}
     }
-    \caption{Showcase of visual similarity. The standard (a) and promotional (b) card differ only by a \ii{promo} symbol in the bottom-left corner. Images sourced via the Scryfall API~\cite{scryfall}.}
+    \caption{Showcase of visual similarity. The standard (a) and promotional (b) card differ only by a \ii{promo} symbol in the bottom-left corner. Images sourced via the Scryfall API~\cite{scryfall_api}.}
     \label{fig:tiny_details}
 \end{figure}
 
 \subsection{ArcFace: Additive Angular Margin Loss}\label{sec:arcface}
-ArcFace (Additive Angular Margin Loss)~\cite{Deng_2022} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
+ArcFace (Additive Angular Margin Loss)~\cite{deng2022arcface} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
 
 \subsection{Geometric Interpretation}
 To understand ArcFace mechanics, it is best to start by analyzing the standard operations of the final fully connected layer of the classification network.
@@ -357,7 +357,7 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded. The recognition is instead framed as a retrieval task: the system computes the cosine similarity between the extracted query embedding $\mathbf{x}_q = f(\mathbf{I}_q)$ and all pre-computed reference embeddings in the database. The final identity of the card is then determined via an $\arg\max$ operation over these cosine similarities, effectively selecting the nearest neighbor in the learned feature space.
 
 \section{Model Architecture}\label{sec:model_architecture}
-To ensure the network focuses exclusively on card features rather than background clutter, the complete system implements a two-stage pipeline, as illustrated in Figure~\ref{fig:pipeline_flow}. Phase 0 (Localization) utilizes an OpenCV-based detection script to locate the bounding box of the physical card within the raw camera frame, extracting it as a tightly cropped query image ($\mathbf{I}_q$). This image is then passed into the core neural network for feature extraction (Phase 1) and subsequent similarity matching (Phase 2).
+To ensure the network focuses exclusively on card features rather than background clutter, the complete system implements a two-stage pipeline, as illustrated in \Cref{fig:pipeline_flow}. Phase 0 (Localization) utilizes an OpenCV-based detection script to locate the bounding box of the physical card within the raw camera frame, extracting it as a tightly cropped query image ($\mathbf{I}_q$). This image is then passed into the core neural network for feature extraction (Phase 1) and subsequent similarity matching (Phase 2).
 \begin{figure}[H]
     \centering
     \resizebox{\textwidth}{!}{\input{./fig/tikz/architecture.tex}}
@@ -367,7 +367,7 @@ To ensure the network focuses exclusively on card features rather than backgroun
 The core neural network (\texttt{MTGReconModel}) utilized for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
 
 \subsection{Backbone Network}\label{sub:backbone}
-The foundational feature extractor is a \ac{ResNet}-50~\cite{He2015} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.
+The foundational feature extractor is a \ac{ResNet}-50~\cite{he2015resnet} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.
 
 \subsection{Embedding Head}\label{sub:embedhead}
 The 2048-dimensional feature maps extracted by the \ac{ResNet}-50 backbone are projected into a compact embedding space via a custom \ii{Embedding Head}. Acting as a dimensionality reduction bottleneck\footnote{In deep learning terminology, a \ii{bottleneck} does not imply a computational performance constraint or throughput limitation, as it commonly does. Rather, it denotes a structural narrowing of the network. By forcing high-dimensional data through a lower-dimensional layer, the network is forced to discard redundant noise and compress the information into a dense feature vector.}, this module consists of the following sequential application of common operations in deep learning:
@@ -381,7 +381,7 @@ The 2048-dimensional feature maps extracted by the \ac{ResNet}-50 backbone are p
 \subsection{ArcFace Head}\label{sub:arcface}
 During the training phase, the 512-dimensional embeddings are passed to the \texttt{ArcFaceHead} module, which implements the additive angular margin penalty described in \Cref{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization.
 
-The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the ArcFace~\cite{Deng_2022} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
+The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the ArcFace~\cite{deng2022arcface} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
 \begin{enumerate}
     \item \ii{Cosine Similarity:} The raw logits are calculated as the dot product between the $L_2$-normalized embeddings and the normalized weight matrix, yielding a similarity matrix where each element is $\cos(\theta_{j, i})$.
     \item \ii{Margin Application:} Utilizing PyTorch's in-place operations within a detached gradient context (\texttt{torch.no\_grad()}), the specific similarities corresponding to the ground-truth classes ($\cos(\theta_{y_i, i})$) are isolated. These target logits are transformed back into the angular domain via the inverse cosine function ($\theta = \arccos(\cos\theta)$), shifted by the additive margin penalty ($\theta + m$), and projected back into the cosine domain as $\cos(\theta_{y_i, i} + m)$.

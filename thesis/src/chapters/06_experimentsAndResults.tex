@@ -11,7 +11,7 @@ Thus, this thesis defines a \ii{True Positive (Correct Match)} primarily at the 
 Because the recognition pipeline utilizes Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the structural robustness of the model. The system operates as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
 
 \subsection{Verification Performance (\acs{FMR} \& \acs{TMR})}
-To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain2011biometrics}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95~\%.
+To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain2011biometrics}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95\,\%.
 
 Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the feature embeddings $\mathbf{x}_i$ and $\mathbf{x}_j$ extracted from two images. We define two sets of evaluation pairs:
 \begin{itemize}
@@ -21,7 +21,7 @@ Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the fea
 
 The \ac{TMR} defines the proportion of genuine pairs correctly matched with a similarity score equal to or above a given decision threshold $\tau$. Conversely, the \ac{FMR} defines the proportion of impostor pairs that falsely yield a similarity score equal to or above $\tau$.
 
-To compute the \ac{FMR} @ 95~\% \ac{TMR}, the operational threshold $\tau_{95}$ is empirically determined such that 95~\% of all genuine pairs are accepted:
+To compute the \ac{FMR} @ 95\,\% \ac{TMR}, the operational threshold $\tau_{95}$ is empirically determined such that 95\,\% of all genuine pairs are accepted:
 \begin{equation}
     \text{\ac{TMR}}(\tau_{95}) = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{gen}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{gen}}|} = 0.95
 \end{equation}
@@ -31,7 +31,7 @@ Once $\tau_{95}$ is established, the \ac{FMR} is calculated as:
     \text{\ac{FMR}} = \frac{|\{ (\mathbf{x}_i, \mathbf{x}_j) \in \mathcal{P}_{\text{imp}} \mid s(\mathbf{x}_i, \mathbf{x}_j) \geq \tau_{95} \}|}{|\mathcal{P}_{\text{imp}}|}
 \end{equation}
 
-This metric reflects the system's precision. An \ac{FMR} approaching zero at this operating point indicates that the model can successfully recognize 95~\% of targeted cards despite noise and already discussed domain shift (\Cref{sec:domain_shift}), without confusing them with visually similar cards.
+This metric reflects the system's precision. An \ac{FMR} approaching zero at this operating point indicates that the model can successfully recognize 95\,\% of targeted cards despite noise and already discussed domain shift (\Cref{sec:domain_shift}), without confusing them with visually similar cards.
 
 \subsection{Retrieval Performance (Top-\texorpdfstring{$k$}{k} Accuracy)}
 While the \ac{FMR} provides a measure of the embedding space's structural integrity, the objective of the robotic sorter is the identification of physical cards under real-world conditions. This is a 1-to-$N$ retrieval problem.
@@ -54,7 +54,7 @@ The network was trained for 60 epochs across 4 GPUs utilizing the distributed \a
 
 The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. Optimization was performed using \ac{SGD} with a momentum of $0.9$ and a weight decay of $5 \times 10^{-4}$. The base learning rate parameter was defined as $\eta_{\text{base}} = 0.1$. 
 
-To prevent catastrophic forgetting of the low-level visual features pre-trained on ImageNet, differential learning rates were applied: the \ac{ResNet}-50 backbone was optimized at a learning rate an order of magnitude smaller ($\eta = 0.1 \eta_{\text{base}}$) than the randomly initialized embedding and ArcFace heads ($\eta = \eta_{\text{base}}$). Furthermore, following the optimization strategy from the official ArcFace implementation~\cite{Deng_2022}, a Polynomial Warmup learning rate scheduler was employed. The learning rate was linearly scaled up over the first two epochs to stabilize initial gradient updates, followed by a polynomial decay ($p=2.0$) over the remaining training steps.
+To prevent catastrophic forgetting of the low-level visual features pre-trained on ImageNet, differential learning rates were applied: the \ac{ResNet}-50 backbone was optimized at a learning rate an order of magnitude smaller ($\eta = 0.1 \eta_{\text{base}}$) than the randomly initialized embedding and ArcFace heads ($\eta = \eta_{\text{base}}$). Furthermore, following the optimization strategy from the official ArcFace implementation~\cite{deng2022arcface}, a Polynomial Warmup learning rate scheduler was employed. The learning rate was linearly scaled up over the first two epochs to stabilize initial gradient updates, followed by a polynomial decay ($p=2.0$) over the remaining training steps.
 
 \section{Results}
 \subsection{Training Convergence and Generalization}\label{subsec:exp_convergence}
@@ -97,9 +97,9 @@ To evaluate operational viability, the trained model extracted feature vectors f
     \label{fig:acc_barchart}
 \end{figure}
 
-The system achieves a Top-1 Name Match accuracy of 97.8~\%. This confirms that feature representations learned from synthetic data can generalize to physical assets. Furthermore, the Top-5 accuracy indicates that when the network encounters ambiguity, it ranks the correct identity within the top candidates. 
+The system achieves a Top-1 Name Match accuracy of 97.8\,\%. This confirms that feature representations learned from synthetic data can generalize to physical assets. Furthermore, the Top-5 accuracy indicates that when the network encounters ambiguity, it ranks the correct identity within the top candidates. 
 
-The data supports the premise proposed in \Cref{sec:identity_definition}: while Name Matching is accurate, Exact Edition matching drops to 83.7~\%. This highlights the limitations of using a global visual feature extractor for fine-grained typography.
+The data supports the premise proposed in \Cref{sec:identity_definition}: while Name Matching is accurate, Exact Edition matching drops to 83.7\,\%. This highlights the limitations of using a global visual feature extractor for fine-grained typography.
 
 \subsubsection{Confidence Distribution}
 To analyze the system's decision-making process, \Cref{fig:sim_histogram} visualizes the distribution of the Top-1 cosine similarity scores.
