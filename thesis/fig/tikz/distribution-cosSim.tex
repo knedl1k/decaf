@@ -12,14 +12,17 @@
 \definecolor{axisgray}{RGB}{110, 110, 110}
     \begin{tikzpicture}
         \begin{axis}[
+            title={\textbf{Top-1 Cosine Similarity Distribution}},
             axis on top,
-            width=0.9\textwidth,
+            width=0.95\textwidth,
             height=7cm,
             xlabel={Cosine Similarity},
             ylabel={Frequency},
-            xmin=-0.05, xmax=1.05,
+            xmin=0, xmax=1,
             ymin=0,
+            minor x tick num=3,
             xtick={0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+            ytick={2, 4, 6, 8, 10},
             x tick label style={/pgf/number format/fixed, /pgf/number format/precision=1},
             axis x line*=bottom,
             axis y line*=left,

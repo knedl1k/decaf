@@ -50,15 +50,15 @@
         legend style={at={(0.98,0.5)}, anchor=east} 
     ]
     
-    \addplot[name path=pos_upper, draw=none] table [col sep=comma, x=epoch, y=pos_upper] {./fig/tikz/data/training_history.csv};
-    \addplot[name path=pos_lower, draw=none] table [col sep=comma, x=epoch, y=pos_lower] {./fig/tikz/data/training_history.csv};
-    \addplot[matpos, fill opacity=0.15] fill between[of=pos_upper and pos_lower];
+    \addplot[name path=pos_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_upper] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=pos_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[matpos, fill opacity=0.15, forget plot] fill between[of=pos_upper and pos_lower];
     \addplot[color=matpos, thick] table [col sep=comma, x=epoch, y=pos_sim] {./fig/tikz/data/training_history.csv};
     \addlegendentry{Avg Pos Sim}
     
-    \addplot[name path=neg_upper, draw=none] table [col sep=comma, x=epoch, y=neg_upper] {./fig/tikz/data/training_history.csv};
-    \addplot[name path=neg_lower, draw=none] table [col sep=comma, x=epoch, y=neg_lower] {./fig/tikz/data/training_history.csv};
-    \addplot[matneg, fill opacity=0.15] fill between[of=neg_upper and neg_lower];
+    \addplot[name path=neg_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_upper] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=neg_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[matneg, fill opacity=0.15, forget plot] fill between[of=neg_upper and neg_lower];
     \addplot[color=matneg, thick, dashed] table [col sep=comma, x=epoch, y=neg_sim] {./fig/tikz/data/training_history.csv};
     \addlegendentry{Avg Neg Sim}
 
