@@ -105,7 +105,7 @@ During every training iteration, every reference image is processed through a st
     \small
     \begin{tabular}{@{}lllc@{}}
         \toprule
-        \textbf{Category} & \textbf{Transformation} & \textbf{Key Parameters} & \textbf{$p$} \\
+        \bb{Category} & \bb{Transformation} & \bb{Key Parameters} & \bb{$p$} \\
         \midrule
         \multirow{2}{*}{Geometric} 
         & Affine & scale $\in [0.95, 1.05]$, trans. $\in[-0.05, 0.05]$, rot. $\in[-15^\circ, 15^\circ]$ & $0.8$ \\
@@ -335,7 +335,7 @@ To understand ArcFace mechanics, it is best to start by analyzing the standard o
 Let $\mathbf{I}_i \in \mathcal{I}$ denote the $i$-th input image in the current batch. The backbone network acts as the mapping function, extracting the deep feature vector (embedding) such that $\mathbf{x}_i = f(\mathbf{I}_i) \in \mathbb{R}^d$, where $d$ is the embedding dimension ($d=512$ in our architecture). 
 Furthermore, let $\mathbf{W} \in \mathbb{R}^{d \times C}$ be the weight matrix of the final layer, where $C$ is the total number of classes (unique cards in our case).
 
-The matrix $\mathbf{W}$ can be decomposed into $C$ column vectors $\mathbf{W} = \begin{bmatrix}\mathbf{W}_1, \mathbf{W}_2, \dots, \mathbf{W}_C\end{bmatrix}$, where each vector $\mathbf{W}_j \in \mathbb{R}^d$ acts as the learned \textit{class center} for the $j$-th class. In a standard linear layer (with bias set to zero), the activation (logit) for the $j$-th class given the embedding $\mathbf{x}_i$ is
+The matrix $\mathbf{W}$ can be decomposed into $C$ column vectors $\mathbf{W} = \begin{bmatrix}\mathbf{W}_1, \mathbf{W}_2, \dots, \mathbf{W}_C\end{bmatrix}$, where each vector $\mathbf{W}_j \in \mathbb{R}^d$ acts as the learned \ii{class center} for the $j$-th class. In a standard linear layer (with bias set to zero), the activation (logit) for the $j$-th class given the embedding $\mathbf{x}_i$ is
 \begin{equation}
     \text{logit}_j = \mathbf{W}_j^\intercal \mathbf{x}_i.
 \end{equation}
@@ -344,7 +344,7 @@ Geometrically, this dot product relates to the angle $\theta_{j,i}$ between the 
 \begin{equation}
    \mathbf{W}_j^\intercal \mathbf{x}_i = \|\mathbf{W}_j\| \|\mathbf{x}_i\| \cos \theta_{j,i}.
 \end{equation}
-In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. ArcFace addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \textit{solely} on the angle $\theta_{j,i}$:
+In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. ArcFace addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \ii{solely} on the angle $\theta_{j,i}$:
 \begin{equation}
     \mathbf{W}_j^\intercal \mathbf{x}_i = \cos \theta_{j,i}.
 \end{equation}

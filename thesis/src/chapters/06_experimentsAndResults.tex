@@ -39,15 +39,15 @@ While the \ac{FMR} provides a measure of the embedding space's structural integr
 To evaluate operational viability, performance is quantified using Top-$k$ Accuracy. For a given query, the system retrieves the $k$ database entries with the highest cosine similarity. If the ground-truth identity exists within this subset, the prediction is correct. 
 
 \begin{itemize}
-    \item \textbf{Top-1 Accuracy}: Represents the zero-intervention success rate of the identification mechanism.
-    \item \textbf{Top-3 and Top-5 Accuracy}: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that when the network is uncertain (e.g., due to lighting conditions), the correct card remains clustered near the query in the embedding space.
+    \item \bb{Top-1 Accuracy}: Represents the zero-intervention success rate of the identification mechanism.
+    \item \bb{Top-3 and Top-5 Accuracy}: Serve as metrics for potential human-in-the-loop fallback systems. High Top-5 accuracy indicates that when the network is uncertain (e.g., due to lighting conditions), the correct card remains clustered near the query in the embedding space.
 \end{itemize}
 
 \section{Experimental Setup}
 To validate the model, performance was measured across two evaluation sets:
 \begin{enumerate}
-    \item \textbf{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training data. These images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean digital templates. This set tracks the integrity of the embedding space during training.
-    \item \textbf{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained physical photographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
+    \item \ii{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training dataiiThese images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean digital templates. This set tracks the integrity of the embedding space during training.
+    \item \ii{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained phyiiphotographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
 \end{enumerate}
 
 The network was trained for 60 epochs across 4 GPUs utilizing the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
@@ -81,8 +81,8 @@ As illustrated in \Cref{fig:training_convergence} (Top), the loss function exhib
 
 The \ii{Cosine Similarities} plot (\Cref{fig:training_metric_space}, Top) illustrates the average geometric distance between pairs of images. In the initial epochs, the network struggles to separate the classes; the positive and negative similarities overlap, and the standard deviation bands are wide. As training progresses, the additive angular margin (introduced in \Cref{sec:arcface}) forces a distinct structural behavior:
 \begin{enumerate}
-    \item \textbf{Inter-Class Separability:} The average similarity for impostor pairs is pushed toward $0.0$ (orthogonal vectors), ensuring different cards are separated.
-    \item \textbf{Intra-Class Compactness:} The average similarity for genuine pairs rises. The standard deviation band for positive pairs narrows over time, indicating that the network learns to map distorted queries of the same card into a compact cluster.
+    \item \ii{Inter-Class Separability:} The average similarity for impostor pairs is pushed toward $0.0$ (orthogonal vectors), ensuring different cards are separated.
+    \item \ii{Intra-Class Compactness:} The average similarity for genuine pairs rises. The standard deviation band for positive pairs narrows over time, indicating that the network learns to map distorted queries of the same card into a compact cluster.
 \end{enumerate}
 
 This expanding margin causes the logarithmic decay observed in the \ac{FMR} plot (\Cref{fig:training_metric_space}, Bottom). By establishing a decision threshold $\tau$ (represented by the dashed line), the network minimizes the probability of misclassifying an impostor pair.

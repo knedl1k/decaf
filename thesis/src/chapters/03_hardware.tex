@@ -5,9 +5,9 @@ As mentioned in \Cref{sec:commercial_solutions}, existing solutions on the marke
 \section{System Architecture Overview}
 The system functions as a simple \ii{pick-and-place} mechanism that uses a pneumatic end-effector. The architecture is divided into three primary subsystems:
 \begin{enumerate}
-    \item Pneumatic Circuit: enables card handling.
-    \item Electromechanical actuation: moves the robotic arm.
-    \item Compute and Control: robot movement, card capture, recognition and classification.
+    \item \ii{Pneumatic Circuit}: enables card handling.
+    \item \ii{Electromechanical actuation}: moves the robotic arm.
+    \item \ii{Compute and Control}: robot movement, card capture, recognition and classification.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -27,7 +27,7 @@ The components are categorized by origin: commercially available parts and custo
     \resizebox{\textwidth}{!}{%
     \begin{tabular}{@{}llcrc@{}}
         \toprule
-        \textbf{Subsystem} & \textbf{Component} & \textbf{Origin} & \textbf{Cost [€]} & \textbf{Section Ref.} \\
+        \bb{Subsystem} & \bb{Component} & \bb{Origin} & \bb{Cost [€]} & \bb{Section Ref.} \\
         \midrule
         \multirow{9}{*}{\shortstack[l]{Pneumatic\\Handling}}
         & Compressor (Sparmax TC-610H Plus)$^\dagger$ & commercial & \cost[$\approx$ ]{356.47} & \ref{sec:pneumatic_handling} \\
@@ -56,7 +56,7 @@ The components are categorized by origin: commercially available parts and custo
         \midrule
         Structural & Card Holders, Trays, Base Chassis \& Camera Mount & 3D printed & -- & \ref{sec:structs}, \ref{app:structs} \\ 
         \bottomrule
-        \multicolumn{2}{r}{\textbf{Approximate Total Material Cost:}} & \multicolumn{1}{l}{\textbf{$\approx$ \totalcost{} €}} \\
+        \multicolumn{2}{r}{\bb{Approximate Total Material Cost:}} & \multicolumn{1}{l}{\bb{$\approx$ \totalcost{} €}} \\
         \bottomrule
         \multicolumn{5}{l}{\footnotesize $^\dagger$ Component sourced from pre-existing laboratory inventory; listed cost represents current retail value.} \\
     \end{tabular}%
