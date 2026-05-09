@@ -146,42 +146,6 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/01_affine.jpg}
-        \caption{Affine Transform.}
-    \end{subfigure}
-    
-    \vspace{1em}
-    
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/02_perspective.jpg}
-        \caption{Perspective}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/03_coarsedropout.jpg}
-        \caption{Coarse Dropout}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/04_randomsunflare.jpg}
-        \caption{Sun Flare}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/05_randomshadow.jpg}
-        \caption{Shadow}
-    \end{subfigure}
-    
-    \vspace{1em}
-    
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/06_glassblur.jpg}
-        \caption{Glass Blur}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
         \includegraphics[width=\linewidth]{./fig/augs/07_colorjitter.jpg}
         \caption{Color Jitter}
     \end{subfigure}\hfill
@@ -200,8 +164,31 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
     
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
+        \includegraphics[width=\linewidth]{./fig/augs/04_randomsunflare.jpg}
+        \caption{Sun Flare}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/05_randomshadow.jpg}
+        \caption{Shadow}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
         \includegraphics[width=\linewidth]{./fig/augs/10_motionblur.jpg}
         \caption{Motion Blur}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/06_glassblur.jpg}
+        \caption{Glass Blur}
+    \end{subfigure}
+    
+    \vspace{1em}
+        
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/03_coarsedropout.jpg}
+        \caption{Coarse Dropout}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
@@ -219,6 +206,24 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
         \caption{ISO Noise}
     \end{subfigure}
     
+    \vspace{1em}
+
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/01_affine.jpg}
+        \caption{Affine Transform.}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/02_perspective.jpg}
+        \caption{Perspective}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \mbox{}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \mbox{}
+    \end{subfigure}
     \caption{Visual isolation of individual stochastic augmentations applied to a clean template. Clean template sourced from Scryfall~\cite{scryfall_api}.}
     \label{fig:aug_individual}
 \end{figure}
