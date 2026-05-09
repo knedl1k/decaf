@@ -52,7 +52,7 @@ def evaluate_real_domain(
 
             for i, gt_stem in enumerate(names):
                 gt_name, gt_edition = parse_mtg_filename(gt_stem)
-                pred_name, pred_edition = parse_mtg_filename([best_idxs[i].item()])
+                pred_name, pred_edition = parse_mtg_filename(db_names[best_idxs[i].item()])
                 if gt_name == pred_name and gt_edition == pred_edition:  # TODO: handle both separate
                     correct_1 += 1
                 total += 1
