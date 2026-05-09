@@ -108,25 +108,25 @@ During every training iteration, every reference image is processed through a st
         \textbf{Category} & \textbf{Transformation} & \textbf{Key Parameters} & \textbf{$p$} \\
         \midrule
         \multirow{2}{*}{Geometric} 
-        & Affine & scale $\in [0.95, 1.05]$, rotate $\in[-35^\circ, 35^\circ]$ & $0.8$ \\
-        & Perspective & scale $\in[0.05, 0.15]$ & $0.5$ \\
+        & Affine & scale $\in [0.95, 1.05]$, trans. $\in[-0.05, 0.05]$, rot. $\in[-15^\circ, 15^\circ]$ & $0.8$ \\
+        & Perspective & scale $\in[0.02, 0.08]$ & $0.5$ \\
         \midrule
         \multirow{4}{*}{Optical} 
-        & RandomSunFlare & \texttt{src\_radius} $= 100$, circles $\in [1, 2]$ & $0.3$ \\
-        & RandomShadow & shadows $\in[1, 2]$, roi $=[0, 0, 1, 1]$ & $0.2$ \\
+        & RandomSunFlare & \texttt{src\_radius} $= 250$, circles $\in [2, 3]$ & $0.7$ \\
+        & RandomShadow & shadows $\in[1, 2]$, roi $=[0, 0, 1, 1]$ & $0.4$ \\
         & MotionBlur & \texttt{blur\_limit} $= 5$ & $0.2$ \\
         & GlassBlur & $\sigma = 0.7$, \texttt{max\_delta} $= 4$, iter $= 2$ & $0.2$ \\
         \midrule
         \multirow{4}{*}{Occlusion} 
-        & CoarseDropout & holes $\in [1, 3]$, size $\in [20\,\%, 45\,\%]$ & $0.6$ \\
+        & CoarseDropout & holes $\in [1, 3]$, size $\in [20\,\%, 35\,\%]$, fill $=$ random & $0.5$ \\
         & GaussianBlur & \texttt{blur\_limit} $\in [3, 5]$ & $0.3$ \\
-        & ImageCompression & quality $\in[60, 100]$ & $0.2$ \\
+        & ImageCompression & quality $\in[50, 90]$ & $0.3$ \\
         & ISONoise & default & $0.2$ \\
         \midrule
         \multirow{3}{*}{Color space} 
-        & BrightnessContrast & limit $= \pm 0.25$ & $0.7$ \\
-        & CLAHE & default & $0.3$ \\
-        & HueSaturationValue & hue $\pm 3$, sat $\pm 30$, val $\pm 20$ & $0.5$ \\
+        & ColorJitter & bright/cont/sat $= 0.4$, hue $= 0.15$ & $0.8$ \\
+        & RGBShift & limits $= \pm 40$ & $0.5$ \\
+        & ToGray & default & $0.2$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -143,14 +143,15 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
         \centering
         \includegraphics[width=\linewidth]{./fig/augs/00_original.jpg}
         \caption{Clean Template}
-        \vspace{1.5em}
-    \end{subfigure}
-
+    \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
         \includegraphics[width=\linewidth]{./fig/augs/01_affine.jpg}
         \caption{Affine Transform.}
-    \end{subfigure}\hfill
+    \end{subfigure}
+    
+    \vspace{1em}
+    
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
         \includegraphics[width=\linewidth]{./fig/augs/02_perspective.jpg}
@@ -158,12 +159,17 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/03_sunflare.jpg}
+        \includegraphics[width=\linewidth]{./fig/augs/03_coarsedropout.jpg}
+        \caption{Coarse Dropout}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/04_randomsunflare.jpg}
         \caption{Sun Flare}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/04_shadow.jpg}
+        \includegraphics[width=\linewidth]{./fig/augs/05_randomshadow.jpg}
         \caption{Shadow}
     \end{subfigure}
     
@@ -171,46 +177,46 @@ To visually demonstrate the severity of the applied transformations, \Cref{fig:a
     
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/05_motionblur.jpg}
-        \caption{Motion Blur}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
         \includegraphics[width=\linewidth]{./fig/augs/06_glassblur.jpg}
         \caption{Glass Blur}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/07_dropout.jpg}
-        \caption{Coarse Dropout}
+        \includegraphics[width=\linewidth]{./fig/augs/07_colorjitter.jpg}
+        \caption{Color Jitter}
     \end{subfigure}\hfill
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/08_compression.jpg}
-        \caption{Compression}
+        \includegraphics[width=\linewidth]{./fig/augs/08_rgbshift.jpg}
+        \caption{RGB Shift}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/09_togray.jpg}
+        \caption{Grayscale}
     \end{subfigure}
     
     \vspace{1em}
     
     \begin{subfigure}[b]{0.23\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{./fig/augs/09_isonoise.jpg}
+        \includegraphics[width=\linewidth]{./fig/augs/10_motionblur.jpg}
+        \caption{Motion Blur}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/11_gaussianblur.jpg}
+        \caption{Gaussian Blur}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/12_imagecompression.jpg}
+        \caption{Compression}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.23\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{./fig/augs/13_isonoise.jpg}
         \caption{ISO Noise}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/10_brightness.jpg}
-        \caption{Brightness}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/11_clahe.jpg}
-        \caption{CLAHE}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.23\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{./fig/augs/12_hue.jpg}
-        \caption{Hue \& Satur.}
     \end{subfigure}
     
     \caption{Visual isolation of individual stochastic augmentations applied to a clean template. Clean template sourced from Scryfall~\cite{scryfall_api}.}
