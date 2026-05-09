@@ -20,7 +20,7 @@ ml OpenCV/4.12.0-foss-2025b-CUDA-12.9.1-contrib
 ml timm/1.0.25-foss-2025b-CUDA-12.9.1
 
 REF_DIR="/mnt/personal/adamej14/dataset"
-REAL_DIR="/home/adamej14/labeled"
+REAL_DIR="/home/adamej14/labeled2"
 SAVE_DIR="./check"
 
 torchrun \

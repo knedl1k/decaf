@@ -51,9 +51,9 @@ def evaluate_real_domain(
             best_idxs = torch.argmax(sims, dim=1)
 
             for i, gt_stem in enumerate(names):
-                gt_name = parse_labeled_name(gt_stem)
-                pred_name = db_names[best_idxs[i].item()]
-                if gt_name == pred_name:
+                gt_name, gt_edition = parse_mtg_filename(gt_stem)
+                pred_name, pred_edition = parse_mtg_filename([best_idxs[i].item()])
+                if gt_name == pred_name and gt_edition == pred_edition:  # TODO: handle both separate
                     correct_1 += 1
                 total += 1
 
@@ -61,72 +61,149 @@ def evaluate_real_domain(
     return (100.0 * correct_1 / total) if total > 0 else 0.0
 
 
-def parse_labeled_name(filename_stem: str) -> str:
+def parse_mtg_filename(filename_stem: str) -> Tuple[str, str]:
     """
-    Strips trailing numbers, parentheses, or specific suffixes from the filename
-    to extract the canonical ground-truth card name.
-    # Example: 'Black Lotus (1)' -> 'Black Lotus', 'Forest_03' -> 'Forest'
+    Strips UUID and splits the filename into (name, edition).
+    Handles formats like 'edition_collectorNumber_name', 'edition_name' and ignores UUIDs.
     """
-    return re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", filename_stem).strip()
+    no_uuid = re.sub(
+        r"-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "", filename_stem
+    )
+    no_uuid = re.sub(r"(_\d+|\(\d+\)|\s+\d+)$", "", no_uuid).strip()
+
+    parts = no_uuid.split("_", 2)
+
+    if len(parts) >= 3:
+        edition = parts[0]
+        name = parts[2]
+        return name, edition
+    elif len(parts) == 2:
+        edition = parts[0]
+        name = parts[1]
+        return name, edition
+    else:
+        return no_uuid, "unknown"
 
 
-def detect_and_crop_card(image_path: str, output_height: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
-    output_width = int(output_height / 1.3968)
+def order_points(pts):
+    rect = np.zeros((4, 2), dtype="float32")
 
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+
+    return rect
+
+
+def smart_crop_card(image_path, output_width=480, output_height=670):
     img = cv2.imread(image_path)
     if img is None:
-        raise FileNotFoundError(f"Image not readable or missing: {image_path}")
+        print(f"Error with loading {image_path}")
+        return
 
-    debug_img = img.copy()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ratio = img.shape[0] / 800.0
+    orig = img.copy()
+    img_resized = cv2.resize(img, (int(img.shape[1] / ratio), 800))
+
+    gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
 
     blur = cv2.bilateralFilter(gray, 11, 75, 75)
 
-    edges = cv2.Canny(blur, 40, 150)
+    edges = cv2.Canny(blur, 30, 150)
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
     closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
     contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
-        return None, debug_img
+        print(f"Found no contours: {image_path}")
+        return
 
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
     largest_contour = contours[0]
 
     rect = cv2.minAreaRect(largest_contour)
     box = cv2.boxPoints(rect)
-    box = np.float32(box)
+    box = np.intp(box)
 
-    cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 255, 0), 3)
+    debug_img = img_resized.copy()
+    cv2.drawContours(debug_img, [box], 0, (0, 0, 255), 3)
 
-    xSorted = box[np.argsort(box[:, 0]), :]
-    leftMost = xSorted[:2, :]
-    rightMost = xSorted[2:, :]
-
-    leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
-    (tl, bl) = leftMost
-
-    rightMost = rightMost[np.argsort(rightMost[:, 1]), :]
-    (tr, br) = rightMost
-
-    width = np.linalg.norm(tr - tl)
-    height = np.linalg.norm(bl - tl)
-
-    if width > height:
-        src_pts = np.array([bl, tl, tr, br], dtype="float32")
-    else:
-        src_pts = np.array([tl, tr, br, bl], dtype="float32")
+    box_orig = box * ratio
+    rect_ordered = order_points(box_orig)
 
     dst_pts = np.array(
         [[0, 0], [output_width - 1, 0], [output_width - 1, output_height - 1], [0, output_height - 1]], dtype="float32"
     )
 
-    matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    warped_card = cv2.warpPerspective(img, matrix, (output_width, output_height))
+    M = cv2.getPerspectiveTransform(rect_ordered, dst_pts)
+    warped = cv2.warpPerspective(orig, M, (output_width, output_height))
 
-    return warped_card, debug_img
+    return debug_img, warped
+
+
+# def detect_and_crop_card(image_path: str, output_height: int = 512) -> Tuple[Optional[np.ndarray], np.ndarray]:
+#     output_width = int(output_height / 1.3968)
+
+#     img = cv2.imread(image_path)
+#     if img is None:
+#         raise FileNotFoundError(f"Image not readable or missing: {image_path}")
+
+#     debug_img = img.copy()
+#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+#     blur = cv2.bilateralFilter(gray, 11, 75, 75)
+
+#     edges = cv2.Canny(blur, 40, 150)
+
+#     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+#     closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+#     contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+#     if not contours:
+#         return None, debug_img
+
+#     contours = sorted(contours, key=cv2.contourArea, reverse=True)
+#     largest_contour = contours[0]
+
+#     rect = cv2.minAreaRect(largest_contour)
+#     box = cv2.boxPoints(rect)
+#     box = np.float32(box)
+
+#     cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 255, 0), 3)
+
+#     xSorted = box[np.argsort(box[:, 0]), :]
+#     leftMost = xSorted[:2, :]
+#     rightMost = xSorted[2:, :]
+
+#     leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
+#     (tl, bl) = leftMost
+
+#     rightMost = rightMost[np.argsort(rightMost[:, 1]), :]
+#     (tr, br) = rightMost
+
+#     width = np.linalg.norm(tr - tl)
+#     height = np.linalg.norm(bl - tl)
+
+#     if width > height:
+#         src_pts = np.array([bl, tl, tr, br], dtype="float32")
+#     else:
+#         src_pts = np.array([tl, tr, br, bl], dtype="float32")
+
+#     dst_pts = np.array(
+#         [[0, 0], [output_width - 1, 0], [output_width - 1, output_height - 1], [0, output_height - 1]], dtype="float32"
+#     )
+
+#     matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
+#     warped_card = cv2.warpPerspective(img, matrix, (output_width, output_height))
+
+#     return warped_card, debug_img
 
 
 def load_model_weights(model: torch.nn.Module, checkpoint_path: str, device: torch.device) -> torch.nn.Module:
