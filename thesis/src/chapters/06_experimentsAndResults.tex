@@ -99,7 +99,7 @@ To evaluate operational viability, the trained model extracted feature vectors f
 
 The system achieves a Top-1 Name Match accuracy of 97.8\,\%. This confirms that feature representations learned from synthetic data can generalize to physical assets. Furthermore, the Top-5 accuracy indicates that when the network encounters ambiguity, it ranks the correct identity within the top candidates. 
 
-The data supports the premise proposed in \Cref{sec:identity_definition}: while Name Matching is accurate, Exact Edition matching drops to 83.7\,\%. This highlights the limitations of using a global visual feature extractor for fine-grained typography.
+The data supports the premise proposed in \Cref{sec:identity_definition}: while Name Matching is accurate, Exact Edition matching drops to 88\,\%. This highlights the limitations of using a global visual feature extractor for fine-grained typography.
 
 \subsubsection{Confidence Distribution}
 To analyze the system's decision-making process, \Cref{fig:sim_histogram} visualizes the distribution of the Top-1 cosine similarity scores.
@@ -111,5 +111,5 @@ To analyze the system's decision-making process, \Cref{fig:sim_histogram} visual
     \label{fig:sim_histogram}
 \end{figure}
 
-The histogram indicates a distinct operational separation. Correctly identified cards yield similarity scores primarily between $0.60$ and $0.85$. In contrast, incorrect matches cluster around the $0.40$--$0.50$ range. In an automated environment, this distribution implies that a confidence threshold (e.g., $\tau = 0.55$) can be established. Predictions falling below this threshold can be routed for manual review, reducing the rate of silent failures during sorting.
+The histogram indicates a distinct operational separation. Correctly identified cards yield similarity scores primarily between $0.60$ and $0.86$. In contrast, incorrect matches cluster around the $0.40$ score. In an automated environment, this distribution implies that a confidence threshold (e.g., $\tau = 0.55$) can be established. Predictions falling below this threshold can be routed for manual review, reducing the rate of silent failures during sorting.
 
