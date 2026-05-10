@@ -50,19 +50,19 @@
         legend style={at={(0.98,0.5)}, anchor=east} 
     ]
     
-    \addplot[name path=pos_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_upper] {./fig/tikz/data/training_history.csv};
-    \addplot[name path=pos_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=pos_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_upper] {./fig/tikz/data/train_data.csv};
+    \addplot[name path=pos_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=pos_lower] {./fig/tikz/data/train_data.csv};
     \addplot[matpos, fill opacity=0.15, forget plot] fill between[of=pos_upper and pos_lower];
-    \addplot[color=matpos, thick] table [col sep=comma, x=epoch, y=pos_sim] {./fig/tikz/data/training_history.csv};
+    \addplot[color=matpos, thick] table [col sep=comma, x=epoch, y=pos_sim] {./fig/tikz/data/train_data.csv};
     \addlegendentry{Avg Pos Sim}
     
-    \addplot[name path=neg_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_upper] {./fig/tikz/data/training_history.csv};
-    \addplot[name path=neg_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_lower] {./fig/tikz/data/training_history.csv};
+    \addplot[name path=neg_upper, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_upper] {./fig/tikz/data/train_data.csv};
+    \addplot[name path=neg_lower, draw=none, forget plot] table [col sep=comma, x=epoch, y=neg_lower] {./fig/tikz/data/train_data.csv};
     \addplot[matneg, fill opacity=0.15, forget plot] fill between[of=neg_upper and neg_lower];
-    \addplot[color=matneg, thick, dashed] table [col sep=comma, x=epoch, y=neg_sim] {./fig/tikz/data/training_history.csv};
+    \addplot[color=matneg, thick, dashed] table [col sep=comma, x=epoch, y=neg_sim] {./fig/tikz/data/train_data.csv};
     \addlegendentry{Avg Neg Sim}
 
-    \addplot[color=matthresh, thick, dashdotted] table [col sep=comma, x=epoch, y=threshold] {./fig/tikz/data/training_history.csv};
+    \addplot[color=matthresh, thick, dashdotted] table [col sep=comma, x=epoch, y=threshold] {./fig/tikz/data/train_data.csv};
     \addlegendentry{Threshold (95\% TMR)}
     \end{axis}
 \end{tikzpicture}
@@ -79,7 +79,7 @@
         ylabel={FMR (\%)},
         legend style={at={(0.98,0.98)}, anchor=north east}
     ]
-    \addplot[color=matfmr, thick] table [col sep=comma, x=epoch, y=fmr] {./fig/tikz/data/training_history.csv};
+    \addplot[color=matfmr, thick] table [col sep=comma, x=epoch, y=fmr] {./fig/tikz/data/train_data.csv};
     \end{axis}
 \end{tikzpicture}
 

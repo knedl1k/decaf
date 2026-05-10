@@ -47,7 +47,7 @@
             xmin=1, xmax=60,
             legend style={at={(0.98,1)}, anchor=north east}
         ]
-        \addplot[color=matloss, thick] table [col sep=comma, x=epoch, y=loss] {./fig/tikz/data/training_history.csv};
+        \addplot[color=matloss, thick] table [col sep=comma, x=epoch, y=loss] {./fig/tikz/data/train_data.csv};
         \addlegendentry{Loss}
         \end{axis}
         
@@ -61,7 +61,7 @@
             ylabel near ticks,
             legend style={at={(0.98,0.95)}, anchor=north east} 
         ]
-        \addplot[color=matlr, thick, dashed] table [col sep=comma, x=epoch, y=lr] {./fig/tikz/data/training_history.csv};
+        \addplot[color=matlr, thick, dashed] table [col sep=comma, x=epoch, y=lr] {./fig/tikz/data/train_data.csv};
         \addlegendentry{Learning Rate}
         \end{axis}
     \end{tikzpicture}
@@ -79,10 +79,10 @@
             xmin=1, xmax=60,
             legend style={at={(0.98,0.1)}, anchor=south east}
         ]
-        \addplot[color=matacc, thick] table [col sep=comma, x=epoch, y=top1_acc] {./fig/tikz/data/training_history.csv};
+        \addplot[color=matacc, thick] table [col sep=comma, x=epoch, y=top1_acc] {./fig/tikz/data/train_data.csv};
         \addlegendentry{Synthetic data}
         
-        \addplot[color=matfmr, thick, dashed] table [col sep=comma, x=epoch, y=real_top1] {./fig/tikz/data/training_history.csv};
+        \addplot[color=matfmr, thick, dashed] table [col sep=comma, x=epoch, y=real_top1] {./fig/tikz/data/train_data.csv};
         \addlegendentry{Real data}
         \end{axis}
     \end{tikzpicture}
