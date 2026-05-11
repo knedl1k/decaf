@@ -1,17 +1,17 @@
 \chapter{Experiments and Results}\label{chap:er}
 
 \section{Definition of Correct Identification}\label{sec:identity_definition}
-A known challenge in evaluating \ac{TCG} recognition systems is the handling of reprints. As previously illustrated in \Cref{fig:tiny_details}, a single mechanically unique card is frequently reprinted across multiple editions. These reprints often utilize the same primary artwork, differing only in localized details such as a set symbol, a holographic stamp, or copyright text.
+A known challenge in evaluating \ac{TCG} recognition systems is the handling of reprints. As previously illustrated in \Cref{fig:tiny_details}, a single mechanically unique card is frequently reprinted across multiple editions. These reprints often use the same primary artwork, differing only in localized details such as a set symbol, a holographic stamp, or copyright text.
 
 Because the proposed architecture (\Cref{sec:model_architecture}) processes the entire card as a holistic visual fingerprint, the network inherently prioritizes macro-level features (e.g., silhouettes and/or color palettes) over micro-level typographical differences.
 
 Thus, this thesis defines a \ii{True Positive (Correct Match)} primarily at the \ii{Name-Level}. If the system retrieves an embedding that matches the canonical name of the queried card, the prediction is considered correct, regardless of the specific edition. While exact-edition matching is evaluated to demonstrate the system's operational limits, achieving robust edition verification is better suited for a secondary pipeline, which is designated as future work.
 
 \section{Evaluation Metrics}
-Because the recognition pipeline utilizes Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the structural robustness of the model. The system operates as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
+Because the recognition pipeline uses Open-Set Metric Learning rather than standard closed-set classification, traditional metrics like simple accuracy are insufficient for evaluating the structural robustness of the model. The system operates as an image retrieval mechanism, comparing the extracted feature vector of a queried card against a known database using cosine similarity.
 
 \subsection{Verification Performance (\acs{FMR} \& \acs{TMR})}
-To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are utilized~\cite{jain2011biometrics}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95\,\%.
+To evaluate the discriminative power of the learned embedding space, metrics adapted from biometric verification systems are used~\cite{jain2011biometrics}. Specifically, the performance is quantified using the \acf{FMR} at a fixed \acf{TMR} of 95\,\%.
 
 Let $s(\mathbf{x}_i, \mathbf{x}_j)$ denote the cosine similarity between the feature embeddings $\mathbf{x}_i$ and $\mathbf{x}_j$ extracted from two images. We define two sets of evaluation pairs:
 \begin{itemize}
@@ -50,7 +50,7 @@ To validate the model, performance was measured across two evaluation sets:
     \item \ii{Real-World Evaluation Set}: A manually curated dataset of \todo{insert number} unconstrained phyiiphotographs of \ac{MTG} cards. These images feature diverse backgrounds, card sleeves and perspective shifts to test the system's robustness against the domain shift discussed in \Cref{sec:domain_shift}.
 \end{enumerate}
 
-The network was trained for 60 epochs across 4 GPUs utilizing the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
+The network was trained for 60 epochs across 4 GPUs using the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
 
 The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. Optimization was performed using \ac{SGD} with a momentum of $0.9$ and a weight decay of $5 \times 10^{-4}$. The base learning rate parameter was defined as $\eta_{\text{base}} = 0.1$. 
 

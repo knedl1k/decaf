@@ -1,9 +1,9 @@
 \chapter{Card Recognition Pipeline}\label{chap:rec}
 
 \section{Data Acquisition}
-As was previously mentioned in \Cref{sec:scarcity}, one of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (as of 2026, \ac{MTG} alone features approximately 30,000 mechanically unique cards by name, a number that expands to over 100,000 distinct target classes when accounting for reprints, alternate artworks, and special foil treatments in the English language alone~\cite{scryfall_api}), labeled datasets containing real-world photographs of these cards are virtually non-existent. 
+As was previously mentioned in \Cref{sec:scarcity}, one of the primary challenges in training deep learning models for \ac{TCG} identification is \ii{data scarcity}. While the total number of unique cards in circulation is vast (as of 2026, \ac{MTG} alone features approximately 30,000 mechanically unique cards by name, a number that expands to over 100,000 distinct target classes when accounting for reprints, alternate artworks and special foil treatments in the English language alone~\cite{scryfall_api}), labeled datasets containing real-world photographs of these cards are virtually non-existent. 
 
-Furthermore, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming. This constraint serves as a secondary motivation for the hardware proposed in this thesis: once constructed, the robotic sorting mechanism can function as an automated data acquisition pipeline. By utilizing models trained on synthetic data to bootstrap the initial sorting, the robot can mechanically feed, photograph, and confidently pseudo-label physical cards, thereby autonomously generating a large-scale, real-world dataset to fine-tune future iterations of the recognition model.
+Additionally, collecting and manually labeling a sufficiently large dataset of physical cards is prohibitively expensive and time-consuming. This constraint serves as a secondary motivation for the hardware proposed in this thesis: once constructed, the robotic sorting mechanism can function as an automated data acquisition pipeline. By using models trained on synthetic data to bootstrap the initial sorting, the robot can mechanically feed, photograph and confidently pseudo-label physical cards, thereby autonomously generating a large-scale, real-world dataset to fine-tune future iterations of the recognition model.
 
 To address the lack of real-world photographs, this thesis adopts a \ii{synthetic data generation} approach. High-quality reference images, serving as ground truth templates, were retrieved via the Scryfall Bulk Data API~\cite{scryfall_api}\footnote{Scryfall is a specialized search engine and comprehensive database for \ac{MTG}. Users can query cards using advanced syntax to filter by name, color, set edition, gameplay mechanics and format legality. Due to its maintained catalog, it serves as an essential tool for both players and third-party developers.}. This service provides a comprehensive catalogue of all printed cards in a structured JSON format.
 
@@ -12,7 +12,7 @@ However, relying exclusively on digital templates introduces a secondary challen
 \subsection{Scraping Pipeline and Indexing}
 A custom data collection script, \texttt{data\_scraper.py}, was developed to process metadata and download high-resolution scans. A simple file indexing strategy was also designed, aimed at achieving a balance between machine uniqueness and human readability, a feature essential for manual inspection and debugging.
 
-Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number, and name with a \ac{UUID}: 
+Instead of relying solely on human-unreadable identifiers (such as \acp{UUID}), a hybrid naming convetion derived from the card's canonical \ac{URI} is proposed. Each file name combines the card edition, collector number and name with a \ac{UUID}: 
 \begin{equation}
     \texttt{filename} = \texttt{edition\_collectorNumber\_name-UUID.png}
 \end{equation}
@@ -80,7 +80,7 @@ resized_card = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
 x_offset = (target_size - new_w) // 2
 y_offset = (target_size - new_h) // 2
 
-# extract RGB, normalized Alpha, and Canvas ROI
+# extract RGB, normalized Alpha and Canvas ROI
 bgr = resized_card[:, :, :3]
 alpha_3d = np.expand_dims(resized_card[:, :, 3] / 255.0, axis=2)
 roi = canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w]
@@ -93,14 +93,14 @@ canvas[y_offset : y_offset + new_h, x_offset : x_offset + new_w] = \
 \subsection{Augmentation Pipeline}
 During every training iteration, every reference image is processed through a stochastic augmentation chain. To ensure the reproducibility of the trained models, the exact configuration of the implemented pipeline is detailed in \Cref{tab:augmentations}. The applied transformations are categorized by the physical phenomena they are designed to simulate:
 \begin{itemize}
-    \item \bb{Geometric Deformations}: Real-world physical cards are rarely photographed perfectly orthogonal to the camera lens. Transformations such as affine scaling, translation, rotation, and perspective warping are applied to induce model invariance to camera pose, alignment errors, and variations in focal length.
-    \item \bb{Optical and Environmental Simulation}: Playing cards are frequently protected by glossy plastic sleeves, which introduce severe specular highlights and glare. To model this, operations such as \texttt{RandomSunFlare} and \texttt{GlassBlur} are utilized alongside standard motion blur and shadow generation. Furthermore, variations in brightness, contrast, and hue approximate diverse environmental lighting conditions (e.g., warm incandescent room lighting versus cool daylight).
+    \item \bb{Geometric Deformations}: Real-world physical cards are rarely photographed perfectly orthogonal to the camera lens. Transformations such as affine scaling, translation, rotation and perspective warping are applied to induce model invariance to camera pose, alignment errors and variations in focal length.
+    \item \bb{Optical and Environmental Simulation}: Playing cards are frequently protected by glossy plastic sleeves, which introduce severe specular highlights and glare. To model this, operations such as \texttt{RandomSunFlare} and \texttt{GlassBlur} are used alongside standard motion blur and shadow generation. And variations in brightness, contrast and hue approximate diverse environmental lighting conditions (e.g., warm incandescent room lighting versus cool daylight).
     \item \bb{Sensor Noise and Occlusions}: Consumer webcams and smartphone cameras frequently introduce compression artifacts and ISO noise under low-light conditions. These are modeled using \texttt{ImageCompression} and \texttt{ISONoise}. Finally, physical damage is simulated using \texttt{CoarseDropout} with random noise filling acting as a spatial regularizer that forces the network to learn distributed feature representations rather than relying on a single localized focal point.
 \end{itemize}
 
 \begin{table}[ht!]
     \centering
-    \caption{Exact configuration of the stochastic augmentation pipeline utilized during training. $p$ denotes the execution probability per sample.}
+    \caption{Exact configuration of the stochastic augmentation pipeline used during training. $p$ denotes the execution probability per sample.}
     \label{tab:augmentations}
     \small
     \begin{tabular}{@{}lllc@{}}
@@ -315,9 +315,9 @@ It should be noted that while synthetic augmentation produces a robust baseline 
 Standard image classification models typically employ Softmax classification with Cross-Entropy loss to predict a probability distribution over a fixed set of classes. While effective for closed-set problems (e.g., ImageNet classification), this approach is fundamentally unsuitable for \ac{TCG} identification due to
 \begin{itemize}
     \item \bb{High Cardinality and Open-Set Nature}: \ac{MTG} contains over 100,000 unique card faces. While training a final fully connected layer of size $N \approx 10^5$ is computationally possible, deploying it as a fixed-size classifier is highly impractical. The domain is inherently open-set; new expansions are released frequently, rendering a fixed-size classifcation layer obsolete without constant retraining.
-    \item \bb{Intra-Class Variance vs. Inter-Class Similarity}: The model must be invariant to non-semantic visual noise (e.g., varying lighting, card wear or foiling effects). Furthermore, the \ac{TCG} domain features extreme inter-class visual similarity, where reprinted cards often share identical artwork and differ only in tiny details like set symbols or edition text (see \Cref{fig:tiny_details} for example). While differentiating these tiny details can be delegated to a secondary verification pipeline, the primary model must still robustly group visually similar cards. Standard Softmax classification with Cross-Entropy loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness.
+    \item \bb{Intra-Class Variance vs. Inter-Class Similarity}: The model must be invariant to non-semantic visual noise (e.g., varying lighting, card wear or foiling effects). The \ac{TCG} domain features extreme inter-class visual similarity, where reprinted cards often share identical artwork and differ only in tiny details like set symbols or edition text (see \Cref{fig:tiny_details} for example). While differentiating these tiny details can be delegated to a secondary verification pipeline, the primary model must still robustly group visually similar cards. Standard Softmax classification with Cross-Entropy loss maximizes inter-class separability but lacks explicit constraints to enforce intra-class compactness.
 \end{itemize}
-To address these challenges, a \ac{DML} approach was adopted. Instead of classifying images directly, the goal is to learn a mapping function $f: \mathcal{I} \rightarrow \mathbb{R}^d$, where $\mathcal{I}$ represents the input space of all possible card images, and $\mathbb{R}^d$ is a low-dimensional Euclidean feature space (typically constrained to the surface of a hypersphere). In this space, the geometric distance between embeddings corresponds directly to semantic visual similarity, allowing for card identification via Nearest Neighbor Search rather than direct classification.
+To address these challenges, a \ac{DML} approach was adopted. Instead of classifying images directly, the goal is to learn a mapping function $f: \mathcal{I} \rightarrow \mathbb{R}^d$, where $\mathcal{I}$ represents the input space of all possible card images and $\mathbb{R}^d$ is a low-dimensional Euclidean feature space (typically constrained to the surface of a hypersphere). In this space, the geometric distance between embeddings corresponds directly to semantic visual similarity, allowing for card identification via Nearest Neighbor Search rather than direct classification.
 
 \begin{figure}[htbp]
     \centering
@@ -368,14 +368,14 @@ The final ArcFace loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded. The recognition is instead framed as a retrieval task: the system computes the cosine similarity between the extracted query embedding $\mathbf{x}_q = f(\mathbf{I}_q)$ and all pre-computed reference embeddings in the database. The final identity of the card is then determined via an $\arg\max$ operation over these cosine similarities, effectively selecting the nearest neighbor in the learned feature space.
 
 \section{Model Architecture}\label{sec:model_architecture}
-To ensure the network focuses exclusively on card features rather than background clutter, the complete system implements a two-stage pipeline, as illustrated in \Cref{fig:pipeline_flow}. Phase 0 (Localization) utilizes an OpenCV-based detection script to locate the bounding box of the physical card within the raw camera frame, extracting it as a tightly cropped query image ($\mathbf{I}_q$). This image is then passed into the core neural network for feature extraction (Phase 1) and subsequent similarity matching (Phase 2).
+To ensure the network focuses exclusively on card features rather than background clutter, the complete system implements a two-stage pipeline, as illustrated in \Cref{fig:pipeline_flow}. Phase 0 (Localization) uses an OpenCV-based detection script to locate the bounding box of the physical card within the raw camera frame, extracting it as a tightly cropped query image ($\mathbf{I}_q$). This image is then passed into the core neural network for feature extraction (Phase 1) and subsequent similarity matching (Phase 2).
 \begin{figure}[H]
     \centering
     \resizebox{\textwidth}{!}{\input{./fig/tikz/architecture.tex}}
     \caption{The end-to-end inference pipeline used in this thesis.}
     \label{fig:pipeline_flow}
 \end{figure}
-The core neural network (\texttt{MTGReconModel}) utilized for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
+The core neural network (\texttt{MTGReconModel}) used for the feature extraction is trained using a metric learning paradigm. Its underlying architecture is composed of three distinct modules designed to map raw pixel data into discriminative 512-dimensional Euclidean space.
 
 \subsection{Backbone Network}\label{sub:backbone}
 The foundational feature extractor is a \ac{ResNet}-50~\cite{he2015resnet} architecture, instantiated via the \texttt{timm} library. To adapt the network for metric learning, the final classification fully connected layer is omitted. The backbone is initialized with weights pre-trained on the ImageNet dataset to leverage learned low-level visual features such as edge detection and basic geometric pattern recognition. The network processes standardized input tensors of size $512 \times 512 \times 3$. To prevent catastrophic forgetting of the pre-trained weights while adapting to the \ac{TCG} domain, the backbone parameters are optimized using a learning rate ten times smaller than that of the newly initialized custom network heads.
@@ -395,7 +395,7 @@ During the training phase, the 512-dimensional embeddings are passed to the \tex
 The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the ArcFace~\cite{deng2022arcface} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
 \begin{enumerate}
     \item \ii{Cosine Similarity:} The raw logits are calculated as the dot product between the $L_2$-normalized embeddings and the normalized weight matrix, yielding a similarity matrix where each element is $\cos(\theta_{j, i})$.
-    \item \ii{Margin Application:} Utilizing PyTorch's in-place operations within a detached gradient context (\texttt{torch.no\_grad()}), the specific similarities corresponding to the ground-truth classes ($\cos(\theta_{y_i, i})$) are isolated. These target logits are transformed back into the angular domain via the inverse cosine function ($\theta = \arccos(\cos\theta)$), shifted by the additive margin penalty ($\theta + m$), and projected back into the cosine domain as $\cos(\theta_{y_i, i} + m)$.
+    \item \ii{Margin Application:} Utilizing PyTorch's in-place operations within a detached gradient context (\texttt{torch.no\_grad()}), the specific similarities corresponding to the ground-truth classes ($\cos(\theta_{y_i, i})$) are isolated. These target logits are transformed back into the angular domain via the inverse cosine function ($\theta = \arccos(\cos\theta)$), shifted by the additive margin penalty ($\theta + m$) and projected back into the cosine domain as $\cos(\theta_{y_i, i} + m)$.
     \item \ii{Feature Scaling:} The updated similarity matrix is multiplied by the hyperparameter $s$ (see \Cref{sub:geometric_s}) before being passed to the Cross-Entropy loss function.
 \end{enumerate}
 
