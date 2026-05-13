@@ -19,7 +19,7 @@ To further optimize the memory footprint and memory bandwidth, \ii{mixed precisi
 \section{Edge Vision Pipeline}
 Once the network is trained, it must be deployed to the \ac{SBC} (Raspberry Pi) governing the robotic platform. And because the \ac{SBC} operates with strict computational and memory constraints (1\,GB RAM and a low-power CPU), the software pipeline must be optimized.
 
-\subsection{Robust Image Localization and Homography}
+\subsection{Image Localization and Homography}
 Before the captured image is passed to the neural network, the physical card must be accurately localized. Simple bounding-box detection (e.g., standard Canny edge detection) frequently fails due to dual borders introduced by plastic card sleeves and severe specular highlights breaking the continuous edge lines.
 
 To resolve this, an OpenCV algorithm was implemented:
@@ -31,7 +31,7 @@ To resolve this, an OpenCV algorithm was implemented:
 \end{enumerate}
 
 \begin{algorithm}[htbp]
-    \caption{Robust Card Localization and Homography Extraction}
+    \caption{Card Localization and Homography Extraction}
     \label{alg:smart_crop}
     \begin{algorithmic}[1]
     \Require Raw high-resolution image $I_{\text{raw}}$, Target Width $W$, Target Height $H$
