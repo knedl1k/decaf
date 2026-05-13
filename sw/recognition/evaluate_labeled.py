@@ -2,45 +2,58 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import cv2
 import torch
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-from typing import List, Tuple
 import shutil
+from pathlib import Path
+from typing import List, Tuple, Dict, Any
 
 from model import MTGReconModel
 from data import get_inference_transforms, load_image
-from utils import load_model_weights, detect_and_crop_card, parse_labeled_name
+from utils import load_model_weights, smart_crop_card
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate ArcFace model on real MTG photos")
+    parser = argparse.ArgumentParser(description="Evaluate ArcFace model on pre-cropped real MTG photos")
     parser.add_argument("--model", type=str, required=True, help="path to trained model checkpoint")
     parser.add_argument("--database", type=str, required=True, help="path to the index database")
-    parser.add_argument("--real_dir", type=str, required=True, help="directory with real photos")
-    parser.add_argument("--ref_dir", type=str, required=True, help="directory with reference digital images")
+    parser.add_argument("--real_dir", type=str, required=True, help="directory with pre-cropped photos")
     parser.add_argument("--save_dir", type=str, default="./eval_results", help="directory to save results")
     parser.add_argument("--img_size", type=int, default=512, help="input image size")
-    parser.add_argument("--batch_size", type=int, default=32, help="batch size for inference")
-    parser.add_argument("--debug_dir", type=str, default=None, help="dir to save debug contour images")
+    parser.add_argument("--debug_dir", type=str, default=None, help="dir to copy correctly/incorrectly matched images")
     return parser.parse_args()
+
+
+def parse_mtg_filename(filename_stem: str) -> Tuple[str, str]:
+    """
+    Parses 'edition_collectorNumber_name-UUID' into (name, edition).
+    Example: 'zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e' -> ('kor-outfitter', 'zen')
+    """
+    no_uuid = re.sub(
+        r"-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "", filename_stem
+    )
+    parts = no_uuid.split("_", 2)
+
+    if len(parts) == 3:
+        edition = parts[0]
+        name = parts[2]
+        return name, edition
+    else:
+        return no_uuid, "unknown"
 
 
 def extract_features_from_real_photos(
     image_paths: List[Path],
     model: torch.nn.Module,
     transform,
-    img_size: int,
     device: torch.device,
     db_vectors: torch.Tensor,
     debug_dir: str = None,
-) -> Tuple[torch.Tensor, List[str]]:
-    """
-    Performs on-the-fly homography extraction and inference.
-    """
+) -> Tuple[torch.Tensor, List[Path]]:
+
     model.eval()
     vectors = []
     valid_paths = []
@@ -48,23 +61,16 @@ def extract_features_from_real_photos(
 
     with torch.no_grad():
         for i, path in enumerate(image_paths):
-            warped_card, debug_card = detect_and_crop_card(str(path), output_height=img_size)
-
-            inputs_dir = None
-            if debug_dir is not None and debug_card is not None:
-                cv2.imwrite(os.path.join(debug_dir, path.name), debug_card)
-                if warped_card is not None:
-                    inputs_dir = os.path.join(debug_dir, "inputs")
-                    os.makedirs(inputs_dir, exist_ok=True)
-
-            if warped_card is None:
-                print(f"Warning: Failed to crop {path.name}. Using raw image.")
+            try:
                 img = load_image(path)
                 if len(img.shape) == 3 and img.shape[2] == 4:
                     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            else:
-                img = cv2.cvtColor(warped_card, cv2.COLOR_BGR2RGB)
+            except Exception as e:
+                print(f"Error: Failed to load {path.name}: {e}")
+                continue
+
+            cv2.imwrite(os.path.join(debug_dir, path.name), img)
 
             img_tensor_0 = transform(image=img)["image"].unsqueeze(0).to(device)
             img_tensor_180 = torch.flip(img_tensor_0, dims=[2, 3])
@@ -75,14 +81,8 @@ def extract_features_from_real_photos(
             max_scores, _ = torch.max(sims, dim=1)
             if max_scores[1] > max_scores[0]:
                 vectors.append(emb[1:2].cpu())
-
-                if inputs_dir is not None and warped_card is not None:
-                    rotated_debug = cv2.rotate(warped_card, cv2.ROTATE_180)
-                    cv2.imwrite(os.path.join(inputs_dir, path.name), rotated_debug)
             else:
                 vectors.append(emb[0:1].cpu())
-                if inputs_dir is not None and warped_card is not None:
-                    cv2.imwrite(os.path.join(inputs_dir, path.name), warped_card)
 
             valid_paths.append(path)
 
@@ -92,31 +92,12 @@ def extract_features_from_real_photos(
     return torch.cat(vectors), valid_paths
 
 
-def generate_histogram(hit_sims: List[float], miss_sims: List[float], save_path: str):
-    """Plots the distribution of cosine similarities."""
-    plt.figure(figsize=(10, 6))
-    if hit_sims:
-        plt.hist(hit_sims, bins=np.linspace(0, 1, 40), alpha=0.6, color="green", label="Correct (Top-1)")
-    if miss_sims:
-        plt.hist(miss_sims, bins=np.linspace(0, 1, 40), alpha=0.6, color="red", label="Incorrect (Top-1)")
-    plt.title("Distribution of Top-1 Cosine Similarities")
-    plt.xlabel("Cosine Similarity")
-    plt.ylabel("Frequency")
-    plt.legend()
-    plt.grid(axis="y", alpha=0.5)
-    plt.savefig(save_path)
-    plt.close()
-
-
 def compute_similarities_chunked(
     queries: torch.Tensor, db_vectors: torch.Tensor, chunk_size: int = 500
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Computes top-k similarities via chunked matrix multiplication.
-    """
+
     top5_scores_list = []
     top5_idxs_list = []
-
     device = db_vectors.device
 
     for i in range(0, queries.shape[0], chunk_size):
@@ -134,6 +115,7 @@ def main():
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(args.save_dir, exist_ok=True)
+
     if args.debug_dir:
         os.makedirs(args.debug_dir, exist_ok=True)
         os.makedirs(os.path.join(args.debug_dir, "correct"), exist_ok=True)
@@ -158,66 +140,145 @@ def main():
     transform = get_inference_transforms(args.img_size)
 
     queries_cpu, valid_paths = extract_features_from_real_photos(
-        all_files, model, transform, args.img_size, device, db_vectors, args.debug_dir
+        all_files, model, transform, device, db_vectors, args.debug_dir
     )
+
+    if not valid_paths:
+        print("No valid features extracted. Exiting.")
+        return
 
     print("Calculating similarities...")
     top5_scores, top5_idxs = compute_similarities_chunked(queries_cpu, db_vectors)
 
-    correct_1, correct_3, correct_5 = 0, 0, 0
-    hit_sims, miss_sims = [], []
+    correct_name = {1: 0, 3: 0, 5: 0}
+    correct_edition = {1: 0, 3: 0, 5: 0}
+    correct_exact = {1: 0, 3: 0, 5: 0}
+
+    export_data = {
+        "hit_sims_name": [],
+        "miss_sims_name": [],
+        "hit_sims_exact": [],
+        "miss_sims_exact": [],
+        "details": [],
+    }
+
     correct_log, incorrect_log = [], []
 
     for i, path in enumerate(valid_paths):
-        gt_name = parse_labeled_name(path.stem)
-        preds = [db_names[idx.item()] for idx in top5_idxs[i]]
+        gt_name, gt_edition = parse_mtg_filename(path.stem)
+
+        preds_parsed = [parse_mtg_filename(db_names[idx.item()]) for idx in top5_idxs[i]]
+        pred_names = [p[0] for p in preds_parsed]
+        pred_editions = [p[1] for p in preds_parsed]
         scores = top5_scores[i].tolist()
 
-        src = os.path.join(args.debug_dir, path.name)
-        if gt_name == preds[0]:
-            correct_1 += 1
-            hit_sims.append(scores[0])
-            correct_log.append(f"{path.name} -> {preds[0]} (Score: {scores[0]:.4f})")
-            if args.debug_dir:
-                dst = os.path.join(args.debug_dir, "correct", path.name)
-                if os.path.exists(src):
-                    shutil.move(src, dst)
-        else:
-            miss_sims.append(scores[0])
-            incorrect_log.append(f"{path.name} -> Pred: {preds[0]} (Score: {scores[0]:.4f}) | GT: {gt_name}")
-            if args.debug_dir:
-                dst = os.path.join(args.debug_dir, "incorrect", path.name)
-                if os.path.exists(src):
-                    shutil.move(src, dst)
+        match_name_1 = gt_name == pred_names[0]
+        match_ed_1 = gt_edition == pred_editions[0]
+        match_exact_1 = match_name_1 and match_ed_1
 
-        if gt_name in preds[:3]:
-            correct_3 += 1
-        if gt_name in preds[:5]:
-            correct_5 += 1
+        if match_name_1:
+            correct_name[1] += 1
+            export_data["hit_sims_name"].append(scores[0])
+        else:
+            export_data["miss_sims_name"].append(scores[0])
+
+        if match_exact_1:
+            correct_exact[1] += 1
+            export_data["hit_sims_exact"].append(scores[0])
+        else:
+            export_data["miss_sims_exact"].append(scores[0])
+
+        if match_ed_1:
+            correct_edition[1] += 1
+
+        if gt_name in pred_names[:3]:
+            correct_name[3] += 1
+        if gt_edition in pred_editions[:3]:
+            correct_edition[3] += 1
+        if any(gt_name == n and gt_edition == e for n, e in zip(pred_names[:3], pred_editions[:3])):
+            correct_exact[3] += 1
+
+        if gt_name in pred_names[:5]:
+            correct_name[5] += 1
+        if gt_edition in pred_editions[:5]:
+            correct_edition[5] += 1
+        if any(gt_name == n and gt_edition == e for n, e in zip(pred_names[:5], pred_editions[:5])):
+            correct_exact[5] += 1
+
+        if match_exact_1:
+            correct_log.append(f"{path.name} -> EXACT MATCH (Score: {scores[0]:.4f})")
+        elif match_name_1:
+            correct_log.append(
+                f"{path.name} -> NAME MATCH ONLY | Pred: {pred_editions[0]} | GT: {gt_edition} (Score: {scores[0]:.4f})"
+            )
+        else:
+            incorrect_log.append(
+                f"{path.name} -> MISS | Pred: {pred_names[0]}_{pred_editions[0]} | GT: {gt_name}_{gt_edition} (Score: {scores[0]:.4f})"
+            )
+
+        export_data["details"].append(
+            {
+                "query": path.name,
+                "gt_name": gt_name,
+                "gt_edition": gt_edition,
+                "pred_names": pred_names,
+                "pred_editions": pred_editions,
+                "scores": scores,
+            }
+        )
+
+        if args.debug_dir:
+            src = str(path)
+            dst_folder = "correct" if match_name_1 else "incorrect"
+            dst = os.path.join(args.debug_dir, dst_folder, path.name)
+            shutil.copy(src, dst)
 
     total = len(valid_paths)
 
-    save_reports(args.save_dir, correct_1, correct_3, correct_5, total, correct_log, incorrect_log)
-    hist_path = os.path.join(args.save_dir, "confidence_histogram.png")
-    generate_histogram(hit_sims, miss_sims, hist_path)
+    export_data["metrics"] = {
+        "total_images": total,
+        "name": correct_name,
+        "edition": correct_edition,
+        "exact": correct_exact,
+    }
 
-    print(f"\nEvaluation Finished. Top-1 Accuracy: {correct_1 / total * 100:.2f}%")
-    print(f"Results saved to {args.save_dir}/")
+    save_reports(args.save_dir, export_data, correct_log, incorrect_log)
+    np.save(os.path.join(args.save_dir, "evaluation_data.npy"), export_data)
+
+    print(f"\nEvaluation Finished. Analyzed {total} images.")
+    print(f"Top-1 Name Match:  {correct_name[1] / total * 100:.2f}%")
+    print(f"Top-1 Exact Match: {correct_exact[1] / total * 100:.2f}%")
+    print(f"All raw data exported to: {os.path.join(args.save_dir, 'evaluation_data.npy')}")
 
 
-def save_reports(save_dir: str, correct_1, correct_3, correct_5, total, correct_log, incorrect_log) -> None:
+def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], incorrect_log: List[str]) -> None:
+    total = data["metrics"]["total_images"]
+    name = data["metrics"]["name"]
+    ed = data["metrics"]["edition"]
+    exact = data["metrics"]["exact"]
+
     report_path = os.path.join(save_dir, "evaluation_report.txt")
     with open(report_path, "w") as f:
         f.write(f"--- Real Photo Evaluation Report ---\n")
         f.write(f"Total Images Evaluated: {total}\n\n")
-        f.write(f"Top-1 Accuracy: {correct_1 / total * 100:.2f}% ({correct_1}/{total})\n")
-        f.write(f"Top-3 Accuracy: {correct_3 / total * 100:.2f}% ({correct_3}/{total})\n")
-        f.write(f"Top-5 Accuracy: {correct_5 / total * 100:.2f}% ({correct_5}/{total})\n\n")
 
-    with open(os.path.join(save_dir, "correct_matches.txt"), "w") as f:
+        f.write("--- NAME MATCH ---\n")
+        f.write(f"Top-1: {name[1] / total * 100:.2f}% ({name[1]}/{total})\n")
+        f.write(f"Top-3: {name[3] / total * 100:.2f}% ({name[3]}/{total})\n")
+        f.write(f"Top-5: {name[5] / total * 100:.2f}% ({name[5]}/{total})\n\n")
+
+        f.write("--- EXACT MATCH (Name + Edition) ---\n")
+        f.write(f"Top-1: {exact[1] / total * 100:.2f}% ({exact[1]}/{total})\n")
+        f.write(f"Top-3: {exact[3] / total * 100:.2f}% ({exact[3]}/{total})\n")
+        f.write(f"Top-5: {exact[5] / total * 100:.2f}% ({exact[5]}/{total})\n\n")
+
+        f.write("--- EDITION MATCH  ---\n")
+        f.write(f"Top-1: {ed[1] / total * 100:.2f}% ({ed[1]}/{total})\n")
+
+    with open(os.path.join(save_dir, "evaluation_log.txt"), "w") as f:
+        f.write("=== CORRECT & PARTIAL MATCHES ===\n")
         f.write("\n".join(correct_log))
-
-    with open(os.path.join(save_dir, "incorrect_matches.txt"), "w") as f:
+        f.write("\n\n=== INCORRECT MATCHES ===\n")
         f.write("\n".join(incorrect_log))
 
 
