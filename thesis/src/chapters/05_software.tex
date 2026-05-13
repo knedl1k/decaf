@@ -1,22 +1,100 @@
+%!TEX root = ../main.tex
+
 \chapter{System Implementation \& Integration}\label{chap:sw}
+The software ecosystem of the robotic sorter spans two distinct computing environments: a high-performance cluster for model optimization and a low-power edge computing architecture for real-time robotic control and inference. This chapter details the implementation of both systems and their integration.
 
 \section{Scalable Training Architecture}
-Training a deep metric learning model on a dataset with extreme cardinality (e.g., over $10^5$ unique classes) introduces significant computational bottlenecks. Specifically, the weight matrix $\mathbf{W}$ in the ArcFace head requires substantial VRAM, scaling linearly with the number of unique cards. To address this, the training pipeline was engineered for high-throughput distributed execution.
+Training a deep metric learning model on a dataset with extreme cardinality introduces significant computational bottlenecks. Specifically, the weight matrix $\mathbf{W}$ in the ArcFace head requires substantial VRAM, scaling linearly with the number of unique cards. To address this, the training pipeline was designed for high-throughput distributed execution.
 
 \subsection{Distributed Data Parallelism and Synchronization}
-The model optimization is parallelized across multiple accelerators using PyTorch's~\cite{paszke2019pytorch} \ac{DDP}~\cite{li2020ddppytorch}. Unlike standard \texttt{DataParallel}\footnote{\url{https://docs.pytorch.org/docs/stable/generated/torch.nn.DataParallel.html}}, which suffers from \ac{GIL} contention and uneven memory distribution~\cite{pytorch_ddp}, \ac{DDP} spawns independent processes for each device. To maintain mathematical consistency of the batch statistics across distributed workers, standard Batch Normalization layers were replaced with Synchronized Batch Normalization (\texttt{SyncBatchNorm}\footnote{\url{https://docs.pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html}}). This ensures that the variance and mean are computed globally, preventing individual GPUs with small effective batch sizes from destabilizing the embedding space.
+The model optimization is parallelized across multiple compute nodes and accelerators using PyTorch's~\cite{paszke2019pytorch} \ac{DDP}. Unlike standard \texttt{DataParallel}, which suffers from Python \ac{GIL} contention and uneven memory distribution, \ac{DDP} spawns independent processes for each device.
 
-\subsection{Mixed Precision Training} % https://docs.pytorch.org/tutorials/recipes/recipes/amp_recipe.html
-To further optimize memory footprint and memory bandwidth, \ii{mixed precision} was integrated into the training loop. The forward pass and loss computation are executed in \texttt{bfloat16} (Brain Floating Point)~\cite{kalamkar2019bfloat}, a format that preserves the dynamic range of 32-bit floats while halving the memory requirement. The weights and optimizer states remain in \texttt{float32} to prevent precision degradation during gradient updates. This approach effectively doubles the maximum allowable batch size, leading to smoother gradient estimates and faster convergence.
+To manage the massive 150+\,GB dataset of clean templates, a \texttt{DistributedSampler} is employed within the data loading pipeline. It mathematically partitions the dataset indices among the active workers. For instance, in a 4-GPU topology, each device independently loads and processes exactly 25\,\% of the dataset per epoch. The \ac{DDP} backend (via the NCCL protocol) then asynchronously synchronizes the calculated gradients across all nodes before the optimizer steps, drastically reducing training times.
 
-\section{Inference and Embedding Retrieval}
-Once the network is trained, the ArcFace classification head is entirely discarded. The system transitions from a classification paradigm to a \ii{Nearest Neighbor Search} retrieval task. 
+However, running small batches on individual GPUs severely destabilizes the mean and variance calculations inside standard Batch Normalization layers. To maintain mathematical consistency across distributed workers, standard layers were replaced with Synchronized Batch Normalization (\texttt{SyncBatchNorm}). This ensures that the variance and mean are computed globally across all participating devices, stabilizing the embedding space optimization.
 
-Prior to deployment, a reference database is constructed by passing the clean digital templates of all known cards through the trained \ac{ResNet}-50 backbone. This yields a dense matrix $\mathbf{D} \in \mathbb{R}^{N \times d}$, where $N$ is the total number of cataloged cards and $d = 512$ is the embedding dimension. Because the output of the embedding head is strictly $L_2$-normalized, the distance metric simplifies significantly. 
+\subsection{Mixed Precision Training}
+To further optimize the memory footprint and memory bandwidth, \ii{mixed precision} was integrated into the training loop. The forward pass and loss computation are executed in \texttt{bfloat16} (Brain Floating Point)~\cite{kalamkar2019bfloat}, a format that preserves the dynamic range of 32-bit floats while halving the memory requirement. The weights and optimizer states remain in \texttt{float32} to prevent precision degradation during gradient updates. This approach effectively doubles the maximum allowable batch size, leading to smoother gradient estimates and faster convergence.
 
-During live sorting, the physical camera captures a query image, which is mapped to a single vector $\mathbf{q} \in \mathbb{R}^{1 \times d}$. The similarity between the queried card and the entire database is
-\begin{equation}
-    \mathbf{s} = \mathbf{q}\mathbf{D}^\intercal,
-\end{equation}
-where $\mathbf{s} \in \mathbb{R}^{1 \times N}$ contains the cosine similarity scores for all cards. The recognized card is then determined by $\arg\max(\mathbf{s})$. This vector-search approach allows the system to scale to hundreds of thousands of classes while maintaining inference times in the order of milliseconds, making it suitable for real-time robotic sorting.
+\section{Edge Vision Pipeline}
+Once the network is trained, it must be deployed to the \ac{SBC} (Raspberry Pi) governing the robotic platform. And because the \ac{SBC} operates with strict computational and memory constraints (1\,GB RAM and a low-power CPU), the software pipeline must be optimized.
+
+\subsection{Robust Image Localization and Homography}
+Before the captured image is passed to the neural network, the physical card must be accurately localized. Simple bounding-box detection (e.g., standard Canny edge detection) frequently fails due to dual borders introduced by plastic card sleeves and severe specular highlights breaking the continuous edge lines.
+
+To resolve this, an OpenCV algorithm was implemented:
+\begin{enumerate}
+    \item \ii{Filtering}: The raw camera frame is converted to grayscale and passed through a Bilateral Filter. This preserves sharp edges while smoothing out the background texture (e.g., a wooden table).
+    \item \ii{Morphological Closing}: After applying a Canny edge detector, a morphological closing operation (using a $9 \times 9$ kernel) is performed. This step is critical, as it mathematically bridges the gaps in the edge map caused by bright light reflections on the card sleeves.
+    \item \ii{Minimum Area Rectangle}: Instead of tracing exact polygons, the algorithm extracts the \texttt{minAreaRect} of the largest contour. This cleanly bounds the card while ignoring bent corners or crinkled sleeve edges.
+    \item \ii{Perspective Warp}: The four corners of the rectangle are ordered and mapped to a fixed matrix. A perspective transform (homography) is then applied to extract a perfectly orthogonal, standardized card image.
+\end{enumerate}
+
+\begin{algorithm}[htbp]
+    \caption{Robust Card Localization and Homography Extraction}
+    \label{alg:smart_crop}
+    \begin{algorithmic}[1]
+    \Require Raw high-resolution image $I_{\text{raw}}$, Target Width $W$, Target Height $H$
+    \Ensure Orthogonally warped card image $I_{\text{crop}}$
+
+    \State $I_{\text{work}} \gets \text{Downscale}(I_{\text{raw}})$ \Comment{Optimizes processing speed on \ac{SBC}}
+    \State $I_{\text{gray}} \gets \text{RGBtoGrayscale}(I_{\text{work}})$
+    \State $I_{\text{blur}} \gets \text{BilateralFilter}(I_{\text{gray}}, d=11, \sigma_{\text{color}}=75, \sigma_{\text{space}}=75)$
+    \State $I_{\text{edges}} \gets \text{CannyEdgeDetector}(I_{\text{blur}}, \tau_{\text{low}}=30, \tau_{\text{high}}=150)$
+    \State $K \gets \text{RectangularKernel}(9 \times 9)$
+    \State $I_{\text{closed}} \gets \text{MorphologicalClose}(I_{\text{edges}}, K)$ \Comment{Bridges gaps caused by glare}
+    \State $\mathcal{C} \gets \text{FindContours}(I_{\text{closed}})$
+    \If{$\mathcal{C}$ is empty}
+        \State \Return $\text{Resize}(I_{\text{raw}}, W, H)$ \Comment{Fallback if detection fails}
+    \EndIf
+    \State $c_{\text{max}} \gets \arg\max_{c \in \mathcal{C}} \text{Area}(c)$
+    \State $rect \gets \text{MinAreaRect}(c_{\text{max}})$ \Comment{Ignores bent corners and sleeve artifacts}
+    \State $P_{\text{src}} \gets \text{OrderPointsToCorners}(rect)$ \Comment{Top-Left, Top-Right, Bottom-Right, Bottom-Left}
+    \State $P_{\text{src}} \gets P_{\text{src}} \times \text{UpscaleFactor}$ \Comment{Map coordinates back to original high-res image}
+    \State $P_{\text{dst}} \gets \{(0,0), (W,0), (W,H), (0,H)\}$
+    \State $M \gets \text{GetPerspectiveTransform}(P_{\text{src}}, P_{\text{dst}})$
+    \State $I_{\text{crop}} \gets \text{WarpPerspective}(I_{\text{raw}}, M, W, H)$
+    \State \Return $I_{\text{crop}}$
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{\acs{ONNX} Runtime and Sequential Inference}
+Running a full PyTorch environment on the Raspberry Pi introduces an unacceptable memory overhead. Therefore, the trained \ac{ResNet}-50 backbone is exported to the \acf{ONNX} format, stripping away the ArcFace head and all gradient-tracking graphs. Inference is executed via the \texttt{ONNX Runtime} using the \texttt{CPUExecutionProvider}.
+
+Because cards can be placed onto the sorting platform in any orientation, the system must process the image safely. Instead of batching the original and a $180^\circ$ rotated copy into a single tensor (which spikes memory consumption and risks an Out-Of-Memory termination on the \ac{SBC}), the pipeline executes sequentially. The system extracts a 512-dimensional vector for both orientations individually, $L_2$-normalizes them, and selects the vector that yields the highest cosine similarity against the database. 
+
+The reference database itself is stored as a compressed \texttt{.npz} file containing pre-computed NumPy matrices, enabling instantaneous vector dot-products to determine the final card identity.
+
+\begin{algorithm}[htbp]
+    \caption{Resource-Constrained Orientation Selection and Retrieval}
+    \label{alg:double_inference}
+    \begin{algorithmic}[1]
+    \Require Cropped Image $I_{\text{crop}}$, ONNX Model $\mathcal{M}$, Database Matrix $\mathbf{D}$, Top-$k$
+    \Ensure Best matching card identity and orientation
+
+    \State $I_0 \gets \text{Preprocess}(I_{\text{crop}})$
+    \State $I_{180} \gets \text{Preprocess}(\text{Rotate180}(I_{\text{crop}}))$
+
+    \Comment{Sequential execution to prevent Out-Of-Memory errors on the \ac{SBC}}
+    \State $\mathbf{v}_0 \gets L_2\text{Normalize}(\mathcal{M}\text{.forward}(I_0))$
+    \State $\mathbf{v}_{180} \gets L_2\text{Normalize}(\mathcal{M}\text{.forward}(I_{180}))$
+
+    \State $\mathbf{s}_0 \gets \mathbf{v}_0 \cdot \mathbf{D}^\intercal$ \Comment{Compute cosine similarities against the entire database}
+    \State $\mathbf{s}_{180} \gets \mathbf{v}_{180} \cdot \mathbf{D}^\intercal$
+
+    \If{$\max(\mathbf{s}_{180}) > \max(\mathbf{s}_0)$}
+        \State $\mathbf{s}_{\text{best}} \gets \mathbf{s}_{180}$
+        \State $\text{orientation} \gets 180^\circ$
+    \Else
+        \State $\mathbf{s}_{\text{best}} \gets \mathbf{s}_0$
+        \State $\text{orientation} \gets 0^\circ$
+    \EndIf
+
+    \State $\mathcal{I}_{\text{topK}} \gets \text{GetIndicesOfLargest}(\mathbf{s}_{\text{best}}, k)$
+    \State \Return $\text{DatabaseNames}[\mathcal{I}_{\text{topK}}], \text{orientation}$
+    \end{algorithmic}
+\end{algorithm}
+
+\section{Hardware Control Software}
+The physical operation of the robot relies on a master-slave software architecture, dividing responsibilities between asynchronous high-level logic and real-time execution.
 
