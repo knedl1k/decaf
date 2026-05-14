@@ -1,3 +1,4 @@
+# from https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/lr_scheduler.py
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim import SGD
 import torch

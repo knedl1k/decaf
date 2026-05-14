@@ -9,7 +9,7 @@ import timm
 
 # https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py
 class ArcFaceHead(nn.Module):
-    def __init__(self, in_features: int, out_features: int, s: float = 64.0, m: float = 0.50):
+    def __init__(self, in_features: int, out_features: int, s: float = 64.0, m: float = 0.50) -> None:
         super().__init__()
         self.s = s  # scale
         self.m = m  # margin
@@ -34,12 +34,11 @@ class ArcFaceHead(nn.Module):
             logits.cos_()
 
         logits = logits * self.s
-
         return logits
 
 
 class MTGReconModel(nn.Module):
-    def __init__(self, num_classes: int, embedding_size: int = 512):
+    def __init__(self, num_classes: int, embedding_size: int = 512) -> None:
         super().__init__()
         self.backbone = timm.create_model("resnet50", pretrained=True, num_classes=0)
         backbone_out = self.backbone.num_features
@@ -60,5 +59,4 @@ class MTGReconModel(nn.Module):
 
         if labels is not None:
             return self.arcface(features, labels)
-
         return features
