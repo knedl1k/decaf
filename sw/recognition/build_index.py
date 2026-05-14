@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
+import numpy as np
 import argparse
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -22,17 +23,17 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_database(args):
+def create_database(args) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    all_files = list(Path(args.images).glob("*.png"))
-    all_files.sort()
+    img_paths = list(Path(args.images).glob("*.png"))
+    img_paths.sort()
 
-    if not all_files:
+    if not img_paths:
         print(f"No images found in {args.images}!")
         return
 
-    print(f"Found {len(all_files)} images. Preparing to load model...")
+    print(f"Found {len(img_paths)} images. Preparing to load model...")
 
     # initialize model with 1 dummy class since we only need the backbone to extract embeddings
     model = MTGReconModel(num_classes=1).to(device)
@@ -40,7 +41,7 @@ def create_database(args):
     model.eval()
 
     transform = get_inference_transforms(args.img_size)
-    dataset = InferenceDataset(all_files, transform=transform)
+    dataset = InferenceDataset(img_paths, transform=transform)
     dataloader = DataLoader(
         dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True
     )
