@@ -2,21 +2,20 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import cv2
 import torch
 import argparse
 import numpy as np
 import shutil
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Callable, Optional
 
 from model import MTGReconModel
-from data import get_inference_transforms, load_image
-from utils import load_model_weights, smart_crop_card
+from data import get_inference_transforms, load_rgb_image
+from utils import load_model_weights, parse_mtg_filename
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate ArcFace model on pre-cropped real MTG photos")
     parser.add_argument("--model", type=str, required=True, help="path to trained model checkpoint")
     parser.add_argument("--database", type=str, required=True, help="path to the index database")
@@ -27,58 +26,40 @@ def parse_args():
     return parser.parse_args()
 
 
-def parse_mtg_filename(filename_stem: str) -> Tuple[str, str]:
-    """
-    Parses 'edition_collectorNumber_name-UUID' into (name, edition).
-    Example: 'zen_21_kor-outfitter-00006596-1166-4a79-8443-ca9f82e6db4e' -> ('kor-outfitter', 'zen')
-    """
-    no_uuid = re.sub(
-        r"-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "", filename_stem
-    )
-    parts = no_uuid.split("_", 2)
-
-    if len(parts) == 3:
-        edition = parts[0]
-        name = parts[2]
-        return name, edition
-    else:
-        return no_uuid, "unknown"
-
-
 def extract_features_from_real_photos(
-    image_paths: List[Path],
+    img_paths: List[Path],
     model: torch.nn.Module,
-    transform,
+    transform: Callable,
     device: torch.device,
     db_vectors: torch.Tensor,
-    debug_dir: str = None,
+    debug_dir: Optional[str] = None,
 ) -> Tuple[torch.Tensor, List[Path]]:
 
     model.eval()
     vectors = []
     valid_paths = []
-    total_images = len(image_paths)
+    total_imgs = len(img_paths)
 
     with torch.no_grad():
-        for i, path in enumerate(image_paths):
+        for i, path in enumerate(img_paths):
             try:
-                img = load_image(path)
-                if len(img.shape) == 3 and img.shape[2] == 4:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img = load_rgb_image(path)
             except Exception as e:
                 print(f"Error: Failed to load {path.name}: {e}")
                 continue
 
-            cv2.imwrite(os.path.join(debug_dir, path.name), img)
+            if debug_dir:
+                cv2.imwrite(os.path.join(debug_dir, path.name), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
             img_tensor_0 = transform(image=img)["image"].unsqueeze(0).to(device)
             img_tensor_180 = torch.flip(img_tensor_0, dims=[2, 3])
             batch = torch.cat([img_tensor_0, img_tensor_180], dim=0)
+
             emb = model(batch)
             emb = torch.nn.functional.normalize(emb, p=2, dim=1)
             sims = torch.mm(emb, db_vectors.t())
             max_scores, _ = torch.max(sims, dim=1)
+
             if max_scores[1] > max_scores[0]:
                 vectors.append(emb[1:2].cpu())
             else:
@@ -86,8 +67,8 @@ def extract_features_from_real_photos(
 
             valid_paths.append(path)
 
-            if (i + 1) % 10 == 0 or (i + 1) == total_images:
-                print(f"Processed image {i + 1}/{total_images}.")
+            if (i + 1) % 10 == 0 or (i + 1) == total_imgs:
+                print(f"Processed image {i + 1}/{total_imgs}.")
 
     return torch.cat(vectors), valid_paths
 
@@ -111,45 +92,14 @@ def compute_similarities_chunked(
     return torch.cat(top5_scores_list, dim=0), torch.cat(top5_idxs_list, dim=0)
 
 
-def main():
-    args = parse_args()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    os.makedirs(args.save_dir, exist_ok=True)
-
-    if args.debug_dir:
-        os.makedirs(args.debug_dir, exist_ok=True)
-        os.makedirs(os.path.join(args.debug_dir, "correct"), exist_ok=True)
-        os.makedirs(os.path.join(args.debug_dir, "incorrect"), exist_ok=True)
-
-    print("Loading database...")
-    db = torch.load(args.database, map_location=device, weights_only=False)
-    db_vectors = db["vectors"].to(device)
-    db_names = db["names"]
-
-    print("Loading model...")
-    model = MTGReconModel(num_classes=1).to(device)
-    model = load_model_weights(model, args.model, device)
-
-    all_files = [p for p in Path(args.real_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]]
-    all_files.sort()
-
-    if not all_files:
-        print(f"No images found in {args.real_dir}")
-        return
-
-    transform = get_inference_transforms(args.img_size)
-
-    queries_cpu, valid_paths = extract_features_from_real_photos(
-        all_files, model, transform, device, db_vectors, args.debug_dir
-    )
-
-    if not valid_paths:
-        print("No valid features extracted. Exiting.")
-        return
-
-    print("Calculating similarities...")
-    top5_scores, top5_idxs = compute_similarities_chunked(queries_cpu, db_vectors)
-
+def evaluate_predictions(
+    valid_paths: List[Path],
+    top5_idxs: torch.Tensor,
+    top5_scores: torch.Tensor,
+    db_names: List[str],
+    debug_dir: Optional[str] = None,
+) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    """Compares predictions against ground truth and generates evaluation metrics + logs."""
     correct_name = {1: 0, 3: 0, 5: 0}
     correct_edition = {1: 0, 3: 0, 5: 0}
     correct_exact = {1: 0, 3: 0, 5: 0}
@@ -227,28 +177,20 @@ def main():
             }
         )
 
-        if args.debug_dir:
+        if debug_dir:
             src = str(path)
             dst_folder = "correct" if match_name_1 else "incorrect"
-            dst = os.path.join(args.debug_dir, dst_folder, path.name)
+            dst = os.path.join(debug_dir, dst_folder, path.name)
             shutil.copy(src, dst)
 
-    total = len(valid_paths)
-
     export_data["metrics"] = {
-        "total_images": total,
+        "total_images": len(valid_paths),
         "name": correct_name,
         "edition": correct_edition,
         "exact": correct_exact,
     }
 
-    save_reports(args.save_dir, export_data, correct_log, incorrect_log)
-    np.save(os.path.join(args.save_dir, "evaluation_data.npy"), export_data)
-
-    print(f"\nEvaluation Finished. Analyzed {total} images.")
-    print(f"Top-1 Name Match:  {correct_name[1] / total * 100:.2f}%")
-    print(f"Top-1 Exact Match: {correct_exact[1] / total * 100:.2f}%")
-    print(f"All raw data exported to: {os.path.join(args.save_dir, 'evaluation_data.npy')}")
+    return export_data, correct_log, incorrect_log
 
 
 def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], incorrect_log: List[str]) -> None:
@@ -272,7 +214,7 @@ def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], in
         f.write(f"Top-3: {exact[3] / total * 100:.2f}% ({exact[3]}/{total})\n")
         f.write(f"Top-5: {exact[5] / total * 100:.2f}% ({exact[5]}/{total})\n\n")
 
-        f.write("--- EDITION MATCH  ---\n")
+        f.write("--- EDITION MATCH ---\n")
         f.write(f"Top-1: {ed[1] / total * 100:.2f}% ({ed[1]}/{total})\n")
 
     with open(os.path.join(save_dir, "evaluation_log.txt"), "w") as f:
@@ -280,6 +222,61 @@ def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], in
         f.write("\n".join(correct_log))
         f.write("\n\n=== INCORRECT MATCHES ===\n")
         f.write("\n".join(incorrect_log))
+
+
+def print_results(data: Dict[str, Any]) -> None:
+    total = data["total_images"]
+    correct_name_1 = data["metrics"]["name"][1]
+    correct_exact_1 = data["metrics"]["exact"][1]
+
+    print(f"\nEvaluation Finished. Analyzed {total} images.")
+    print(f"Top-1 Name Match:  {correct_name_1 / total * 100:.2f}%")
+    print(f"Top-1 Exact Match: {correct_exact_1 / total * 100:.2f}%")
+
+
+def main() -> None:
+    args = parse_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    os.makedirs(args.save_dir, exist_ok=True)
+    if args.debug_dir:
+        os.makedirs(os.path.join(args.debug_dir, "correct"), exist_ok=True)
+        os.makedirs(os.path.join(args.debug_dir, "incorrect"), exist_ok=True)
+
+    print("Loading database...")
+    db = torch.load(args.database, map_location=device, weights_only=False)
+    db_embeddings = db["embeddings"].to(device)
+    db_names = db["names"]
+
+    print("Loading model...")
+    model = MTGReconModel(num_classes=1).to(device)
+    model = load_model_weights(model, args.model, device)
+
+    img_paths = [p for p in Path(args.real_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]]
+    img_paths.sort()
+
+    if not img_paths:
+        print(f"No images found in {args.real_dir}.")
+        return
+
+    transform = get_inference_transforms(args.img_size)
+    queries_cpu, valid_paths = extract_features_from_real_photos(
+        img_paths, model, transform, device, db_embeddings, args.debug_dir
+    )
+
+    if not valid_paths:
+        print("No valid features extracted. Exiting.")
+        return
+
+    top5_scores, top5_idxs = compute_similarities_chunked(queries_cpu, db_embeddings)
+    export_data, correct_log, incorrect_log = evaluate_predictions(
+        valid_paths, top5_idxs, top5_scores, db_names, args.debug_dir
+    )
+
+    save_reports(args.save_dir, export_data, correct_log, incorrect_log)
+    np.save(os.path.join(args.save_dir, "evaluation_data.npy"), export_data)
+    print_results(export_data["metrics"])
+    print(f"All raw data exported to: {os.path.join(args.save_dir, 'evaluation_data.npy')}")
 
 
 if __name__ == "__main__":
