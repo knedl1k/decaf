@@ -5,19 +5,22 @@ model (ResNet-50 + ArcFace) for Magic: The Gathering (MTG) card recognition.
 
 ## Project Structure
 
-- **`data.py`**: centralized dataset definitions, Albumentations augmentation
+- [**`data.py`**](./data.py): centralized dataset definitions, Albumentations augmentation
 pipelines and image loading logic.
-- **`model.py`**: neural network architecture comprising the ResNet-50 backbone
+- [**`model.py`**](./model.py): neural network architecture comprising the
+ResNet-50 backbone
 and ArcFace margin-based classification head.
-- **`utils.py`**: core utilities including homography-based smart cropping,
+- [**`utils.py`**](./utils.py): core utilities including homography-based smart cropping,
 file parsing, and evaluation metrics.
-- **`lr_scheduler.py`**: custom polynomial learning rate scheduler with warmup heuristics.
-- **`train.py`**: training orchestrator.
-- **`create_database.py`**: Feature extraction script for generating PyTorch
+- [**`lr_scheduler.py`**](./lr_scheduler.py): custom polynomial learning rate
+scheduler with warmup heuristics.
+- [**`train.py`**](./train.py): training orchestrator.
+- [**`build_index.py`**](./build_index.py): feature extraction script for generating PyTorch
 (`.pt`) and Edge/ONNX (`.npz`) vector databases.
-- **`evaluate.py`**: benchmarking script for calculating Top-1/3/5 metrics on
+- [**`evaluate_labeled.py`**](./evaluate_labeled.py): benchmarking script for
+calculating Top-1/3/5 metrics on
 real-world test sets.
-- **`inference_rpi.py`**: Lightweight, ONNX-accelerated inference script
+- [**`inference_rpi.py`**](./inference_rpi.py): lightweight, ONNX-accelerated inference script
 optimized for edge devices (Raspberry Pi).
 
 ---
