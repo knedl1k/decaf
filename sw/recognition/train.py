@@ -14,8 +14,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from lr_scheduler import PolynomialLRWarmup
 
+from lr_scheduler import PolynomialLRWarmup
 from model import MTGReconModel
 from data import (
     MTGTrainDataset,
@@ -23,11 +23,13 @@ from data import (
     get_train_transforms,
     get_inference_transforms,
     visualize_augmentations,
+    InferenceDataset,
+    RealValidationDataset,
 )
-from utils import evaluate_metrics, save_history, plot_training_curves, print_metrics, evaluate_real_domain
+from utils import evaluate_metrics, save_history, print_metrics, evaluate_real_domain
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="distributed training for MTG card recognition")
 
     parser.add_argument("--ref_dir", type=str, required=True, help="directory with clean reference images")
@@ -46,7 +48,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: int, loss: float, lr: float):
+def update_history(history: Dict[str, list], metrics: Dict[str, Any], epoch: int, loss: float, lr: float) -> None:
     history["epoch"].append(epoch)
     history["loss"].append(loss)
     history["lr"].append(lr)
@@ -62,7 +64,7 @@ def update_history(history: Dict[str, list], metrics: Dict[str, float], epoch: i
 
 def save_checkpoint(
     model: nn.Module, optimizer: optim.Optimizer, scheduler: Any, epoch: int, history: Dict[str, list], save_path: str
-):
+) -> None:
     torch.save(
         {
             "epoch": epoch,
@@ -76,7 +78,7 @@ def save_checkpoint(
 
 
 def load_checkpoint(
-    resume_path: str,
+    resume_path: Optional[str],
     model: nn.Module,
     optimizer: optim.Optimizer,
     scheduler: Any,
@@ -117,11 +119,11 @@ def load_checkpoint(
     return start_epoch, history
 
 
-def prep_train_val(all_image_paths: list, val_size: int = 1000) -> Tuple[list, list]:
-    all_image_paths.sort()
+def prep_train_val(img_paths: list, val_size: int = 1000) -> Tuple[List[Path], List[Path]]:
+    img_paths.sort()
     rng = np.random.RandomState(40)
-    rng.shuffle(all_image_paths)
-    return (all_image_paths[val_size:], all_image_paths[:val_size])
+    rng.shuffle(img_paths)
+    return (img_paths[val_size:], img_paths[:val_size])
 
 
 def setup_ddp() -> Tuple[int, torch.device, bool]:
@@ -144,7 +146,7 @@ def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader,
         print(f"Dataset split: {len(train_paths)} train cards, {len(val_paths)} val cards. Total: {num_classes}")
 
     train_dataset = MTGTrainDataset(
-        image_paths=train_paths,
+        img_paths=train_paths,
         label_map=label_map,
         transform=get_train_transforms(args.img_size),
         img_size=args.img_size,
@@ -153,7 +155,7 @@ def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader,
     if is_master:
         preview_path = os.path.join(args.save_dir, "preview_aug.png")
         try:
-            visualize_augmentations(train_dataset, preview_path, num_images=16)
+            visualize_augmentations(train_dataset, preview_path)
         except Exception as e:
             print(f"Warning: Failed to generate aug visualization: {e}")
 
@@ -167,7 +169,7 @@ def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader,
         sampler=sampler,
     )
 
-    val_dataset = MTGValidationDataset(image_paths=val_paths, label_map=label_map, img_size=args.img_size)
+    val_dataset = MTGValidationDataset(img_paths=val_paths, label_map=label_map, img_size=args.img_size)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     return train_loader, val_loader, sampler, num_classes
@@ -205,18 +207,18 @@ def init_training_regime(
     return model, criterion, optimizer, scheduler
 
 
-def prepare_realEval_data(args: argparse.Namespace) -> Tuple[Any, Any]:
+def prepare_realEval_data(args: argparse.Namespace) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
     if not args.real_val_dir:
         return None, None
-
-    from data import InferenceDataset, RealValidationDataset
 
     transform = get_inference_transforms(args.img_size)
     ref_files = list(Path(args.ref_dir).glob("*.png"))
     ref_dataset = InferenceDataset(ref_files, transform=transform)
     ref_loader = DataLoader(ref_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-    real_files = list(Path(args.real_val_dir).glob("*.jpg"))  #! CHANGE ME
+    real_files = [
+        p for p in Path(args.real_val_dir).glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
+    ]
     real_dataset = RealValidationDataset(real_files, transform=transform, img_size=args.img_size)
     print(f"DEBUG: loaded {len(real_dataset)} real photos.")
     real_loader = DataLoader(real_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
@@ -239,11 +241,11 @@ def train_one_epoch(
     running_loss = 0.0
     total_steps = len(dataloader)
 
-    for i, (images, labels) in enumerate(dataloader):
-        images, labels = images.to(device), labels.to(device)
+    for i, (imgs, labels) in enumerate(dataloader):
+        imgs, labels = imgs.to(device), labels.to(device)
 
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            outputs = model(images, labels)
+        with torch.autocast(device_type=device.type, dtype=torch.bfloat16):
+            outputs = model(imgs, labels)
             loss = criterion(outputs, labels)
 
         optimizer.zero_grad()
@@ -261,7 +263,7 @@ def train_one_epoch(
     return running_loss / total_steps
 
 
-def main():
+def main() -> None:
     args = parse_args()
     local_rank, device, is_master = setup_ddp()
 
@@ -300,7 +302,7 @@ def main():
 
             print_metrics(metrics, epoch)
             update_history(history, metrics, epoch, avg_loss, current_lr)
-            save_history(history, f"{args.save_dir}/history.npy")
+            save_history(history, os.path.join(args.save_dir, "history.npy"))
         dist.barrier()
 
     if is_master:
