@@ -17,7 +17,7 @@ class ArcFaceHead(nn.Module):
         self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
         nn.init.xavier_uniform_(self.weight)
 
-    def forward(self, x: torch.Tensor, labels: torch.Tensor = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, labels: torch.Tensor | None = None) -> torch.Tensor:
         logits = F.linear(F.normalize(x), F.normalize(self.weight))
 
         if labels is None:
@@ -49,7 +49,7 @@ class MTGReconModel(nn.Module):
         self.bn2 = nn.BatchNorm1d(embedding_size)
         self.arcface = ArcFaceHead(embedding_size, num_classes)
 
-    def forward(self, x: torch.Tensor, labels: torch.Tensor = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, labels: torch.Tensor | None = None) -> torch.Tensor:
         features = self.backbone(x)
 
         features = self.bn1(features)

@@ -9,7 +9,7 @@ from pathlib import Path
 from torch.utils.data import Dataset
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from typing import List, Dict, Tuple, Callable, Union, Optional
+from collections.abc import Callable
 
 
 def get_inference_transforms(img_size: int) -> A.Compose:
@@ -59,7 +59,7 @@ def get_train_transforms(img_size: int) -> A.Compose:
     )
 
 
-def load_image(path: Union[str, Path]) -> np.ndarray:
+def load_image(path: str | Path) -> np.ndarray:
     """Unified image loading to handle 16-bit, RGBA and standard BGR images."""
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
     if img is None:
@@ -71,7 +71,7 @@ def load_image(path: Union[str, Path]) -> np.ndarray:
     return img
 
 
-def load_rgb_image(path: Union[str, Path]) -> np.ndarray:
+def load_rgb_image(path: str | Path) -> np.ndarray:
     """Loads image and strictly converts to RGB, ignoring alpha if not needed."""
     img = load_image(path)
     if len(img.shape) == 3 and img.shape[2] == 4:
@@ -108,7 +108,7 @@ def apply_random_background(img: np.ndarray, target_size: int) -> np.ndarray:
 
 
 class RealValidationDataset(Dataset):
-    def __init__(self, img_paths: List[Path], transform: Callable, img_size: int) -> None:
+    def __init__(self, img_paths: list[Path], transform: Callable, img_size: int) -> None:
         from utils import smart_crop_card
 
         self.transform = transform
@@ -125,23 +125,23 @@ class RealValidationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.valid_data)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
-        img, stem = self.valid_data[idx]
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, str]:
+        img, stem = self.valid_data[index]
         if self.transform:
             tensor = self.transform(image=img)["image"].contiguous()
         return tensor, stem
 
 
 class InferenceDataset(Dataset):
-    def __init__(self, img_paths: List[Path], transform: Optional[Callable] = None) -> None:
+    def __init__(self, img_paths: list[Path], transform: Callable | None = None) -> None:
         self.img_paths = img_paths
         self.transform = transform
 
     def __len__(self) -> int:
         return len(self.img_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
-        path = self.img_paths[idx]
+    def __getitem__(self, index: int) -> tuple[torch.Tensor | np.ndarray, str]:
+        path = self.img_paths[index]
         try:
             img = load_rgb_image(path)
         except Exception as e:
@@ -154,7 +154,7 @@ class InferenceDataset(Dataset):
 
 
 class MTGTrainDataset(Dataset):
-    def __init__(self, img_paths: List[Path], label_map: Dict[str, int], transform: Callable, img_size: int) -> None:
+    def __init__(self, img_paths: list[Path], label_map: dict[str, int], transform: Callable, img_size: int) -> None:
         self.img_paths = img_paths
         self.label_map = label_map
         self.transform = transform
@@ -163,8 +163,8 @@ class MTGTrainDataset(Dataset):
     def __len__(self) -> int:
         return len(self.img_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
-        path = self.img_paths[idx]
+    def __getitem__(self, index: int) -> tuple[torch.Tensor | np.ndarray, int]:
+        path = self.img_paths[index]
         try:
             img = load_image(path)
             img = apply_random_background(img, self.img_size)
@@ -181,7 +181,7 @@ class MTGTrainDataset(Dataset):
 
 
 class MTGValidationDataset(Dataset):
-    def __init__(self, img_paths: List[Path], label_map: Dict[str, int], img_size: int) -> None:
+    def __init__(self, img_paths: list[Path], label_map: dict[str, int], img_size: int) -> None:
         self.img_paths = img_paths
         self.label_map = label_map
         self.img_size = img_size
@@ -191,8 +191,8 @@ class MTGValidationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.img_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
-        path = self.img_paths[idx]
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, int]:
+        path = self.img_paths[index]
         try:
             raw_img = load_image(path)
 

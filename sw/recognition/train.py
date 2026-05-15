@@ -5,7 +5,7 @@ import os
 import argparse
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def update_history(history: Dict[str, list], metrics: Dict[str, Any], epoch: int, loss: float, lr: float) -> None:
+def update_history(history: dict[str, list], metrics: dict[str, Any], epoch: int, loss: float, lr: float) -> None:
     history["epoch"].append(epoch)
     history["loss"].append(loss)
     history["lr"].append(lr)
@@ -63,7 +63,7 @@ def update_history(history: Dict[str, list], metrics: Dict[str, Any], epoch: int
 
 
 def save_checkpoint(
-    model: nn.Module, optimizer: optim.Optimizer, scheduler: Any, epoch: int, history: Dict[str, list], save_path: str
+    model: nn.Module, optimizer: optim.Optimizer, scheduler: Any, epoch: int, history: dict[str, list], save_path: str
 ) -> None:
     torch.save(
         {
@@ -78,13 +78,13 @@ def save_checkpoint(
 
 
 def load_checkpoint(
-    resume_path: Optional[str],
+    resume_path: str | None,
     model: nn.Module,
     optimizer: optim.Optimizer,
     scheduler: Any,
     device: torch.device,
     is_master: bool,
-) -> Tuple[int, Dict[str, list]]:
+) -> tuple[int, dict[str, list]]:
     history = {
         "epoch": [],
         "loss": [],
@@ -119,14 +119,14 @@ def load_checkpoint(
     return start_epoch, history
 
 
-def prep_train_val(img_paths: list, val_size: int = 1000) -> Tuple[List[Path], List[Path]]:
+def prep_train_val(img_paths: list, val_size: int = 1000) -> tuple[list[Path], list[Path]]:
     img_paths.sort()
     rng = np.random.RandomState(40)
     rng.shuffle(img_paths)
     return (img_paths[val_size:], img_paths[:val_size])
 
 
-def setup_ddp() -> Tuple[int, torch.device, bool]:
+def setup_ddp() -> tuple[int, torch.device, bool]:
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
@@ -135,7 +135,7 @@ def setup_ddp() -> Tuple[int, torch.device, bool]:
     return local_rank, device, is_master
 
 
-def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader, DataLoader, DistributedSampler, int]:
+def prepare_data(args: argparse.Namespace, is_master: bool) -> tuple[DataLoader, DataLoader, DistributedSampler, int]:
     train_paths, val_paths = prep_train_val(list(Path(args.ref_dir).glob("*.png")))
     # NN requires integer labels
     unique_names = sorted(list(set([p.stem for p in train_paths])))
@@ -177,7 +177,7 @@ def prepare_data(args: argparse.Namespace, is_master: bool) -> Tuple[DataLoader,
 
 def init_training_regime(
     num_classes: int, args: argparse.Namespace, local_rank: int, device: torch.device, steps_per_epoch: int
-) -> Tuple[nn.Module, nn.Module, optim.Optimizer, Any]:
+) -> tuple[nn.Module, nn.Module, optim.Optimizer, Any]:
     model = MTGReconModel(num_classes=num_classes).to(device)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
@@ -207,7 +207,7 @@ def init_training_regime(
     return model, criterion, optimizer, scheduler
 
 
-def prepare_realEval_data(args: argparse.Namespace) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
+def prepare_realEval_data(args: argparse.Namespace) -> tuple[DataLoader | None, DataLoader | None]:
     if not args.real_val_dir:
         return None, None
 

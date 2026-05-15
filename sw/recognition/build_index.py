@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import torch
-import numpy as np
 import argparse
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -12,7 +11,7 @@ from data import InferenceDataset, get_inference_transforms
 from utils import load_model_weights
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="create an index of vectors with ArcFace NN")
     parser.add_argument("--model", type=str, required=True, help="path to trained model checkpoint")
     parser.add_argument("--images", type=str, required=True, help="path to directory with images")
@@ -23,7 +22,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_database(args) -> None:
+def create_database(args: argparse.Namespace) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     img_paths = list(Path(args.images).glob("*.png"))

@@ -5,10 +5,9 @@ import re
 import cv2
 import numpy as np
 import torch
-from typing import Dict, Tuple, Optional
 
 
-def parse_mtg_filename(filename_stem: str) -> Tuple[str, str]:
+def parse_mtg_filename(filename_stem: str) -> tuple[str, str]:
     """
     Strips UUID and splits the filename into (name, edition).
     Handles formats like 'edition_collectorNumber_name', 'edition_name' and ignores UUIDs.
@@ -44,7 +43,7 @@ def order_points(pts: np.ndarray) -> np.ndarray:
 
 def smart_crop_card(
     image_path: str, output_width: int = 480, output_height: int = 670
-) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+) -> tuple[np.ndarray | None, np.ndarray | None]:
     """
     Detects a card in the image and warps it to a top-down view.
     Returns the warped image or None if no card is found, and debug image with contour
@@ -52,7 +51,7 @@ def smart_crop_card(
     img = cv2.imread(image_path)
     if img is None:
         print(f"Error with loading {image_path}")
-        return
+        return None, None
 
     # downscaling for faster edge detection
     ratio = img.shape[0] / 800.0
@@ -79,7 +78,7 @@ def smart_crop_card(
     box = np.float32(cv2.boxPoints(rect))
 
     debug_img = img_resized.copy()
-    cv2.drawContours(debug_img, [box], 0, (0, 0, 255), 3)
+    cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 0, 255), 3)
     box_orig = box * ratio
     rect_ordered = order_points(box_orig)
 
@@ -162,7 +161,7 @@ def evaluate_metrics(
     model: torch.nn.Module,
     val_loader: torch.utils.data.DataLoader,
     device: torch.device,
-) -> Dict[str, float]:
+) -> dict[str, float | None]:
     """Computes Cosine Similarity and FMR at TMR 95%."""
     model.eval()
     gallery_vecs, query_vecs = [], []
@@ -209,7 +208,7 @@ def evaluate_metrics(
     }
 
 
-def print_metrics(metrics: Dict[str, float], epoch: int):
+def print_metrics(metrics: dict[str, float], epoch: int):
     print(f"--- VALIDATION RESULTS (Epoch {epoch}) ---")
     print(f"FMR @ TMR 95%: {metrics['fmr_at_95_tmr'] * 100:.4f} %")
     print(f"Top-1 (Synth): {metrics['top1_acc'] * 100:.2f} %")
@@ -220,9 +219,9 @@ def print_metrics(metrics: Dict[str, float], epoch: int):
     print("-" * 42)
 
 
-def save_history(history: Dict[str, list], save_dir: str):
+def save_history(history: dict[str, list], save_dir: str):
     np.save(save_dir, history)
 
 
-def load_history(save_dir: str) -> Dict[str, list]:
+def load_history(save_dir: str) -> dict[str, list]:
     return np.load(save_dir, allow_pickle=True).item()

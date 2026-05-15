@@ -8,7 +8,8 @@ import argparse
 import numpy as np
 import shutil
 from pathlib import Path
-from typing import List, Tuple, Dict, Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from model import MTGReconModel
 from data import get_inference_transforms, load_rgb_image
@@ -27,13 +28,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def extract_features_from_real_photos(
-    img_paths: List[Path],
+    img_paths: list[Path],
     model: torch.nn.Module,
     transform: Callable,
     device: torch.device,
     db_vectors: torch.Tensor,
-    debug_dir: Optional[str] = None,
-) -> Tuple[torch.Tensor, List[Path]]:
+    debug_dir: str | None = None,
+) -> tuple[torch.Tensor, list[Path]]:
 
     model.eval()
     vectors = []
@@ -75,7 +76,7 @@ def extract_features_from_real_photos(
 
 def compute_similarities_chunked(
     queries: torch.Tensor, db_vectors: torch.Tensor, chunk_size: int = 500
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
 
     top5_scores_list = []
     top5_idxs_list = []
@@ -93,12 +94,12 @@ def compute_similarities_chunked(
 
 
 def evaluate_predictions(
-    valid_paths: List[Path],
+    valid_paths: list[Path],
     top5_idxs: torch.Tensor,
     top5_scores: torch.Tensor,
-    db_names: List[str],
-    debug_dir: Optional[str] = None,
-) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    db_names: list[str],
+    debug_dir: str | None = None,
+) -> tuple[dict[str, Any], list[str], list[str]]:
     """Compares predictions against ground truth and generates evaluation metrics + logs."""
     correct_name = {1: 0, 3: 0, 5: 0}
     correct_edition = {1: 0, 3: 0, 5: 0}
@@ -193,7 +194,7 @@ def evaluate_predictions(
     return export_data, correct_log, incorrect_log
 
 
-def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], incorrect_log: List[str]) -> None:
+def save_reports(save_dir: str, data: dict[str, Any], correct_log: list[str], incorrect_log: list[str]) -> None:
     total = data["metrics"]["total_images"]
     name = data["metrics"]["name"]
     ed = data["metrics"]["edition"]
@@ -224,7 +225,7 @@ def save_reports(save_dir: str, data: Dict[str, Any], correct_log: List[str], in
         f.write("\n".join(incorrect_log))
 
 
-def print_results(data: Dict[str, Any]) -> None:
+def print_results(data: dict[str, Any]) -> None:
     total = data["total_images"]
     correct_name_1 = data["metrics"]["name"][1]
     correct_exact_1 = data["metrics"]["exact"][1]
