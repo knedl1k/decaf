@@ -109,7 +109,7 @@ def apply_random_background(img: np.ndarray, target_size: int) -> np.ndarray:
 
 class RealValidationDataset(Dataset):
     def __init__(self, img_paths: list[Path], transform: Callable, img_size: int) -> None:
-        from utils import smart_crop_card
+        from utils import crop_card
 
         self.transform = transform
         self.img_size = img_size  # TODO: idk if it's still good idea to use it in crop_card
@@ -117,7 +117,7 @@ class RealValidationDataset(Dataset):
 
         print(f"Pre-computing homography crops for {len(img_paths)} real images...")
         for path in img_paths:
-            warped, _ = smart_crop_card(str(path))
+            warped, _ = crop_card(image_path=str(path))
             if warped is not None:
                 rgb_img = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
                 self.valid_data.append((rgb_img, path.stem))

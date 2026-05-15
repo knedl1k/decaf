@@ -41,8 +41,8 @@ def order_points(pts: np.ndarray) -> np.ndarray:
     return rect
 
 
-def smart_crop_card(
-    image_path: str, output_width: int = 480, output_height: int = 670
+def crop_card(
+    image_path: str, output_width: int = 480, output_height: int = 670, debug: bool = False
 ) -> tuple[np.ndarray | None, np.ndarray | None]:
     """
     Detects a card in the image and warps it to a top-down view.
@@ -77,8 +77,6 @@ def smart_crop_card(
     rect = cv2.minAreaRect(largest_contour)
     box = np.float32(cv2.boxPoints(rect))
 
-    debug_img = img_resized.copy()
-    cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 0, 255), 3)
     box_orig = box * ratio
     rect_ordered = order_points(box_orig)
 
@@ -94,6 +92,11 @@ def smart_crop_card(
 
     matrix = cv2.getPerspectiveTransform(rect_ordered, dst_pts)
     warped_img = cv2.warpPerspective(orig, matrix, (output_width, output_height))
+
+    debug_img = None
+    if debug:
+        debug_img = img_resized.copy()
+        cv2.drawContours(debug_img, [np.int32(box)], 0, (0, 0, 255), 3)
 
     return warped_img, debug_img
 

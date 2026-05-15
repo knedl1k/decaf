@@ -8,7 +8,7 @@ import numpy as np
 import onnxruntime as ort
 import os
 
-from utils import smart_crop_card, parse_mtg_filename
+from utils import crop_card, parse_mtg_filename
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,7 +66,7 @@ def main() -> None:
     session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     ort_session = ort.InferenceSession(args.model, sess_options=session_options, providers=["CPUExecutionProvider"])
 
-    cropped_img_0, _ = smart_crop_card(args.img)
+    cropped_img_0, _ = crop_card(image_path=args.img)
     if cropped_img_0 is None:
         print("Could not find a card in the image! Exiting.")
         return
