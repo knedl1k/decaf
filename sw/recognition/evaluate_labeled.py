@@ -111,6 +111,7 @@ def evaluate_predictions(
         "hit_sims_exact": [],
         "miss_sims_exact": [],
         "details": [],
+        "metrics": {},
     }
 
     correct_log, incorrect_log = [], []
@@ -227,8 +228,8 @@ def save_reports(save_dir: str, data: dict[str, Any], correct_log: list[str], in
 
 def print_results(data: dict[str, Any]) -> None:
     total = data["total_images"]
-    correct_name_1 = data["metrics"]["name"][1]
-    correct_exact_1 = data["metrics"]["exact"][1]
+    correct_name_1 = data["name"][1]
+    correct_exact_1 = data["exact"][1]
 
     print(f"\nEvaluation Finished. Analyzed {total} images.")
     print(f"Top-1 Name Match:  {correct_name_1 / total * 100:.2f}%")
@@ -237,7 +238,8 @@ def print_results(data: dict[str, Any]) -> None:
 
 def main() -> None:
     args = parse_args()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
 
     os.makedirs(args.save_dir, exist_ok=True)
     if args.debug_dir:
@@ -246,7 +248,7 @@ def main() -> None:
 
     print("Loading database...")
     db = torch.load(args.database, map_location=device, weights_only=False)
-    db_embeddings = db["embeddings"].to(device)
+    db_embeddings = db["vectors"].to(device)
     db_names = db["names"]
 
     print("Loading model...")
