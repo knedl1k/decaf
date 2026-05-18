@@ -2,5 +2,29 @@
 
 \chapter{Conclusion}\label{chap:conclusion}
 
-Summarize the achieved results.
-Can be similar as an abstract or an introduction, however, it should be written in past tense.
+\section{Summary of Results}
+The objective of this thesis was to design, build and evaluate an automated, open-source system for the recognition and physical sorting of trading cards. By combining accessible rapid prototyping hardware with a deep metric learning computer vision pipeline, the project demonstrated that automated \ac{TCG} cataloging can be achieved without relying on expensive, proprietary commercial solutions.
+
+From a hardware perspective, the integration of a 3D-printed robotic manipulator with a pneumatic vacuum end-effector successfully provided a reliable, non-destructive method for handling thin paper stock. The separation of computational loads (delegating real-time motor control to an Arduino and high-level inference to a Raspberry Pi) ensured stable kinematic execution while processing image data.
+
+On the software front, the system bypassed the inherent limitations of \ac{OCR} by treating cards as holistic visual fingerprints. Because labeled real-world datasets of the required magnitude do not exist, the network was trained entirely on digitally synthesized data. By projecting clean digital scans onto stochastic backgrounds and applying severe geometric and optical augmentations, the model was forced to learn robust feature representations. The application of the  objective function successfully structured the 512-dimensional embedding space, minimizing intra-class variance while maximizing inter-class separability.
+
+Experimental evaluation validated this approach. The model achieved a 97.8\,\% Top-1 Name Match retrieval accuracy on a dataset of unconstrained physical photographs. The close correlation between the validation loss on synthetic data and the real-world retrieval accuracy confirmed that the proposed synthetic augmentation pipeline effectively bridged the domain shift between digital templates and physical assets.
+
+\section{Limitations and Future Work}
+While the initial prototype successfully established a baseline for open-source card sorting, several architectural components can be optimized in future iterations.
+
+\subsection{Hardware Optimization}
+The current low-level control relies on an Arduino Mega 2560. While adequate for proving the mechanical concept, it is architecturally outdated. Future hardware iterations should replace the Arduino with modern microcontrollers from the ESP family (e.g., ESP32). ESP microcontrollers operate at higher clock speeds, offer built-in wireless connectivity (Wi-Fi and Bluetooth) and feature a significantly smaller physical footprint, often at a lower unit cost. Transitioning to an ESP32 would enable wireless control interfaces and eliminate the need for a physical serial tether between the control board and the single-board computer.
+
+\subsection{Robust Image Localization}
+The current image preprocessing pipeline uses a deterministic OpenCV algorithm (Canny edge detection coupled with morphological closing) to extract the card's bounding box from the raw camera frame. While functional in a controlled environment, this rigid algorithmic approach is sensitive to background clutter and severe specular reflections caused by glossy card sleeves. 
+
+A more robust solution would be to replace this classical pipeline with a lightweight object detection model, such as YOLOv8 Nano~\cite{redmon2016yolo}. By training a small YOLO model specifically on the binary task of segmenting the card boundary from the background, the system could extract the homography points much more reliably across varied lighting conditions, offloading the localization logic entirely to learned features.
+
+\subsection{Fine-Grained Edition Matching}
+As discussed in \Cref{chap:er}, while the global feature extractor is highly accurate at identifying the canonical name of a card, its accuracy drops when distinguishing between visually identical reprints (Exact Edition matching). Global metric learning prioritizes macro-level artwork over micro-level typography. 
+
+To resolve this, future work should implement a two-stage recognition architecture. The current metric learning model would serve as the primary retrieval mechanism to identify the card's name. A secondary, highly localized classification head could then be deployed to inspect specific regions of interest (such as set symbols or copyright dates) to verify the exact edition. 
+
+Finally, the completed robotic platform can now function as an automated data acquisition tool. By processing bulk collections and utilizing the current network for pseudo-labeling, the robot can rapidly generate a large-scale dataset of real-world physical photographs. This dataset can subsequently be used to fine-tune future recognition models, entirely eliminating the reliance on synthetic data.
