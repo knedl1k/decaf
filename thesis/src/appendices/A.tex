@@ -1,8 +1,40 @@
-\chapter{Technical Drawings}\label{app:tech-drawing}
-This appendix contains the complete technical drawing documentation for the custom components discussed in \Cref{chap:hw}. All dimensions are provided in millimeters (mm) unless otherwise specified. These drawings serve as a direct reference for the geometry and tolerances required to successfully reproduce all custom components.
+%!TEX root = ../../main.tex
 
-\section{Venturi Generator}\label{app:venturi}
+\chapter{3D-Printed Component Models}\label{app:3d_models}
 
-\section{Z-Axis Mechanism}\label{app:z_axis}
+To ensure the proposed open-source robotic platform is fully and easily reproducible, all custom structural and mechanical components were designed parametrically for additive manufacturing. Rather than providing static 2D technical drawings, the complete geometry is provided in the form of stereolithography (\texttt{.STL}) files. 
 
-\section{Structural}\label{app:structs}
+These files are included in the attached archive to this thesis and are also archived in the public project repository at \url{https://github.com/knedl1k/decaf}. 
+
+\Cref{tab:stl_files} lists the provided digital models, categorized by their respective hardware subsystems as detailed in \Cref{chap:hw}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Directory of custom 3D-printed components and corresponding \texttt{.STL} files.}
+    \label{tab:stl_files}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+        \textbf{Subsystem} & \textbf{Component Description} & \textbf{Filename} \\
+        \midrule
+        \multirow{4}{*}{\textbf{Z-Axis Mechanism}} 
+        & Main vertical carriage for the pneumatic tube & \texttt{z\_axis\_carriage.stl} \\
+        & Micro servo (MG90S) mounting bracket & \texttt{z\_axis\_servo\_mount.stl} \\
+        & Linear guide rail & \texttt{z\_axis\_rail.stl} \\
+        & Actuation linkage arm & \texttt{z\_axis\_linkage.stl} \\
+        \midrule
+        \multirow{3}{*}{\textbf{Structural Base}} 
+        & Main robotic arm connecting the stepper to the Z-axis & \texttt{struct\_main\_arm.stl} \\
+        & Base chassis and TMC2209 driver enclosure & \texttt{struct\_base\_chassis.stl} \\
+        & NEMA 17 stepper motor mounting plate & \texttt{struct\_stepper\_mount.stl} \\
+        \midrule
+        \multirow{3}{*}{\textbf{Vision \& Handling}} 
+        & Raspberry Pi Camera v2.1 fixed bracket & \texttt{cam\_fixed\_bracket.stl} \\
+        & Card Holders & \texttt{card\_holders.stl} \\
+        \midrule
+        \textbf{Pneumatics}
+        & Venturi vacuum generator (from \cite{venturi_model}) & \texttt{pneu\_venturi\_generator.stl} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
