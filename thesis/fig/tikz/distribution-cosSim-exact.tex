@@ -5,13 +5,13 @@
 \pgfplotsset{compat=1.18}
 
 \begin{document}
-\definecolor{ctulight}{RGB}{128, 179, 222}
-\definecolor{thesisred}{RGB}{196, 30, 58}
+\definecolor{ctublue}{RGB}{0, 101, 189}
+\definecolor{thesisred}{RGB}{180, 54, 87}
 \definecolor{axisgray}{RGB}{110, 110, 110}
 
 \begin{tikzpicture}
     \begin{axis}[
-        title={\textbf{\ii{Name Match} Top-1 Cosine Similarity Distribution}},
+        title={\textbf{\ii{Exact Match} Top-1 Cosine Similarity Distribution}},
         axis on top,
         width=0.95\textwidth,
         height=7cm,
@@ -42,9 +42,9 @@
     \addplot[
         const plot,
         draw opacity=0,
-        fill=ctulight,
+        fill=ctublue,
         area legend,
-    ] table [col sep=comma, x=bin, y=hit_name] {./fig/tikz/data/hist_data.csv} \closedcycle;
+    ] table [col sep=comma, x=bin, y=hit_exact] {./fig/tikz/data/hist_data.csv} \closedcycle;
     \addlegendentry{Correct}
 
     \addplot[
@@ -53,7 +53,7 @@
         fill=thesisred,
         fill opacity=0.7,
         area legend,
-    ] table [col sep=comma, x=bin, y=miss_name] {./fig/tikz/data/hist_data.csv} \closedcycle;
+    ] table [col sep=comma, x=bin, y=miss_exact] {./fig/tikz/data/hist_data.csv} \closedcycle;
     \addlegendentry{Incorrect}
 
     \end{axis}
