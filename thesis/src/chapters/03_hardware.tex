@@ -38,14 +38,14 @@ The components are categorized by origin: commercially available parts and custo
         & Fittings G1/8" \& M5 ($6 \times$ \& $6 \times$) & commercial & \cost{4.43} & -- \\
         & Vacuum Fittings & commercial & \cost{4.35} & -- \\
         & M5 muffler & commercial & \cost{2.05} & \ref{subsec:venturi} \\
-        & Venturi Vacuum Generator & 3D printed & -- & \ref{subsec:venturi}, \ref{app:venturi} \\
+        & Venturi Vacuum Generator & 3D printed & -- & \ref{subsec:venturi}, \ref{app:3d_models} \\
         \midrule
         \multirow{5}{*}{\shortstack[l]{Electro-\\mechanical}}
         & Stepper Motor (NEMA 17) & commercial & \cost{10.59} & \ref{subsec:main_axis} \\
         & Magnetic Encoder (AS5147-TS\_EK\_AB) & commercial & \cost{14.79} & \ref{subsec:main_axis} \\
         & Micro Servo (MG90S) & commercial & \cost{7.19} & \ref{subsec:z_axis} \\
         & Stepper Driver (TMC2209) & commercial & \cost{4.45} & \ref{subsec:main_axis} \\
-        & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{subsec:z_axis}, \ref{app:z_axis} \\
+        & Z-Axis Mechanism \& Main Arm & 3D printed & -- & \ref{subsec:z_axis}, \ref{app:3d_models} \\
         \midrule
         \multirow{5}{*}{\shortstack[l]{Control \\ \& Vision}}
         & 24\,V DC Power Supply (Tenma 72-10480)$^\dagger$ & commercial & \cost[$\approx$ ]{88.52} & \ref{sec:control_vision} \\
@@ -54,7 +54,7 @@ The components are categorized by origin: commercially available parts and custo
         & Microcontroller (Arduino Mega 2560)$^\dagger$ & commercial & \cost[$\approx$ ]{12.64} & \ref{subsec:arduino} \\
         & N-channel MOSFET (IRLZ44N) \& Resistors & commercial & \cost{0.62} & \ref{subsec:airflow} \\
         \midrule
-        Structural & Card Holders, Trays, Base Chassis \& Camera Mount & 3D printed & -- & \ref{sec:structs}, \ref{app:structs} \\ 
+        Structural & Card Holders, Trays, Base Chassis \& Camera Mount & 3D printed & -- & \ref{sec:structs}, \ref{app:3d_models} \\ 
         \bottomrule
         \multicolumn{2}{r}{\bb{Approximate Total Material Cost:}} & \multicolumn{1}{l}{\bb{$\approx$ \totalcost{} €}} \\
         \bottomrule
@@ -130,7 +130,7 @@ By intentionally leaving the \texttt{UART} and configuration pins unconnected, t
 \subsection{Z-Axis Mechanism}\label{subsec:z_axis}
 To pick up and place the cards, a secondary linear vertical axis (Z-axis) is mounted at the distal end of the main arm. Given that the payload consists solely of a single piece of card stock and lightweight silicone suction cups, deploying a traditional stepper motor and lead screw would introduce unnecessary inertial mass. 
 
-Instead, an MG90S micro servo is used to drive a custom 3D-printed linear mechanism that lowers and raises the pneumatic end-effector. The power-to-weight ratio of the micro servo minimizes the dynamic load on the main axis. This weight reduction translates to higher achievable accelerations during horizontal travel, which increases the overall sorting throughput. The detailed, dimensioned technical drawing for this mechanical assembly is provided in \Cref{app:z_axis}.
+Instead, an MG90S micro servo is used to drive a custom 3D-printed linear mechanism that lowers and raises the pneumatic end-effector. The power-to-weight ratio of the micro servo minimizes the dynamic load on the main axis. This weight reduction translates to higher achievable accelerations during horizontal travel, which increases the overall sorting throughput.
 
 % \begin{figure}[htbp]
 %     \centering

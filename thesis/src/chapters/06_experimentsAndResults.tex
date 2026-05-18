@@ -112,3 +112,15 @@ To analyze the system's decision-making process, \Cref{fig:sim_histogram} visual
 
 The histogram indicates a distinct operational separation. Correctly identified cards yield similarity scores primarily between $0.60$ and $0.86$. In contrast, incorrect matches cluster around the $0.40$ score. In an automated environment, this distribution implies that a confidence threshold (e.g., $\tau = 0.55$) can be established. Predictions falling below this threshold can be routed for manual review, reducing the rate of silent failures during sorting.
 
+However, the distribution shifts when evaluating Exact Edition matching, as illustrated in \Cref{fig:sim_histogram_exact}. Unlike the Name Match distribution, there is no clear boundary between correct and incorrect predictions. The incorrect matches, which represent cases where the system correctly identified the card's name but retrieved the wrong edition, exhibit high cosine similarity scores and often overlap with correct predictions in the range of $0.60$ to $0.85$.
+
+\begin{figure}[H]
+    \centering
+    \input{./fig/tikz/distribution-cosSim-exact.tex}
+    \caption{Frequency distribution of Top-1 cosine similarities for the Exact Edition Matching task.}
+    \label{fig:sim_histogram_exact}
+\end{figure}
+
+This behavior is mathematically consistent with the deployed deep metric learning architecture. Because the model extracts a global visual representation of the card, reprints featuring identical primary artwork but differing in micro-typographical details (e.g., set symbols or copyright dates) are mapped to nearly identical coordinates within the embedding space. 
+
+Thus, establishing a simple confidence threshold $\tau$ is entirely ineffective for edition verification. This empirical overlap explicitly validates the architectural limitation discussed in \Cref{chap:conclusion}: relying solely on global visual features is insufficient for distinguishing identical reprints. To achieve fully automated edition verification, the system must incorporate a secondary, highly localized classification pipeline specifically designed to resolve these high-similarity collisions.
