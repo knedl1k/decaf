@@ -338,11 +338,11 @@ To address these challenges, a \ac{DML} approach was adopted. Instead of classif
     \label{fig:tiny_details}
 \end{figure}
 
-\subsection{ArcFace: Additive Angular Margin Loss}\label{sec:arcface}
-ArcFace (Additive Angular Margin Loss)~\cite{deng2022arcface} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
+\subsection{\acs{arcface}: Additive Angular Margin Loss}\label{sec:arcface}
+\acf{arcface}~\cite{deng2022arcface} was employed, a state-of-the-art objective function originally designed for large-scale facial recognition. The hypothesis is that \ac{TCG} recognition shares key characteristics with facial recognition: it requires subtle distinctions between thousands of classes based on fine-grained visual cues.
 
 \subsection{Geometric Interpretation}
-To understand ArcFace mechanics, it is best to start by analyzing the standard operations of the final fully connected layer of the classification network.
+To understand \ac{arcface} mechanics, it is best to start by analyzing the standard operations of the final fully connected layer of the classification network.
 
 Let $\mathbf{I}_i \in \mathcal{I}$ denote the $i$-th input image in the current batch. The backbone network acts as the mapping function, extracting the deep feature vector (embedding) such that $\mathbf{x}_i = f(\mathbf{I}_i) \in \mathbb{R}^d$, where $d$ is the embedding dimension ($d=512$ in our architecture). 
 Furthermore, let $\mathbf{W} \in \mathbb{R}^{d \times C}$ be the weight matrix of the final layer, where $C$ is the total number of classes (unique cards in our case).
@@ -356,21 +356,21 @@ Geometrically, this dot product relates to the angle $\theta_{j,i}$ between the 
 \begin{equation}
    \mathbf{W}_j^\intercal \mathbf{x}_i = \|\mathbf{W}_j\| \|\mathbf{x}_i\| \cos \theta_{j,i}.
 \end{equation}
-In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. ArcFace addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \ii{solely} on the angle $\theta_{j,i}$:
+In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. \ac{arcface} addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \ii{solely} on the angle $\theta_{j,i}$:
 \begin{equation}
     \mathbf{W}_j^\intercal \mathbf{x}_i = \cos \theta_{j,i}.
 \end{equation}
 This projects the learned features onto a hypersphere, where minimizing the loss equates to minimizing the geodesic distance (angle) between the sample $\mathbf{x}_i$ and its corresponding ground-truth class center $\mathbf{W}_{y_i}$.
 
 \input{./fig/tikz/arcface.tex}
-To enforce a margin between classes, ArcFace adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Furthermore, because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which can halt gradient propagation and prevent the network from converging. 
+To enforce a margin between classes, \ac{arcface} adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Furthermore, because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which can halt gradient propagation and prevent the network from converging. 
 
 \label{sub:geometric_s}
 To resolve this, the logits are scaled by a fixed hyperparameter $s$ (set to $s=64.0$ in our architecture). This value defines the radius of the embedding hypersphere and extends the logit range to $[-s, s]$. Thanks to the value of $s$, the Softmax function is able to generate steep probability distributions required for effective optimization.
 
-The final ArcFace loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$ is defined as:
+The final \ac{arcface} loss for a sample $\mathbf{x}_i$ with ground-truth label $y_i$ is defined as:
 \begin{equation}
-    L_{\text{ArcFace}} = -\log \frac{e^{s \cdot \cos(\theta_{y_i, i} + m)}}{e^{s \cdot \cos(\theta_{y_i, i} + m)} + \sum_{j \neq y_i} e^{s \cdot \cos(\theta_{j, i})}}
+    L_{\text{\ac{arcface}}} = -\log \frac{e^{s \cdot \cos(\theta_{y_i, i} + m)}}{e^{s \cdot \cos(\theta_{y_i, i} + m)} + \sum_{j \neq y_i} e^{s \cdot \cos(\theta_{j, i})}}
 \end{equation}
 By minimizing this loss, the network learns to map images of the same card to tightly clustered points on the hypersphere, while pushing different cards apart. Crucially, during the inference phase, the weight matrix $\mathbf{W}$ and the margin $m$ are discarded. The recognition is instead framed as a retrieval task: the system computes the cosine similarity between the extracted query embedding $\mathbf{x}_q = f(\mathbf{I}_q)$ and all pre-computed reference embeddings in the database. The final identity of the card is then determined via an $\arg\max$ operation over these cosine similarities, effectively selecting the nearest neighbor in the learned feature space.
 
@@ -396,23 +396,23 @@ The 2048-dimensional feature maps extracted by the \ac{ResNet}-50 backbone are p
     \item \ii{1D Batch Normalization}: A final normalization step applied immediately before the features are projected onto the hypersphere.
 \end{enumerate}
 
-\subsection{ArcFace Head}\label{sub:arcface}
-During the training phase, the 512-dimensional embeddings are passed to the \texttt{ArcFaceHead} module, which implements the additive angular margin penalty described in \Cref{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization.
+\subsection{\ac{arcface} Head}\label{sub:arcface}
+During the training phase, the 512-dimensional embeddings are passed to the \texttt{\ac{arcface}Head} module, which implements the additive angular margin penalty described in \Cref{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization.
 
-The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the ArcFace~\cite{deng2022arcface} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
+The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the \ac{arcface}~\cite{deng2022arcface} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
 \begin{enumerate}
     \item \ii{Cosine Similarity:} The raw logits are calculated as the dot product between the $L_2$-normalized embeddings and the normalized weight matrix, yielding a similarity matrix where each element is $\cos(\theta_{j, i})$.
     \item \ii{Margin Application:} Using PyTorch's in-place operations within a detached gradient context (\texttt{torch.no\_grad()}), the specific similarities corresponding to the ground-truth classes ($\cos(\theta_{y_i, i})$) are isolated. These target logits are transformed back into the angular domain via the inverse cosine function ($\theta = \arccos(\cos\theta)$), shifted by the additive margin penalty ($\theta + m$) and projected back into the cosine domain as $\cos(\theta_{y_i, i} + m)$.
     \item \ii{Feature Scaling:} The updated similarity matrix is multiplied by the hyperparameter $s$ (see \Cref{sub:geometric_s}) before being passed to the Cross-Entropy loss function.
 \end{enumerate}
 
-As visualized in \Cref{fig:pipeline_flow}, it is important to note that this module is utilized exclusively during training. Upon deployment for inference, the \texttt{ArcFaceHead} weights are completely removed from the model's state dictionary. The system then performs recognition by routing the raw 512-dimensional vectors produced by the Embedding Head directly into the Similarity Matching engine (Phase 2).
+As visualized in \Cref{fig:pipeline_flow}, it is important to note that this module is utilized exclusively during training. Upon deployment for inference, the \texttt{\ac{arcface}Head} weights are completely removed from the model's state dictionary. The system then performs recognition by routing the raw 512-dimensional vectors produced by the Embedding Head directly into the Similarity Matching engine (Phase 2).
 
 \subsection{Dimensional Collapse}
 During early training iterations, it was observed that the network would occasionally degenerate, producing an output vector approaching zero for all input images. In this state, the network effectively learns to ignore the input data, mapping all samples to a single point in the embedding space to trivially satisfy the intra-class distance minimization without learning meaningful inter-class separability.
 
 To prevent this catastrophic failure and stabilize the training dynamics, several structural and optimization constraints were integrated into the pipeline:
 \begin{enumerate}
-    \item \ii{Differential Learning Rates}: The \ac{ResNet}-50 backbone is initialized with ImageNet pre-trained weights, while the embedding and ArcFace heads are randomly initialized. Using a uniform learning rate across the entire network risks destroying the pre-trained low-level feature detectors. Therefore, the backbone parameters are optimized with a learning rate an order of magnitude smaller ($\eta = 10^{-5}$) than the network heads ($\eta = 10^{-4}$).
+    \item \ii{Differential Learning Rates}: The \ac{ResNet}-50 backbone is initialized with ImageNet pre-trained weights, while the embedding and \ac{arcface} heads are randomly initialized. Using a uniform learning rate across the entire network risks destroying the pre-trained low-level feature detectors. Therefore, the backbone parameters are optimized with a learning rate an order of magnitude smaller ($\eta = 10^{-5}$) than the network heads ($\eta = 10^{-4}$).
     \item \ii{Strict $L_2$ Normalization}: By enforcing $L_2$ normalization on both the feature embeddings $\mathbf{x}_i$ and the class weights $\mathbf{W}_j$ prior to calculating the cosine similarity, the magnitudes of the vectors are factored out of the loss calculation. This mathematically prevents the network from minimizing the loss by shrinking the embedding magnitudes to zero.
 \end{enumerate}

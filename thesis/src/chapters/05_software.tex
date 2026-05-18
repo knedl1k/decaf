@@ -4,7 +4,7 @@
 The software ecosystem of the robotic sorter spans two distinct computing environments: a high-performance cluster for model optimization and a low-power edge computing architecture for real-time robotic control and inference. This chapter details the implementation of both systems and their integration.
 
 \section{Scalable Training Architecture}
-Training a deep metric learning model on a dataset with extreme cardinality introduces significant computational bottlenecks. Specifically, the weight matrix $\mathbf{W}$ in the ArcFace head requires substantial VRAM, scaling linearly with the number of unique cards. To address this, the training pipeline was designed for high-throughput distributed execution.
+Training a deep metric learning model on a dataset with extreme cardinality introduces significant computational bottlenecks. Specifically, the weight matrix $\mathbf{W}$ in the \ac{arcface} head requires substantial VRAM, scaling linearly with the number of unique cards. To address this, the training pipeline was designed for high-throughput distributed execution.
 
 \subsection{Distributed Data Parallelism and Synchronization}
 The model optimization is parallelized across multiple compute nodes and accelerators using PyTorch's~\cite{paszke2019pytorch} \ac{DDP}. Unlike standard \texttt{DataParallel}, which suffers from Python \ac{GIL} contention and uneven memory distribution, \ac{DDP} spawns independent processes for each device.
@@ -59,7 +59,7 @@ To resolve this, an OpenCV algorithm was implemented:
 \end{algorithm}
 
 \subsection{\acs{ONNX} Runtime and Sequential Inference}
-Running a full PyTorch environment on the Raspberry Pi introduces an unacceptable memory overhead. Therefore, the trained \ac{ResNet}-50 backbone is exported to the \acf{ONNX} format, stripping away the ArcFace head and all gradient-tracking graphs. Inference is executed via the \texttt{ONNX Runtime} using the \texttt{CPUExecutionProvider}.
+Running a full PyTorch environment on the Raspberry Pi introduces an unacceptable memory overhead. Therefore, the trained \ac{ResNet}-50 backbone is exported to the \acf{ONNX} format, stripping away the \ac{arcface} head and all gradient-tracking graphs. Inference is executed via the \texttt{ONNX Runtime} using the \texttt{CPUExecutionProvider}.
 
 Because cards can be placed onto the sorting platform in any orientation, the system must process the image safely. Instead of batching the original and a $180^\circ$ rotated copy into a single tensor (which spikes memory consumption and risks an Out-Of-Memory termination on the \ac{SBC}), the pipeline executes sequentially. The system extracts a 512-dimensional vector for both orientations individually, $L_2$-normalizes them, and selects the vector that yields the highest cosine similarity against the database. 
 

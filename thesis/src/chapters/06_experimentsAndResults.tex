@@ -52,9 +52,9 @@ To validate the model, performance was measured across two evaluation sets:
 
 The network was trained for 60 epochs across 4 GPUs using the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
 
-The embedding space was regularized via the ArcFace head with a margin $m=0.50$ and scale $s=64.0$. Optimization was performed using \ac{SGD} with a momentum of $0.9$ and a weight decay of $5 \times 10^{-4}$. The base learning rate parameter was defined as $\eta_{\text{base}} = 0.1$.
+The embedding space was regularized via the \ac{arcface} head with a margin $m=0.50$ and scale $s=64.0$. Optimization was performed using \ac{SGD} with a momentum of $0.9$ and a weight decay of $5 \times 10^{-4}$. The base learning rate parameter was defined as $\eta_{\text{base}} = 0.1$.
 
-To prevent catastrophic forgetting of the low-level visual features pre-trained on ImageNet, differential learning rates were applied: the \ac{ResNet}-50 backbone was optimized at a learning rate an order of magnitude smaller ($\eta = 0.1 \eta_{\text{base}}$) than the randomly initialized embedding and ArcFace heads ($\eta = \eta_{\text{base}}$). Furthermore, following the optimization strategy from the official ArcFace implementation~\cite{deng2022arcface}, a Polynomial Warmup learning rate scheduler was employed. The learning rate was linearly scaled up over the first two epochs to stabilize initial gradient updates, followed by a polynomial decay ($p=2.0$) over the remaining training steps.
+To prevent catastrophic forgetting of the low-level visual features pre-trained on ImageNet, differential learning rates were applied: the \ac{ResNet}-50 backbone was optimized at a learning rate an order of magnitude smaller ($\eta = 0.1 \eta_{\text{base}}$) than the randomly initialized embedding and \ac{arcface} heads ($\eta = \eta_{\text{base}}$). Furthermore, following the optimization strategy from the official \ac{arcface} implementation~\cite{deng2022arcface}, a Polynomial Warmup learning rate scheduler was employed. The learning rate was linearly scaled up over the first two epochs to stabilize initial gradient updates, followed by a polynomial decay ($p=2.0$) over the remaining training steps.
 
 \section{Results \& Discussion}
 \subsection{Training Convergence and Generalization}\label{subsec:exp_convergence}
@@ -70,7 +70,7 @@ The first phase of the evaluation focuses on the training dynamics and the model
 As illustrated in \Cref{fig:training_convergence} (Top), the loss function exhibits a smooth decay, confirming that the differential learning rates and warmup schedule provide stable optimization. \Cref{fig:training_convergence} (Bottom) plots the retrieval accuracy during training. The Top-1 accuracy on physical photographs correlates closely with the accuracy on the augmented synthetic validation set. This validates the premise that aggressive synthetic augmentation is a viable substitute for large-scale physical data collection.
 
 \subsection{Embedding Space Integrity (\acs{FMR} \& Margins)}\label{subsec:exp_metric_learning}
-\Cref{fig:training_metric_space} visualizes how the ArcFace objective function manipulates the feature vectors on the 512-dimensional hypersphere over the course of training.
+\Cref{fig:training_metric_space} visualizes how the \ac{arcface} objective function manipulates the feature vectors on the 512-dimensional hypersphere over the course of training.
 
 \begin{figure}[H]
     \centering
