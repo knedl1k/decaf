@@ -128,6 +128,13 @@ To maximize software reliability and minimize the complexity of the control loop
 By intentionally leaving the \texttt{UART} and configuration pins unconnected, the system avoids the overhead of serial configuration protocols. Instead, it relies inherently on the driver's default behavior, effectively abstracting the complex motor phase calculations away from the microcontroller. Finally, to ensure strict galvanic isolation of the logic signals, the driver separates its power domains: the high-current motor phases are supplied by the 24\,V circuit (\texttt{VS}), while the internal logic is safely referenced to the Arduino's 5\,V rail (\texttt{VCC\_IO}).
 
 \subsection{Z-Axis Mechanism}\label{subsec:z_axis}
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \vspace{-1em}
+    \centering
+    \includegraphics[width=0.4\textwidth]{./fig/schematics/servo-crop.pdf}
+    \caption{Wiring schematic for the AS5147 magnetic rotary encoder.}
+    \label{fig:servo_circuit}
+\end{wrapfigure}
 To pick up and place the cards, a secondary linear vertical axis (Z-axis) is mounted at the distal end of the main arm. Given that the payload consists solely of a single piece of card stock and lightweight silicone suction cups, deploying a traditional stepper motor and lead screw would introduce unnecessary inertial mass. 
 
 Instead, an MG90S micro servo is used to drive a custom 3D-printed linear mechanism that lowers and raises the pneumatic end-effector. The power-to-weight ratio of the micro servo minimizes the dynamic load on the main axis. This weight reduction translates to higher achievable accelerations during horizontal travel, which increases the overall sorting throughput.
@@ -168,8 +175,7 @@ The Arduino is physically connected to the Raspberry Pi via a standard USB inter
 Operating independently of the \acp{SBC} processing load, the Arduino is exclusively responsible for generating the precise, uninterrupted step pulses for the TMC2209 driver, managing the Pulse Width Modulation (PWM) signals for the Z-axis servo and instantaneously actuating the 24\,V solenoid valve via the dedicated MOSFET circuit to ensure drop-timing accuracy.
 
 \section{Structural Design and Assembly}\label{sec:structs}
-To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and sorting trays are manufactured from standard PLA filament. CAD renderings of these primary structural elements are presented in \Cref{fig:structural_renders}. To facilitate complete reproducibility, the technical drawings for all custom 3D-printed structural components are compiled in \Cref{app:structs}.
-
+To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and sorting trays are manufactured from standard PLA filament. CAD renderings of these primary structural elements are presented in \Cref{fig:structural_renders}.
 \begin{figure}[htbp]
     \centering
     % \subfloat[Base Chassis]{\includegraphics[width=0.3\textwidth]{./fig/cad/chassis_render.png}} \hfill
