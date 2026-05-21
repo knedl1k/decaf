@@ -982,7 +982,7 @@
 		)
 		(uuid "c089ff51-1552-422a-9b2f-e1d3152e9592")
 	)
-	(global_label "D33"
+	(global_label "D6"
 		(shape input)
 		(at 132.08 86.36 180)
 		(fields_autoplaced yes)
@@ -994,7 +994,7 @@
 		)
 		(uuid "dd1e97a5-a670-4d28-9c46-6ff67b5afef0")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 125.4058 86.36 0)
+			(at 126.6153 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1347,7 +1347,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "IRLZ44N"
+		(property "Value" "IRLZ34N"
 			(at 150.876 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)

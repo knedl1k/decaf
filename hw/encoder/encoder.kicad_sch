@@ -756,7 +756,7 @@
 		(at 149.86 83.82)
 		(uuid "fb72e572-af2c-4696-9a6e-e8166f48fd04")
 	)
-	(global_label "D37"
+	(global_label "D10"
 		(shape input)
 		(at 119.38 83.82 180)
 		(fields_autoplaced yes)
@@ -780,7 +780,7 @@
 			)
 		)
 	)
-	(global_label "D36"
+	(global_label "D9"
 		(shape input)
 		(at 119.38 81.28 180)
 		(fields_autoplaced yes)
@@ -792,7 +792,7 @@
 		)
 		(uuid "2427bb42-c979-47d6-b04c-f67617534d4f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 112.7058 81.28 0)
+			(at 113.9153 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -804,7 +804,7 @@
 			)
 		)
 	)
-	(global_label "D35"
+	(global_label "D8"
 		(shape input)
 		(at 119.38 86.36 180)
 		(fields_autoplaced yes)
@@ -816,7 +816,7 @@
 		)
 		(uuid "aba74783-dd08-404e-b8f5-0ed8414ffb18")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 112.7058 86.36 0)
+			(at 113.9153 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -828,7 +828,7 @@
 			)
 		)
 	)
-	(global_label "D34"
+	(global_label "D7"
 		(shape input)
 		(at 119.38 88.9 180)
 		(fields_autoplaced yes)
@@ -840,7 +840,7 @@
 		)
 		(uuid "dc1777c1-1636-4c09-9a56-ab08b141c6dd")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 112.7058 88.9 0)
+			(at 113.9153 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

@@ -569,7 +569,7 @@
 			(embedded_fonts no)
 		)
 	)
-	(global_label "D43"
+	(global_label "D5"
 		(shape input)
 		(at 113.03 76.2 180)
 		(fields_autoplaced yes)
@@ -581,7 +581,7 @@
 		)
 		(uuid "149f9d02-3f80-43bb-936d-662c92a1770b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 106.3558 76.2 0)
+			(at 107.5653 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -603,7 +603,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "2a667879-c8be-4965-a694-9b2a6579473d")
 		(property "Reference" "#PWR02"
 			(at 113.03 87.63 0)
@@ -617,7 +616,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 113.03 86.36 0)
+			(at 113.03 85.344 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -681,10 +680,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "4ddf0abe-35ae-4a9c-83fe-b1db868e20a4")
-		(property "Reference" "M1"
-			(at 129.54 77.0368 0)
+		(property "Reference" "M2"
+			(at 128.778 76.962 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -695,7 +693,7 @@
 			)
 		)
 		(property "Value" "Motor_Servo"
-			(at 129.54 79.5768 0)
+			(at 128.778 79.502 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -750,7 +748,7 @@
 		(instances
 			(project "servo"
 				(path "/afcc8374-9203-41d6-bdd1-3391cdab8afa"
-					(reference "M1")
+					(reference "M2")
 					(unit 1)
 				)
 			)
@@ -766,7 +764,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "a81cf961-ef02-4293-89a0-ab96569dc6d5")
 		(property "Reference" "#PWR01"
 			(at 116.84 78.74 0)
@@ -779,15 +776,14 @@
 				)
 			)
 		)
-		(property "Value" "+3.3V"
-			(at 109.22 78.7399 90)
+		(property "Value" "+5V"
+			(at 107.696 78.74 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" ""
