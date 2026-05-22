@@ -85,9 +85,7 @@ def compress_existing_database(input_path: str, output_path: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export MTG Recon model to edge-friendly format.")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to your trained .pth file")
-    parser.add_argument(
-        "--ref_dir", type=str, required=True, help="Directory containing the 224MB of ground-truth images"
-    )
+    parser.add_argument("--input_db", type=str, required=True, help="Path to your card database")
     parser.add_argument("--num_classes", type=int, required=True, help="Number of classes the model was trained on")
     parser.add_argument("--img_size", type=int, default=512, help="Input image size")
     args = parser.parse_args()
