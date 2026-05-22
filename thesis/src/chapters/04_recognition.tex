@@ -60,11 +60,13 @@ Digital templates are often stored as rectangular images with transparent edges 
 
 To construct this canvas, a base color is first sampled uniformly for each RGB channel, $c \sim \mathcal{U}(20, 230)$. To simulate sensor grain and the physical texture of a playing mat, additive Gaussian noise sampled from $\mathcal{N}(\mu=0, \sigma=4)$ is applied to every pixel and the resulting tensor is clipped to the valid 8-bit image range $[0, 255]$.
 
-Once the canvas is generated, the card's alpha channel $\bm{\alpha}$ is explicitly extracted and linear interpolation is performed between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the noisy canvas $\mathbf{X}_{\text{cv}}$:
+Once the canvas is generated, the card's alpha mask matrix $\mathbf{M}_\alpha$ is explicitly extracted and linear interpolation is performed between the card's RGB tensor $\mathbf{X}_{\text{card}}$ and the noisy canvas $\mathbf{X}_{\text{cv}}$:
 \begin{equation}
-    \mathbf{X}_{\text{composite}} = \mathbf{X}_{\text{card}} \odot \bm{\alpha} + \mathbf{X}_{\text{cv}} \odot \left(\mathbf{1} - \bm{\alpha}\right)
+    \mathbf{X}_{\text{composite}} = \mathbf{X}_{\text{card}} \odot \mathbf{M}_\alpha + \mathbf{X}_{\text{cv}} \odot \left(\mathbf{J} - \mathbf{M}_\alpha\right)
 \end{equation}
-where $\odot$ denotes the component-wise product. This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured surface, forcing the network to focus on the internal visual features rather than the bounding box boundaries. The complete generation and blending logic is formalized in \Cref{alg:alpha_blend}.
+where $\mathbf{J}$ represents a matrix of ones of the same dimension as $\mathbf{M}_\alpha$.
+
+This ensures that the synthetic images mimic the continuous edge blending observed when a physical card is placed on a textured surface, forcing the network to focus on the internal visual features rather than the bounding box boundaries. The complete generation and blending logic is formalized in \Cref{alg:alpha_blend}.
 \begin{algorithm}[htbp]
     \caption{Stochastic Background Generation and Alpha Compositing}
     \label{alg:alpha_blend}
@@ -347,20 +349,20 @@ To understand \ac{arcface} mechanics, it is best to start by analyzing the stand
 Let $\mathbf{I}_i \in \mathcal{I}$ denote the $i$-th input image in the current batch. The backbone network acts as the mapping function, extracting the deep feature vector (embedding) such that $\mathbf{x}_i = f(\mathbf{I}_i) \in \mathbb{R}^d$, where $d$ is the embedding dimension ($d=512$ in our architecture). 
 Furthermore, let $\mathbf{W} \in \mathbb{R}^{d \times C}$ be the weight matrix of the final layer, where $C$ is the total number of classes (unique cards in our case).
 
-The matrix $\mathbf{W}$ can be decomposed into $C$ column vectors $\mathbf{W} = \begin{bmatrix}\mathbf{W}_1, \mathbf{W}_2, \dots, \mathbf{W}_C\end{bmatrix}$, where each vector $\mathbf{W}_j \in \mathbb{R}^d$ acts as the learned \ii{class center} for the $j$-th class. In a standard linear layer (with bias set to zero), the activation (logit) for the $j$-th class given the embedding $\mathbf{x}_i$ is
+The matrix $\mathbf{W}$ can be decomposed into $C$ column vectors $\mathbf{W} = \begin{bmatrix}\mathbf{w}_1, \mathbf{w}_2, \dots, \mathbf{w}_C\end{bmatrix}$, where each vector $\mathbf{w}_j \in \mathbb{R}^d$ acts as the learned \ii{class center} for the $j$-th class. In a standard linear layer (with bias set to zero), the activation (logit) for the $j$-th class given the embedding $\mathbf{x}_i$ is
 \begin{equation}
-    \text{logit}_j = \mathbf{W}_j^\intercal \mathbf{x}_i.
+    \text{logit}_j = \mathbf{w}_j^\intercal \mathbf{x}_i.
 \end{equation}
 
 Geometrically, this dot product relates to the angle $\theta_{j,i}$ between the feature vector and the class center:
 \begin{equation}
-   \mathbf{W}_j^\intercal \mathbf{x}_i = \|\mathbf{W}_j\| \|\mathbf{x}_i\| \cos \theta_{j,i}.
+   \mathbf{w}_j^\intercal \mathbf{x}_i = \|\mathbf{w}_j\| \|\mathbf{x}_i\| \cos \theta_{j,i}.
 \end{equation}
-In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{W}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. \ac{arcface} addresses this by strictly enforcing normalization. By fixing $\|\mathbf{W}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \ii{solely} on the angle $\theta_{j,i}$:
+In traditional Softmax classification with Cross-Entropy loss, the magnitudes $\|\mathbf{w}_j\|$ and $\|\mathbf{x}_i\|$ influence the output probability, which does not necessarily contribute to class separability. \ac{arcface} addresses this by strictly enforcing normalization. By fixing $\|\mathbf{w}_j\| = 1$ and $\|\mathbf{x}_i\| = 1$ via $L_2$ normalization, the prediction depends \ii{solely} on the angle $\theta_{j,i}$:
 \begin{equation}
-    \mathbf{W}_j^\intercal \mathbf{x}_i = \cos \theta_{j,i}.
+    \mathbf{w}_j^\intercal \mathbf{x}_i = \cos \theta_{j,i}.
 \end{equation}
-This projects the learned features onto a hypersphere, where minimizing the loss equates to minimizing the geodesic distance (angle) between the sample $\mathbf{x}_i$ and its corresponding ground-truth class center $\mathbf{W}_{y_i}$.
+This projects the learned features onto a hypersphere, where minimizing the loss equates to minimizing the geodesic distance (angle) between the sample $\mathbf{x}_i$ and its corresponding ground-truth class center $\mathbf{w}_{y_i}$.
 
 \input{./fig/tikz/arcface.tex}
 To enforce a margin between classes, \ac{arcface} adds an angular penalty $m$ directly to the angle $\theta_{y_i, i}$ of the ground-truth class. Furthermore, because both the embeddings and the class weights are $L_2$-normalized, their dot products are bounded strictly to the interval $[-1, 1]$. As demonstrated by Wang et al.~\cite{wang2017normface}, passing values of such small magnitude directly into a Softmax activation produces an overly uniform probability distribution. This imposes a lower bound on the Cross-Entropy loss, which can halt gradient propagation and prevent the network from converging. 

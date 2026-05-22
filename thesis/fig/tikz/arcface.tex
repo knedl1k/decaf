@@ -38,8 +38,8 @@
 	            \coordinate (W1_tip) at (\angWone:1.4);
 	            \coordinate (W2_tip) at (\angWtwo:1.2);
 
-	            \draw[weight_vec, academicBlue] (O) -- (W1_tip) node[right] {$\mathbf{W}_1$};
-	            \draw[weight_vec, academicRed] (O) -- (W2_tip) node[left] {$\mathbf{W}_2$};
+	            \draw[weight_vec, academicBlue] (O) -- (W1_tip) node[right] {$\mathbf{w}_1$};
+	            \draw[weight_vec, academicRed] (O) -- (W2_tip) node[left] {$\mathbf{w}_2$};
 	            \draw[boundary_line] (O) -- (\angBoundary:1.8) node[above right, font=\footnotesize] {Decision Boundary};
 
 	            \coordinate (X_sample) at (\angWone+15:1.1);
@@ -83,8 +83,8 @@
 	            \draw[boundary_line, thin] (O) -- (M2_pt);
 	            \draw[dashed, thin, black!30] (O) -- (\angBoundary:\radius);
 
-	            \draw[weight_vec, academicBlue] (O) -- (W1_pt) node[right] {$\mathbf{W}_1$};
-	            \draw[weight_vec, academicRed] (O) -- (W2_pt) node[left] {$\mathbf{W}_2$};
+	            \draw[weight_vec, academicBlue] (O) -- (W1_pt) node[right] {$\mathbf{w}_1$};
+	            \draw[weight_vec, academicRed] (O) -- (W2_pt) node[left] {$\mathbf{w}_2$};
 
 	            \pic [draw, <->, angle radius=0.8*\radius cm, "$m$", font=\small, angle eccentricity=1.15, academicBlue] {angle = W1_pt--O--M1_pt};
 	            \pic [draw, <->, angle radius=0.8*\radius cm, "$m$", font=\small, angle eccentricity=1.15, academicRed] {angle = M2_pt--O--W2_pt};
