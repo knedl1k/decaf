@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from pydantic_core.core_schema import IsInstanceSchema
 import re
 import cv2
 import numpy as np
@@ -42,13 +43,16 @@ def order_points(pts: np.ndarray) -> np.ndarray:
 
 
 def crop_card(
-    image_path: str, output_width: int = 480, output_height: int = 670, debug: bool = False
+    image_path: str | np.ndarray, output_width: int = 480, output_height: int = 670, debug: bool = False
 ) -> tuple[np.ndarray | None, np.ndarray | None]:
     """
     Detects a card in the image and warps it to a top-down view.
     Returns the warped image or None if no card is found, and debug image with contour
     """
-    img = cv2.imread(image_path)
+    if isinstance(image_path, str):
+        img = cv2.imread(image_path)
+    else:
+        img = image_path
     if img is None:
         print(f"Error with loading {image_path}")
         return None, None
