@@ -27,4 +27,6 @@ As discussed in \Cref{chap:er}, while the global feature extractor is highly acc
 
 To resolve this, future work should implement a two-stage recognition architecture. The current metric learning model would serve as the primary retrieval mechanism to identify the card's name. A secondary, highly localized classification head could then be deployed to inspect specific regions of interest (such as set symbols or copyright dates) to verify the exact edition. 
 
+\subsection{Data Acquisition}
+
 Finally, the completed robotic platform can now function as an automated data acquisition tool. By processing bulk collections and utilizing the current network for pseudo-labeling, the robot can rapidly generate a large-scale dataset of real-world physical photographs. This dataset can subsequently be used to fine-tune future recognition models, entirely eliminating the reliance on synthetic data.
