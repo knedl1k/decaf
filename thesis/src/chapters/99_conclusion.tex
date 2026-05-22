@@ -5,16 +5,23 @@
 \section{Summary of Results}
 The objective of this thesis was to design, build and evaluate an automated, open-source system for the recognition and physical sorting of trading cards. By combining accessible rapid prototyping hardware with a deep metric learning computer vision pipeline, the project demonstrated that automated \ac{TCG} cataloging can be achieved without relying on expensive, proprietary commercial solutions.
 
-From a hardware perspective, the integration of a 3D-printed robotic manipulator with a pneumatic vacuum end-effector successfully provided a reliable, non-destructive method for handling thin paper stock. The separation of computational loads (delegating real-time motor control to an Arduino and high-level inference to a Raspberry Pi) ensured stable kinematic execution while processing image data.
+From a hardware perspective, the integration of a 3D-printed robotic manipulator with a pneumatic vacuum end-effector successfully provided a reliable, non-destructive method for handling thin paper stock. Physical testing confirmed that the system is capable of safely transporting cards and cleanly aligning them within the output tray. Furthermore, the separation of computational loads (delegating real-time motor control to an Arduino and high-level inference to a Raspberry Pi) ensured stable kinematic execution while processing image data.
 
-On the software front, the system bypassed the inherent limitations of \ac{OCR} by treating cards as holistic visual fingerprints. Because labeled real-world datasets of the required magnitude do not exist, the network was trained entirely on digitally synthesized data. By projecting clean digital scans onto stochastic backgrounds and applying severe geometric and optical augmentations, the model was forced to learn robust feature representations. The application of the  objective function successfully structured the 512-dimensional embedding space, minimizing intra-class variance while maximizing inter-class separability.
+On the software front, the system bypassed the inherent limitations of \ac{OCR} by treating cards as holistic visual fingerprints. Because labeled real-world datasets of the required magnitude do not exist, the network was trained entirely on digitally synthesized data. By projecting clean digital scans onto stochastic backgrounds and applying severe geometric and optical augmentations, the model was forced to learn robust feature representations. The application of the ArcFace objective function successfully structured the 512-dimensional embedding space, minimizing intra-class variance while maximizing inter-class separability.
 
 Experimental evaluation validated this approach. The model achieved a 97.8\,\% Top-1 Name Match retrieval accuracy on a dataset of unconstrained physical photographs. The close correlation between the validation loss on synthetic data and the real-world retrieval accuracy confirmed that the proposed synthetic augmentation pipeline effectively bridged the domain shift between digital templates and physical assets.
 
 \section{Limitations and Future Work}
 While the initial prototype successfully established a baseline for open-source card sorting, several architectural components can be optimized in future iterations.
 
-\subsection{Hardware Optimization}
+\subsection{Mechanical Handling and Kinematics}
+Operational testing revealed several mechanical limitations. First, occasional multi-card pickups were observed, particularly when the end-effector interacted with the top of a densely packed stack. While the excess cards typically detached during transit due to gravity without jamming the system, future iterations should implement passive mechanical separation features in the input hopper (such as angled walls or friction pads) to ensure strict single-card feeding.
+
+Second, the vertical travel of the Z-axis mechanism is currently constrained by the maximum rotational angle of the micro servo. As the input stack depletes, the end-effector lacks the necessary stroke length to reach the bottom of the hopper. Replacing the servo-driven linkage with a continuous linear actuator would provide the full vertical range required to process high-capacity stacks. 
+
+Lastly, as noted in \Cref{chap:sw}, the current target-seeking loop for the main axis causes abrupt decelerations. Implementing a full Proportional-Integral-Derivative (PID) controller is necessary to achieve critically damped settling. This will eliminate mechanical vibrations during the camera inspection phase and prevent cards from accidentally detaching from the suction cup due to sudden inertial shifts.
+
+\subsection{Microcontroller Optimization}
 The current low-level control relies on an Arduino Uno. While adequate for proving the mechanical concept, it is architecturally outdated. Future hardware iterations should replace the Arduino with modern microcontrollers from the ESP family (e.g., ESP32). ESP microcontrollers operate at higher clock speeds, offer built-in wireless connectivity (Wi-Fi and Bluetooth) and feature a significantly smaller physical footprint, often at a lower unit cost. Transitioning to an ESP32 would enable wireless control interfaces and eliminate the need for a physical serial tether between the control board and the single-board computer.
 
 \subsection{Robust Image Localization}
@@ -28,5 +35,4 @@ As discussed in \Cref{chap:er}, while the global feature extractor is highly acc
 To resolve this, future work should implement a two-stage recognition architecture. The current metric learning model would serve as the primary retrieval mechanism to identify the card's name. A secondary, highly localized classification head could then be deployed to inspect specific regions of interest (such as set symbols or copyright dates) to verify the exact edition. 
 
 \subsection{Data Acquisition}
-
 Finally, the completed robotic platform can now function as an automated data acquisition tool. By processing bulk collections and utilizing the current network for pseudo-labeling, the robot can rapidly generate a large-scale dataset of real-world physical photographs. This dataset can subsequently be used to fine-tune future recognition models, entirely eliminating the reliance on synthetic data.
