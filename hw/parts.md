@@ -1,37 +1,31 @@
-# Seznam součástek
+# Parts List
 
-- kompresor
+- Compressor
   - [Sparmax TC-610H Plus](https://www.sparmaxair.com/de/compressor-legend-1/tc-610h-plus)
-  - maximální tlak: 60 psi (4.1 bar)
-  - průtok vzduchu: 23-28 l/min
-  - velikost závitu: 1/8" PS
-- zdroj napětí 24 V
+  - maximum pressure: 60 psi (4.1 bar)
+  - air flow: 23-28 l/min
+  - thread size: 1/8" PS
+- 24 V power supply
 - Arduino Mega
-- stepper 12-24 V
-- enkodér
+- 12-24 V stepper motor
+- encoder
   - [AS5147-TS_EK_AB](https://www.digikey.com/en/products/detail/ams-osram-usa-inc/AS5147-TS-EK-AB/5452350)
-- driver motoru
+- motor driver
   - [TMC2209](https://www.adafruit.com/product/6121)
 - servo motor
   - [MG90S](https://www.alldatasheet.com/datasheet-pdf/pdf/1132104/ETC2/MG90S.html)
 - suction cup
-  - [11 mm průměr](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-11-mm-silikon/)
-  - [15.5 mm průměr](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-15-5-mm-silikon/)
-- pneumatic ventil 3/2
-  - [155 gramů](https://www.kompresory-vzduchotechnika.cz/solenoidove-ventily-g356-18b-mosaz/)
+  - [11 mm diameter](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-11-mm-silikon/)
+  - [15.5 mm diameter](https://www.kompresory-vzduchotechnika.cz/prisavka-sb-15-5-mm-silikon/)
+- 3/2 pneumatic valve
+  - [155 grams](https://www.kompresory-vzduchotechnika.cz/solenoidove-ventily-g356-18b-mosaz/)
   - solenoid, NC, 24 V DC,
-- hadičky
-  - [8 metrů](https://www.kompresory-vzduchotechnika.cz/hadicka-z-polyuretanu-modra-6-4-mm/)
-- fitinky
+- tubing
+  - [8 meters](https://www.kompresory-vzduchotechnika.cz/hadicka-z-polyuretanu-modra-6-4-mm/)
+- fittings
   - [6 - G1/8"](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-g1-8/)
   - [6 - M5](https://www.kompresory-vzduchotechnika.cz/prime-sroubeni-6-m5/)
-  - [připojovací šroubení pro suction cup](https://www.kompresory-vzduchotechnika.cz/pripojovaci-sroubeni-vakuum-vs-m5a-10/)
+  - [connection fittings for suction cup](https://www.kompresory-vzduchotechnika.cz/pripojovaci-sroubeni-vakuum-vs-m5a-10/)
 - misc.
-  - [modré kleště na hadičky](https://www.kompresory-vzduchotechnika.cz/kleste-pro-hadicky-ptp-modre/)
-  - [tlumič hluku M5](https://www.kompresory-vzduchotechnika.cz/tlumic-hluku-s-prodlouzenim-s-vnejsim-zavitem-bronzove-provedeni-m5/)
-
-## Vyrobí se na 3D tiskárně
-
-- Venturi generator
-- pohyb po Z ose
-- card holdery
+  - [blue hose clamps](https://www.kompresory-vzduchotechnika.cz/kleste-pro-hadicky-ptp-modre/)
+  - [M5 silencer](https://www.kompresory-vzduchotechnika.cz/tlumic-hluku-s-prodlouzenim-s-vnejsim-zavitem-bronzove-provedeni-m5/)
