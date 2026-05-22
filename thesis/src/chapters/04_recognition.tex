@@ -37,13 +37,12 @@ The script also implements logic to handle complex card layouts, such as \acp{DF
     
     \vspace{1em}
     
-    \begin{subfigure}[b]{\linewidth}
-        \centering
-        \includegraphics[width=0.7\linewidth]{./fig/photos/realCard.jpg}
+    \begin{subfigure}[b]{\linewidth}\centering\includegraphics[width=0.7\linewidth]{./fig/photos/realCard.jpg}
         \caption{Real photo.}
     \end{subfigure}
     \caption{Comparison between a clean scan template and a physical photograph.}
     \label{fig:card_comparison}
+    \vspace{-1em}
 \end{wrapfigure}
 
 When a neural network is trained exclusively on clean digital templates but deployed to recognize physical cards captured by a camera, it typically experiences a severe degradation in predictive accuracy; a phenomenon documented as \ii{domain shift}~\cite{quinonero2009dataset}. The challenge of adapting models from synthetic source domains to real-world target distributions is a well-recognized bottleneck, particularly in comparable fine-grained visual classification tasks~\cite{smith2021leveraging}.
@@ -52,7 +51,8 @@ The reference images are characterized by uniform lighting, precise orthogonal a
 
 If a model is optimized purely on the source domain, its learned feature representations will be overly focused on artifact-free edges and uniform color palettes. As a result, the network becomes fragile and struggles to generalize to the reality of the target domain.
 
-\section{Synthetic Data Generation}\label{sec:synthetic_gen}
+\section{Synthetic Data Generation}
+\label{sec:synthetic_gen}
 To bridge the \hyperref[sec:domain_shift]{domain shift} described above, the training pipeline incorporates an on-the-fly synthesis module designed to simulate the artifacts inherent to physical image acquisition.
 
 \subsection{Removing Sharp Edges}\label{sub:sharp_edges}
