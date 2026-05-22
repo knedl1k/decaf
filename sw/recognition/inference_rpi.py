@@ -1,113 +1,148 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import argparse
 import time
 import cv2
 import numpy as np
 import onnxruntime as ort
-import os
+import serial
+from datetime import datetime
+from picamera2 import Picamera2
 
 from utils import crop_card, parse_mtg_filename
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Robust Edge Inference for MTG cards on Raspberry Pi")
-    parser.add_argument("--img", type=str, required=True, help="Path to the captured query image")
-    parser.add_argument("--model", type=str, required=True, help="Path to mtg_recon_edge.onnx")
-    parser.add_argument("--database", type=str, required=True, help="Path to mtg_database_edge.npz")
-    parser.add_argument("--img_size", type=int, default=512, help="Input image size for the model")
-    parser.add_argument("--num_candidates", type=int, default=3, help="Number of top candidates to display")
-    return parser.parse_args()
+class MTGRecognizer:
+    """Encapsulates the ONNX model and database."""
+
+    def __init__(self, model_path: str, db_path: str, img_size: int = 512):
+        self.img_size = img_size
+
+        print("[INFO] Loading Database...")
+        db = np.load(db_path)
+        self.db_vectors = db["embeddings"].astype(np.float32)
+        self.db_names = db["names"]
+
+        print("[INFO] Initializing ONNX Runtime...")
+        session_options = ort.SessionOptions()
+        session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        self.ort_session = ort.InferenceSession(
+            model_path, sess_options=session_options, providers=["CPUExecutionProvider"]
+        )
+        print("[INFO] Model and Database loaded successfully.")
+
+    def preprocess_image(self, img: np.ndarray) -> np.ndarray:
+        h, w = img.shape[:2]
+        scale = self.img_size / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        top = (self.img_size - new_h) // 2
+        bottom = self.img_size - new_h - top
+        left = (self.img_size - new_w) // 2
+        right = self.img_size - new_w - left
+        img_padded = cv2.copyMakeBorder(img_resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
+        img_float = img_padded.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        img_normalized = (img_float - mean) / std
+
+        img_transposed = np.transpose(img_normalized, (2, 0, 1))
+        return np.expand_dims(img_transposed, axis=0)
+
+    def extract_normalized_vector(self, tensor: np.ndarray) -> np.ndarray:
+        vec = self.ort_session.run(None, {"input": tensor})[0][0]
+        return vec / np.linalg.norm(vec)
+
+    def predict(self, frame: np.ndarray) -> str:
+        cropped_img_0, _ = crop_card(image_path=frame)
+        if cropped_img_0 is None:
+            return "ERROR: No card detected in image."
+
+        cropped_img_180 = cv2.rotate(cropped_img_0, cv2.ROTATE_180)
+        tensor_180 = self.preprocess_image(cropped_img_180)
+        vec_180 = self.extract_normalized_vector(tensor_180)
+
+        sims_180 = np.dot(self.db_vectors, vec_180)
+        best_idx = np.argmax(sims_180)
+
+        top1_name, top1_edition = parse_mtg_filename(self.db_names[best_idx])
+        confidence = sims_180[best_idx] * 100
+
+        return f"{top1_name} [{top1_edition.upper()}] (Conf: {confidence:.2f}%)"
 
 
-def preprocess_image(img: np.ndarray, img_size: int) -> np.ndarray:
-    """Replicates Albumentations normalization for ONNX."""
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+def main():
+    SERIAL_PORT = "/dev/ttyACM0"
+    BAUD_RATE = 57600
+    LOG_FILE = "mtg_results.txt"
+    MODEL_PATH = "mtg_recon_edge.onnx"
+    DB_PATH = "mtg_database.npz"
 
-    h, w = img.shape[:2]
-    scale = img_size / max(h, w)
-    new_w, new_h = int(w * scale), int(h * scale)
-    img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    recognizer = MTGRecognizer(model_path=MODEL_PATH, db_path=DB_PATH)
 
-    top = (img_size - new_h) // 2
-    bottom = img_size - new_h - top
-    left = (img_size - new_w) // 2
-    right = img_size - new_w - left
-    img_padded = cv2.copyMakeBorder(img_resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-
-    img_float = img_padded.astype(np.float32) / 255.0
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-    img_normalized = (img_float - mean) / std
-
-    img_transposed = np.transpose(img_normalized, (2, 0, 1))
-    return np.expand_dims(img_transposed, axis=0)
-
-
-def extract_normalized_vector(ort_session: ort.InferenceSession, tensor: np.ndarray) -> np.ndarray:
-    """Runs ONNX inference and L2-normalizes the output."""
-    vec = ort_session.run(None, {"input": tensor})[0][0]
-    return vec / np.linalg.norm(vec)
-
-
-def main() -> None:
-    args = parse_args()
-
-    print("Loading FP16 Database...")
-    t0 = time.time()
-    db = np.load(args.database)
-    db_vectors = db["embeddings"].astype(np.float32)
-    db_names = db["names"]
-    print(f"Database loaded in {time.time() - t0:.2f}s")
-
-    print("Initializing ONNX Runtime...")
-    session_options = ort.SessionOptions()
-    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    ort_session = ort.InferenceSession(args.model, sess_options=session_options, providers=["CPUExecutionProvider"])
-
-    cropped_img_0, _ = crop_card(image_path=args.img)
-    if cropped_img_0 is None:
-        print("Could not find a card in the image! Exiting.")
+    print(f"[INFO] Connecting to Arduino on {SERIAL_PORT}...")
+    try:
+        arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=None)
+        time.sleep(2)
+    except serial.SerialException as e:
+        print(f"[ERROR] Could not open serial port: {e}")
         return
 
-    cropped_img_180 = cv2.rotate(cropped_img_0, cv2.ROTATE_180)
-    cv2.imwrite(os.path.join(".", "crop.jpg"), cropped_img_180)
+    print("[INFO] Initializing Picamera2...")
+    picam2 = Picamera2()
+    config = picam2.create_still_configuration(main={"size": (1920, 1080), "format": "RGB888"})
+    picam2.configure(config)
+    picam2.start()
+    time.sleep(2)
 
-    tensor_0 = preprocess_image(cropped_img_0, args.img_size)
-    tensor_180 = preprocess_image(cropped_img_180, args.img_size)
+    print("\n[INFO] System Ready. Priming the first card...")
+    card_counter = 0
 
-    print("Running Inference (0° and 180°)...")
-    t1 = time.time()
-    vec_0 = extract_normalized_vector(ort_session, tensor_0)
-    vec_180 = extract_normalized_vector(ort_session, tensor_180)
-    print(f"Inference complete in {time.time() - t1:.2f}s")
+    arduino.write(b"A")
+    time.sleep(1)
+    arduino.write(b"B")
 
-    sims_0 = np.dot(db_vectors, vec_0)
-    sims_180 = np.dot(db_vectors, vec_180)
+    ready = False
+    while not ready:
+        if arduino.in_waiting > 0:
+            line = arduino.readline().decode("utf-8").strip()
+            if line == "R":
+                ready = True
 
-    if np.max(sims_180) > np.max(sims_0):
-        best_sims = sims_180
-        best_orientation = "180° (Flipped)"
-    else:
-        best_sims = sims_0
-        best_orientation = "0° (Standard)"
+    print("[INFO] First card ready in position B. Starting main loop...")
 
-    best_idxs = np.argsort(best_sims)[::-1][: args.num_candidates]
+    try:
+        while True:
+            frame = picam2.capture_array()
 
-    top1_name, top1_edition = parse_mtg_filename(db_names[best_idxs[0]])
+            arduino.write(b"C")
+            time.sleep(0.6)
 
-    print("\n" + "=" * 50)
-    print(f"Test card:   {args.img}")
-    print(f"Orientation: {best_orientation}")
-    print(f"Result:      {top1_name} [{top1_edition.upper()}]")
-    print(f"Confidence:  {best_sims[best_idxs[0]] * 100:.2f} %")
-    print("=" * 50 + "\n")
+            arduino.write(b"A")
 
-    print(f"Top {args.num_candidates} Candidates:")
-    for i, idx in enumerate(best_idxs):
-        name, ed = parse_mtg_filename(db_names[idx])
-        print(f"  {i + 1}. {name} [{ed.upper()}] - {best_sims[idx] * 100:.2f}%")
+            print("[INFO] Running the inference...")
+            result = recognizer.predict(frame)
+            card_counter += 1
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_entry = f"{timestamp} | Card #{card_counter:04d} | Result: {result}\n"
+            print(log_entry.strip())
+            with open(LOG_FILE, "a") as f:
+                f.write(log_entry)
+
+            arduino.write(b"B")
+
+            ready = False
+            while not ready:
+                if arduino.in_waiting > 0:
+                    line = arduino.readline().decode("utf-8").strip()
+                    if line == "R":
+                        ready = True
+
+    except KeyboardInterrupt:
+        print("\n[INFO] Pipeline stopped by user.")
 
 
 if __name__ == "__main__":
