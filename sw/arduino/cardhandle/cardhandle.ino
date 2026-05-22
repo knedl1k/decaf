@@ -39,11 +39,11 @@
 
 // degs of positions
 #define POS_A                 (16.0)
-#define POS_B                 (120.0)
+#define POS_B                 (130.0)
 #define POS_C                 (62.0)
 
 #define SERVO_Z_UP_ANGLE      (30)
-#define SERVO_Z_DOWN_ANGLE    (110)
+#define SERVO_Z_DOWN_ANGLE    (150)
 
 #define CMD_GO_A              'A'
 #define CMD_GO_B              'B'
@@ -165,13 +165,14 @@ void executeSequenceA() {
     zAxisServo.write(SERVO_Z_DOWN_ANGLE);
     delay(500);
     digitalWrite(PIN_SOLENOID, HIGH);
-    delay(300);
+    delay(4000);
     zAxisServo.write(SERVO_Z_UP_ANGLE);
     delay(500);
 }
 
 void executeSequenceB() {
     moveToAngle(POS_B);
+    delay(2000);
     Serial.println(RESP_READY);
 }
 
