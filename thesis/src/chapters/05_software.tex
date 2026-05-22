@@ -59,7 +59,7 @@ To resolve this, an OpenCV algorithm was implemented, as formalized in \Cref{alg
 \end{algorithm}
 
 \subsection{\acs{ONNX} Runtime and Sequential Inference}
-Running a full PyTorch environment on the Raspberry Pi introduces an unacceptable memory overhead. Therefore, the trained \ac{ResNet}-50 backbone is exported to the \acf{ONNX} format, stripping away the \ac{arcface} head and all gradient-tracking graphs. Inference is executed via the \texttt{ONNX Runtime} using the \texttt{CPUExecutionProvider}.
+Running a full PyTorch environment on the Raspberry Pi introduces an unacceptable memory overhead. Therefore, the trained \ac{ResNet}-50 backbone is exported to the \acf{ONNX} format~\cite{onnxruntime}, stripping away the \ac{arcface} head and all gradient-tracking graphs. Inference is executed via the \texttt{ONNX Runtime} using the \texttt{CPUExecutionProvider}.
 
 Because cards can be placed onto the sorting platform in any orientation, the system must process the image safely. Instead of batching the original and a $180^\circ$ rotated copy into a single tensor (which spikes memory consumption and risks an Out-Of-Memory termination on the \ac{SBC}), the pipeline executes sequentially. The system extracts a 512-dimensional vector for both orientations individually, $L_2$-normalizes them, and selects the vector that yields the highest cosine similarity against the database. 
 
@@ -102,7 +102,7 @@ While stepper motors are typically driven in an open-loop configuration, this sy
 
 The absolute rotational position of the main arm is continuously monitored using the AS5147 magnetic encoder. To bypass hardware SPI constraints and pin conflicts, the microcontroller queries the sensor using a custom software SPI implementation (bit-banging) adapted from an existing open-source routine\footnote{The bit-banging implementation for the AS5147 encoder was adapted from \cite{mcr2019as51457}, licensed under GNU GPLv3.}. The raw 14-bit positional data is extracted, validated via a parity bit check and converted into an angular value ($-180^\circ$ to $180^\circ$).
 
-Locomotion is handled by a target-seeking loop. The Arduino pulses the TMC2209 driver, stepping the motor while continuously re-evaluating the encoder position. The movement terminates only when the absolute angular error falls within a strict defined tolerance ($\pm 0.5^\circ$) or an overshoot is detected. The complete control flow for this target-seeking mechanism is outlined in \Cref{alg:closed_loop}.
+The motion is controlled by a target-seeking loop. The Arduino pulses the TMC2209 driver, stepping the motor while continuously re-evaluating the encoder position. Movement stops only when the absolute angular error falls within a defined tolerance ($\pm 0.5^\circ$) or an overshoot is detected. Although this basic approach guarantees target acquisition, the abrupt termination of movement can cause minor mechanical oscillations at the target workstations. To achieve smoother deceleration and stabilization, future firmware versions will replace this logic with a full Proportional-Integral-Derivative (PID) control scheme. The current control flow is outlined in \Cref{alg:closed_loop}.
 \begin{algorithm}[htbp]
     \caption{Closed-Loop Stepper Motor Positioning}
     \label{alg:closed_loop}

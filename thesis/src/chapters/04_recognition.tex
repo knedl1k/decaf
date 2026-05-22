@@ -397,7 +397,7 @@ The 2048-dimensional feature maps extracted by the \ac{ResNet}-50 backbone are p
 \end{enumerate}
 
 \subsection{\ac{arcface} Head}\label{sub:arcface}
-During the training phase, the 512-dimensional embeddings are passed to the \texttt{\ac{arcface}Head} module, which implements the additive angular margin penalty described in \Cref{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization.
+During the training phase, the 512-dimensional embeddings are passed to the \texttt{\ac{arcface}Head} module, which implements the additive angular margin penalty described in \Cref{sec:arcface}. The head maintains a learnable weight matrix initialized via Xavier uniform initialization~\cite{xavier2010uniforminit}.
 
 The software implementation of this module adapts the official PyTorch implementation\footnote{\url{https://github.com/deepinsight/insightface/blob/master/recognition/arcface_torch/losses.py}} provided by the \ac{arcface}~\cite{deng2022arcface} authors. To optimize memory and computational overhead, the forward pass computes the angular margin selectively. The flow proceeds as follows:
 \begin{enumerate}

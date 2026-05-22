@@ -47,7 +47,7 @@ To evaluate operational viability, performance is quantified using Top-$k$ Accur
 To validate the model, performance was measured across two evaluation sets:
 \begin{enumerate}
     \item \ii{Synthetic Validation Set}: Consists of $1,000$ digital templates isolated from the training data. These images are subjected to the stochastic augmentation pipeline (defined in \Cref{tab:augmentations}) and matched against clean digital templates. This set tracks the integrity of the embedding space during training.
-    \item \ii{Real-World Evaluation Set}: A manually curated dataset of 92 unconstrained physical photographs of \ac{MTG} cards.
+    \item \ii{Real-World Evaluation Set}: A dataset of 135 unconstrained physical photographs acquired specifically for the evaluation of this work. To ensure a highly varied distribution of colors, layouts, and artworks, the photographed cards were sampled from a fully assembled, five-color competitive deck for the \ac{MTG} \ii{Commander} format.
 \end{enumerate}
 
 The network was trained for 60 epochs across 4 GPUs using the distributed \ac{DDP} architecture detailed in \Cref{chap:sw}. The hardware processed a local batch size of 64 images per GPU, yielding an effective global batch size of 256. 
