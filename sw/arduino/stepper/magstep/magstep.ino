@@ -2,7 +2,9 @@
  * magstep.ino - Modul for rotating a stepper motor using an encoder
  *
  * Author:  knedl1k <knedl1k.dev>
- * License: MIT
+ *
+ * Portions of this code (SPI bit-banging for AS5147) are adapted 
+ * from Marginally Clever Robots, Limited; https://github.com/MarginallyClever/AS5147Test, licensed under GNU GPL v3.
  */
 
 #include <math.h>
@@ -62,6 +64,11 @@ void setup() {
     Serial.println(currentAngle);
 }
 
+/* ==========================================================================
+ * The following SPI communication routines are adapted from:
+ * https://github.com/MarginallyClever/AS5147Test
+ * Copyright (c) 2019-05-16 dan@marginallyclever.com, licensed under GNU GPL v3.
+ * ========================================================================== */
 /**
  * Reads raw data from AS5147 (SPI bit-banging)
  * @param result Pointer where the result will be saved
@@ -103,6 +110,7 @@ float extractAngleFromRawValue(uint16_t rawValue) {
     
     return deg;
 }
+/* ========================================================================== */
 
 /**
  * Main function for updating the global variable currentAngle

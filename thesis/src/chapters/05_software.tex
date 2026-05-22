@@ -22,7 +22,7 @@ Once the network is trained, it must be deployed to the \ac{SBC} (Raspberry Pi) 
 \subsection{Image Localization and Homography}
 Before the captured image is passed to the neural network, the physical card must be accurately localized. Simple bounding-box detection (e.g., standard Canny edge detection) frequently fails due to dual borders introduced by plastic card sleeves and severe specular highlights breaking the continuous edge lines.
 
-To resolve this, an OpenCV algorithm was implemented:
+To resolve this, an OpenCV algorithm was implemented, as formalized in \Cref{alg:crop_card}. The preprocessing sequence proceeds as follows:
 \begin{enumerate}
     \item \ii{Filtering}: The raw camera frame is converted to grayscale and passed through a Bilateral Filter. This preserves sharp edges while smoothing out the background texture (e.g., a wooden table).
     \item \ii{Morphological Closing}: After applying a Canny edge detector, a morphological closing operation (using a $9 \times 9$ kernel) is performed. This step is critical, as it mathematically bridges the gaps in the edge map caused by bright light reflections on the card sleeves.
@@ -32,7 +32,7 @@ To resolve this, an OpenCV algorithm was implemented:
 
 \begin{algorithm}[htbp]
     \caption{Card Localization and Homography Extraction}
-    \label{alg:smart_crop}
+    \label{alg:crop_card}
     \begin{algorithmic}[1]
     \Require Raw high-resolution image $I_{\text{raw}}$, Target Width $W$, Target Height $H$
     \Ensure Orthogonally warped card image $I_{\text{crop}}$
@@ -63,11 +63,10 @@ Running a full PyTorch environment on the Raspberry Pi introduces an unacceptabl
 
 Because cards can be placed onto the sorting platform in any orientation, the system must process the image safely. Instead of batching the original and a $180^\circ$ rotated copy into a single tensor (which spikes memory consumption and risks an Out-Of-Memory termination on the \ac{SBC}), the pipeline executes sequentially. The system extracts a 512-dimensional vector for both orientations individually, $L_2$-normalizes them, and selects the vector that yields the highest cosine similarity against the database. 
 
-The reference database itself is stored as a compressed \texttt{.npz} file containing pre-computed NumPy matrices, enabling instantaneous vector dot-products to determine the final card identity.
-
+The reference database itself is stored as a compressed \texttt{.npz} file containing pre-computed NumPy matrices, enabling instantaneous vector dot-products to determine the final card identity. The complete sequential inference logic, designed specifically for resource-constrained environments, is detailed in \Cref{alg:inference}.
 \begin{algorithm}[htbp]
     \caption{Resource-Constrained Orientation Selection and Retrieval}
-    \label{alg:double_inference}
+    \label{alg:inference}
     \begin{algorithmic}[1]
     \Require Cropped Image $I_{\text{crop}}$, ONNX Model $\mathcal{M}$, Database Matrix $\mathbf{D}$, Top-$k$
     \Ensure Best matching card identity and orientation
@@ -101,9 +100,9 @@ The physical operation of the robot relies on a master-slave software architectu
 \subsection{Closed-Loop Positional Control}
 While stepper motors are typically driven in an open-loop configuration, this system implements a closed-loop positioning algorithm to prevent mechanical drift and missed steps. 
 
-The absolute rotational position of the main arm is continuously monitored using the AS5147 magnetic encoder. To bypass hardware SPI constraints and pin conflicts, the microcontroller queries the sensor using a custom software SPI implementation (bit-banging). The raw 14-bit positional data is extracted, validated via a parity bit check and converted into an angular value ($-180^\circ$ to $180^\circ$).
+The absolute rotational position of the main arm is continuously monitored using the AS5147 magnetic encoder. To bypass hardware SPI constraints and pin conflicts, the microcontroller queries the sensor using a custom software SPI implementation (bit-banging) adapted from an existing open-source routine\footnote{The bit-banging implementation for the AS5147 encoder was adapted from \cite{mcr2019as51457}, licensed under GNU GPLv3.}. The raw 14-bit positional data is extracted, validated via a parity bit check and converted into an angular value ($-180^\circ$ to $180^\circ$).
 
-Locomotion is handled by a target-seeking loop. The Arduino pulses the TMC2209 driver, stepping the motor while continuously re-evaluating the encoder position. The movement terminates only when the absolute angular error falls within a strict defined tolerance ($\pm 0.5^\circ$) or an overshoot is detected.
+Locomotion is handled by a target-seeking loop. The Arduino pulses the TMC2209 driver, stepping the motor while continuously re-evaluating the encoder position. The movement terminates only when the absolute angular error falls within a strict defined tolerance ($\pm 0.5^\circ$) or an overshoot is detected. The complete control flow for this target-seeking mechanism is outlined in \Cref{alg:closed_loop}.
 \begin{algorithm}[htbp]
     \caption{Closed-Loop Stepper Motor Positioning}
     \label{alg:closed_loop}
