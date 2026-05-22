@@ -7,7 +7,6 @@
 
 #include <math.h>
 
-// pins
 #define MOTOR_0_DIR           (47)
 #define MOTOR_0_STEP          (46)
 #define MOTOR_0_ENABLE        (52)
@@ -34,8 +33,7 @@
 #define STEP_DELAY_US        (1000) 
 
 // motor tolerance (deadband), in degrees.
-// a small reserve so that the motor does not oscillate around the target
-#define TOLERANCE_DEG        (0.5) 
+#define TOLERANCE_DEG        (0.5)
 
 float currentAngle = 0.0;
 
@@ -58,8 +56,6 @@ void setup() {
     pinMode(MOTOR_0_DIR   , OUTPUT);
     pinMode(MOTOR_0_STEP  , OUTPUT);
     pinMode(MOTOR_0_ENABLE, OUTPUT);
-
-    digitalWrite(MOTOR_0_ENABLE, LOW); // enable the driver
 
     updateSensorData();
     Serial.print("Current angle: ");
@@ -123,10 +119,6 @@ void updateSensorData() {
  */
 float getAngleDifference(float target, float current) {
     float diff = target - current;
-
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-
     return diff;
 }
 
@@ -137,31 +129,29 @@ void moveToAngle(float targetAngle) {
     Serial.print("Turning to an angle: ");
     Serial.println(targetAngle);
 
-    // wraparound for the input
-    if (targetAngle > 180) targetAngle -= 360;
-    if (targetAngle < -180) targetAngle += 360;
+    float previousError = 0.0;
+    bool firstRun = true;
 
     for(;;){
         updateSensorData();
         float error = getAngleDifference(targetAngle, currentAngle);
 
 #ifdef DEBUG
-      Serial.print("Err: "); Serial.println(error);
+        Serial.print("Err: "); Serial.println(error);
 #endif
 
-      if(abs(error) <= TOLERANCE_DEG) // we reached the target angle
-          break;
+        if(fabs(error) <= TOLERANCE_DEG || (!firstRun && (error * previousError < 0.0))) break;
 
-      if (error > 0)
-          digitalWrite(MOTOR_0_DIR, LOW);
-      else
-          digitalWrite(MOTOR_0_DIR, HIGH);
+        firstRun = false;
+        previousError = error;
 
-      digitalWrite(MOTOR_0_STEP, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(MOTOR_0_STEP, LOW);
+        digitalWrite(MOTOR_0_DIR, (error > 0) ? HIGH : LOW);
 
-      delayMicroseconds(STEP_DELAY_US); 
+        digitalWrite(MOTOR_0_STEP, HIGH);
+        delayMicroseconds(500);
+        digitalWrite(MOTOR_0_STEP, LOW);
+
+        delayMicroseconds(STEP_DELAY_US); 
     }
   
     Serial.print("Target angle reached. Current angle: ");
@@ -170,10 +160,16 @@ void moveToAngle(float targetAngle) {
 
 void loop() {
     if (Serial.available() > 0) {
-        float target = Serial.parseFloat();
-      
-        while(Serial.available()) Serial.read();
-    
-        moveToAngle(target);
+        String input = Serial.readStringUntil('\n');
+        
+        input.trim();
+        
+        if (input.length() > 0) {
+            float target = input.toFloat();
+            
+            while(Serial.available()) Serial.read();
+            
+            moveToAngle(target);
+        }
     }
 }
