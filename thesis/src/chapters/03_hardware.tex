@@ -153,6 +153,7 @@ The high-level orchestration, including the computer vision pipeline, is hosted 
     \includegraphics[width=0.4\textwidth]{./fig/sketch/rpicamera_mount.png}
     \caption{Render of the 3D-printed RPi camera mount.}
     \label{fig:rpi_mount}
+    \vspace{-1em}
 \end{wrapfigure}
 The camera is securely mounted on a 3D-printed bracket (see \Cref{fig:rpi_mount}). This fixed mechanical positioning ensures a consistent focal length and a similar viewing angle, thereby minimizing perspective distortion and actively mitigating the \ii{domain shift} between simulation and reality, as discussed in \Cref{sec:domain_shift}. The captured image is then processed entirely on the \ac{SBC}, as illustrated in \Cref{fig:pipeline_flow}. 
 
@@ -164,21 +165,15 @@ The Arduino is physically connected to the Raspberry Pi via a standard USB inter
 Operating independently of the \acp{SBC} processing load, the Arduino is exclusively responsible for generating the precise, uninterrupted step pulses for the TMC2209 driver, managing the Pulse Width Modulation (PWM) signals for the Z-axis servo and instantaneously actuating the 24\,V solenoid valve via the dedicated MOSFET circuit to ensure drop-timing accuracy.
 
 \section{Structural Design and Assembly}\label{sec:structs}
-To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and sorting trays are manufactured from standard PLA filament. CAD renderings of these primary structural elements are presented in \Cref{fig:structural_renders}.
-\begin{figure}[htbp]
+\begin{wrapfigure}{r}{0.5\textwidth}
+    \vspace{-1em}
     \centering
-    % \subfloat[Base Chassis]{\includegraphics[width=0.3\textwidth]{./fig/cad/chassis_render.png}} \hfill
-    % \subfloat[Card Holder]{\includegraphics[width=0.3\textwidth]{./fig/cad/hopper_render.png}} \hfill
-    \caption{Renderings of the 3D-printed structural components.}
-    \label{fig:structural_renders}
-\end{figure}
-\todo{add motor mounts, card holder, arm...}
+    \includegraphics[width=0.5\textwidth, keepaspectratio]{./fig/photos/assembly.jpg}
+    \caption{A photo of the assembled prototype.}
+    \label{fig:assembly}
+\end{wrapfigure}
+To ensure the hardware platform remains accessible and easily replicable by the broader open-source community, all structural components were designed parametrically for 3D printing. The base chassis, camera mount, card hoppers and card trays are manufactured from standard PLA filament.
 
 The mechanical assembly relies on modularity and serviceability. Components are secured with standard metric machine screws (M3 and M4) in conjunction with brass heat-set threaded inserts. Melting these inserts directly into the printed plastic provides significantly superior pull-out strength and vibration resistance compared to tapping threads directly into the polymer.
 
-\begin{figure}[htbp]
-    \centering
-    % \includegraphics[width=0.6\textwidth]{./fig/photos/assembly.jpg}
-    \label{fig:assembly_process}
-\end{figure}
-\todo{add photo of complete assembly}
+See \Cref{fig:assembly} for the assembled prototype.
