@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pydantic_core.core_schema import IsInstanceSchema
 import re
 import cv2
 import numpy as np
