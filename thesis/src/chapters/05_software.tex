@@ -96,5 +96,54 @@ The reference database itself is stored as a compressed \texttt{.npz} file conta
 \end{algorithm}
 
 \section{Hardware Control Software}
-The physical operation of the robot relies on a master-slave software architecture, dividing responsibilities between asynchronous high-level logic and real-time execution.
+The physical operation of the robot relies on a master-slave software architecture, dividing responsibilities between asynchronous high-level logic and real-time execution. The Arduino Uno acts as the slave device, executing a deterministic control loop. It communicates with the Raspberry Pi (the master) via a standard USB serial interface operating at a baud rate of 57,600 bps.
 
+\subsection{Closed-Loop Positional Control}
+While stepper motors are typically driven in an open-loop configuration, this system implements a closed-loop positioning algorithm to prevent mechanical drift and missed steps. 
+
+The absolute rotational position of the main arm is continuously monitored using the AS5147 magnetic encoder. To bypass hardware SPI constraints and pin conflicts, the microcontroller queries the sensor using a custom software SPI implementation (bit-banging). The raw 14-bit positional data is extracted, validated via a parity bit check and converted into an angular value ($-180^\circ$ to $180^\circ$).
+
+Locomotion is handled by a target-seeking loop. The Arduino pulses the TMC2209 driver, stepping the motor while continuously re-evaluating the encoder position. The movement terminates only when the absolute angular error falls within a strict defined tolerance ($\pm 0.5^\circ$) or an overshoot is detected.
+\begin{algorithm}[htbp]
+    \caption{Closed-Loop Stepper Motor Positioning}
+    \label{alg:closed_loop}
+    \begin{algorithmic}[1]
+    \Require Target angle $\theta_{\text{target}}$, Tolerance $\tau$ (e.g., $0.5^\circ$)
+    \Ensure Manipulator reaches $\theta_{\text{target}}$ without mechanical oscillation
+    
+    \State $e_{\text{prev}} \gets 0$
+    \State $\text{first\_run} \gets \text{True}$
+    
+    \Loop
+        \State $\theta_{\text{current}} \gets \text{ReadEncoderData}()$ \Comment{Via bit-banged SPI}
+        \State $e \gets \theta_{\text{target}} - \theta_{\text{current}}$
+        
+        \Comment{Terminate if within tolerance or an overshoot occurs}
+        \If{$|e| \leq \tau$ \textbf{or} (\textbf{not} $\text{first\_run}$ \textbf{and} $e \cdot e_{\text{prev}} < 0$)}
+            \State \textbf{break}
+        \EndIf
+        
+        \State $\text{first\_run} \gets \text{False}$
+        \State $e_{\text{prev}} \gets e$
+        
+        \If{$e > 0$}
+            \State $\text{SetMotorDirection}(\text{FORWARD})$
+        \Else
+            \State $\text{SetMotorDirection}(\text{REVERSE})$
+        \EndIf
+        
+        \State $\text{PulseStepperDriver}()$
+        \State $\text{Wait}(\text{STEP\_DELAY})$
+    \EndLoop
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{Kinematic Sequences and Synchronization}
+To minimize the communication overhead between the Raspberry Pi and the Arduino, the low-level mechanical synchronization is abstracted into three hard-coded macro sequences. The master device issues a single ASCII character (\texttt{'A'}, \texttt{'B'} or \texttt{'C'}), prompting the Arduino to autonomously orchestrate the main stepper, the Z-axis servo and the pneumatic solenoid.
+
+These sequences correspond directly to the physical workstations illustrated in \Cref{fig:system_overview}:
+\begin{itemize}
+    \item \bb{Sequence A (Input):} The arm traverses to the input hopper. The Z-axis servo lowers the end-effector, the 24\,V solenoid valve is energized to generate a vacuum and the card is lifted.
+    \item \bb{Sequence B (Inspection):} The arm moves the card into the camera's field of view. Once the arm stabilizes, the Arduino transmits an \texttt{"R"} (Ready) character back over the serial interface. This acts as a hardware trigger for the Raspberry Pi to capture the image.
+    \item \bb{Sequence C (Output):} The arm proceeds to the output sorting tray, lowers the Z-axis and de-energizes the solenoid. This vents the pneumatic circuit to the atmosphere, safely releasing the card.
+\end{itemize}
